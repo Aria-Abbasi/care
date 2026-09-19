@@ -446,8 +446,9 @@ export default function AdminSchedulesPage() {
       )}
 
       {/* Header & Main Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div>
+      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        {/* Top row: Title on right, Refresh button on top-left (like /nurse/timeline) */}
+        <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="p-2.5 rounded-2xl bg-care-50 text-care-700">
               <CalendarClock className="w-6 h-6" />
@@ -459,37 +460,38 @@ export default function AdminSchedulesPage() {
               </p>
             </div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              fetchAdhocSuggestions();
-              setIsAdhocModalOpen(true);
-            }}
-            className="px-4 py-3 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"
-            title="مدیریت عناوین پیشنهادی اقدام موردی پرستار"
-          >
-            <ClipboardPlus className="w-4 h-4 text-indigo-600" />
-            <span className="hidden sm:inline">پیشنهادات اقدامات موردی</span>
-            <span className="sm:hidden">اقدامات موردی</span>
-          </button>
 
           <button
             onClick={fetchSchedules}
-            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200/80 px-3.5 py-3 rounded-2xl flex items-center gap-1.5 transition active:scale-95 whitespace-nowrap shadow-2xs"
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 flex-shrink-0 pt-1 transition active:scale-95"
             title="بروزرسانی تسک‌ها"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             <span>بروزرسانی</span>
           </button>
+        </div>
 
+        {/* Action buttons row */}
+        <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
           <button
             onClick={openCreateModal}
-            className="px-5 py-3 rounded-2xl bg-care-600 hover:bg-care-700 text-white font-black text-xs shadow-lg shadow-care-600/30 flex items-center gap-2 transition active:scale-95"
+            className="px-5 py-2.5 rounded-2xl bg-care-600 hover:bg-care-700 text-white font-black text-xs shadow-lg shadow-care-600/30 flex items-center gap-2 transition active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>افزودن تسک جدید</span>
+          </button>
+
+          <button
+            onClick={() => {
+              fetchAdhocSuggestions();
+              setIsAdhocModalOpen(true);
+            }}
+            className="px-4 py-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"
+            title="مدیریت عناوین پیشنهادی اقدام موردی پرستار"
+          >
+            <ClipboardPlus className="w-4 h-4 text-indigo-600" />
+            <span className="hidden sm:inline">پیشنهادات اقدامات موردی</span>
+            <span className="sm:hidden">اقدامات موردی</span>
           </button>
         </div>
       </div>
