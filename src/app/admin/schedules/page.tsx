@@ -746,7 +746,7 @@ export default function AdminSchedulesPage() {
       {/* Modern Task Modal (Add / Edit) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
-          <div className="bg-white w-full max-w-xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header (Fixed at top) */}
             <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 flex-shrink-0">
               <div className="flex items-center gap-2">
@@ -1080,10 +1080,10 @@ export default function AdminSchedulesPage() {
       {/* Ad-Hoc Suggestions Management Modal */}
       {isAdhocModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
-          <div className="bg-white w-full max-w-lg max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-indigo-50/60 flex-shrink-0">
-              <div className="flex items-center gap-2">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-indigo-50/70 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-indigo-100 text-indigo-800">
                   <ClipboardPlus className="w-5 h-5" />
                 </div>
@@ -1105,74 +1105,78 @@ export default function AdminSchedulesPage() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-5">
               {/* Add New Suggestion Form */}
-              <form onSubmit={handleAddSuggestion} className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <span className="text-xs font-black text-slate-800">افزودن عنوان جدید:</span>
-                <div className="flex gap-2">
+              <form onSubmit={handleAddSuggestion} className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-2xs">
+                <span className="text-xs font-black text-slate-800">افزودن عنوان جدید به پیشنهادات:</span>
+                <div className="flex flex-col sm:flex-row gap-2.5">
                   <input
                     type="text"
                     required
-                    placeholder="مثلاً: ماساژ گردن و شانه، پانسمان آرنج..."
+                    placeholder="عنوان اقدام (مثلاً: ماساژ گردن و شانه، پانسمان آرنج...)"
                     value={newSuggestionTitle}
                     onChange={(e) => setNewSuggestionTitle(e.target.value)}
-                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-500"
+                    className="w-full sm:flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs"
                   />
-                  <select
-                    value={newSuggestionCategory}
-                    onChange={(e) => setNewSuggestionCategory(e.target.value)}
-                    className="px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="مراقبتی">مراقبتی</option>
-                    <option value="بهداشتی">بهداشتی</option>
-                    <option value="دارویی">دارویی</option>
-                    <option value="پایش علائم">پایش علائم</option>
-                    <option value="فوریت">فوریت</option>
-                  </select>
-                  <button
-                    type="submit"
-                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black transition active:scale-95 whitespace-nowrap"
-                  >
-                    + افزودن
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={newSuggestionCategory}
+                      onChange={(e) => setNewSuggestionCategory(e.target.value)}
+                      className="flex-1 sm:w-32 px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500 shadow-2xs"
+                    >
+                      <option value="مراقبتی">مراقبتی</option>
+                      <option value="بهداشتی">بهداشتی</option>
+                      <option value="دارویی">دارویی</option>
+                      <option value="پایش علائم">پایش علائم</option>
+                      <option value="فوریت">فوریت</option>
+                    </select>
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black transition active:scale-95 whitespace-nowrap shadow-xs flex items-center justify-center gap-1"
+                    >
+                      + افزودن
+                    </button>
+                  </div>
                 </div>
               </form>
 
               {/* Current Suggestions List */}
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-black text-slate-700">عناوین فعال فعلی:</span>
-                  <span className="text-[11px] font-bold text-slate-500">
+                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
                     {toPersianDigits(adhocSuggestions.length)} مورد
                   </span>
                 </div>
 
                 {loadingSuggestions ? (
-                  <div className="p-6 text-center text-slate-400">
-                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
-                    <span className="text-xs">در حال بارگذاری...</span>
+                  <div className="p-8 text-center text-slate-400">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                    <span className="text-xs font-bold">در حال بارگذاری...</span>
                   </div>
                 ) : adhocSuggestions.length === 0 ? (
-                  <div className="p-6 text-center text-slate-400 text-xs font-bold">
+                  <div className="p-8 text-center text-slate-400 text-xs font-bold bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                     هیچ عنوان پیشنهادی ثبت نشده است.
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto overflow-x-hidden p-1">
                     {adhocSuggestions.map((sug) => (
                       <div
                         key={sug.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-950 border border-indigo-200 text-xs font-bold shadow-xs group"
+                        className="flex items-center justify-between gap-2 p-2.5 px-3.5 rounded-2xl bg-slate-50/90 hover:bg-indigo-50/70 text-slate-800 border border-slate-200/90 text-xs font-bold transition shadow-2xs group"
                       >
-                        <span>{sug.title}</span>
-                        {sug.category && (
-                          <span className="text-[9px] text-indigo-600 bg-indigo-100/60 px-1 py-0.2 rounded font-normal">
-                            {sug.category}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="truncate">{sug.title}</span>
+                          {sug.category && (
+                            <span className="text-[10px] text-indigo-700 bg-indigo-100/70 px-1.5 py-0.5 rounded-md font-medium flex-shrink-0">
+                              {sug.category}
+                            </span>
+                          )}
+                        </div>
                         <button
                           type="button"
                           onClick={() => handleDeleteSuggestion(sug.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-100/70 rounded-lg transition flex-shrink-0"
                           title="حذف این پیشنهاد"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -1189,7 +1193,7 @@ export default function AdminSchedulesPage() {
               <button
                 type="button"
                 onClick={() => setIsAdhocModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition"
+                className="px-6 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition active:scale-95"
               >
                 بستن
               </button>
