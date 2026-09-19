@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const { payload } = await jwtVerify(JWT_SECRET, token);
+    const { payload } = await jwtVerify(token, JWT_SECRET);
     const role = payload.role as string;
 
     // Root path redirects to appropriate role home
