@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Pill, UtensilsCrossed, Users,
-  FileText, Smartphone, LogOut, HeartPulse, CalendarClock
+  FileText, Stethoscope, LogOut, HeartPulse, CalendarClock
 } from "lucide-react";
 
 export default function AdminNav() {
@@ -70,10 +70,10 @@ export default function AdminNav() {
           <div className="flex items-center gap-2">
             <Link
               href="/nurse/timeline"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-black transition"
+              className="p-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-200 transition"
+              title="نمای پای تخت بیمار (تایم‌لاین پرستار)"
             >
-              <Smartphone className="w-4 h-4 text-emerald-600" />
-              <span className="hidden sm:inline">نمای پای تخت بیمار</span>
+              <Stethoscope className="w-4 h-4" />
             </Link>
 
             <button

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { HeartPulse, LogOut, Clock, Calendar, ShieldCheck, User } from "lucide-react";
+import { HeartPulse, LogOut, Clock, Calendar, ShieldCheck } from "lucide-react";
 import { formatJalaliLong, toPersianDigits } from "@/lib/jalali";
 
 interface NurseHeaderProps {
@@ -72,13 +72,8 @@ export default function NurseHeader({ user }: NurseHeaderProps) {
           </div>
         </div>
 
-        {/* User Badge & Actions */}
+        {/* Header Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">
-            <User className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="hidden xs:inline">{user?.fullName || "پرستار"}</span>
-          </div>
-
           {user?.role === "ADMIN" && (
             <button
               onClick={() => router.push("/admin/dashboard")}
