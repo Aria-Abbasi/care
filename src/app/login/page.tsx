@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { HeartPulse, ShieldCheck, UserCheck, AlertCircle, ArrowLeft } from "lucide-react";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from");
 
@@ -32,12 +31,13 @@ function LoginForm() {
         return;
       }
 
+      // Full navigation to ensure cookies are fresh
       if (from) {
-        router.push(from);
+        window.location.href = from;
       } else if (data.user.role === "ADMIN") {
-        router.push("/admin/dashboard");
+        window.location.href = "/admin/dashboard";
       } else {
-        router.push("/nurse/timeline");
+        window.location.href = "/nurse/timeline";
       }
     } catch {
       setError("خطا در برقراری ارتباط با سرور");

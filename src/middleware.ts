@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "super-secret-care-key-change-in-production-2026"
+  process.env.JWT_SECRET || "prod-super-secret-care-key-2026-yazdani"
 );
 
 export async function middleware(request: NextRequest) {
