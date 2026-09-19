@@ -1,0 +1,141 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String         @id @default(cuid())
+  username     String         @unique
+  passwordHash String
+  fullName     String
+  role         String         // ADMIN, NURSE
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  taskLogs      TaskLog[]
+  vitalLogs     VitalLog[]
+  clinicalNotes ClinicalNote[]
+}
+
+model Medication {
+  id                String     @id @default(cuid())
+  nameFa            String
+  nameEn            String?
+  dosage            String?
+  unit              String?
+  boxNumber         String?
+  instructions      String?
+  doctorName        String?
+  stockCount        Int        @default(100)
+  lowStockThreshold Int        @default(15)
+  timeConstraints   String?
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  schedules Schedule[]
+}
+
+model Schedule {
+  id           String      @id @default(cuid())
+  itemType     String      // medication, routine_task, meal, dvt_care
+  title        String
+  targetTime   String      // HH:mm (e.g. 07:00)
+  category     String      // medication, meal, dvt_care, routine
+  daysOfWeek   String?     @default("ALL") // ALL or comma-separated days
+  mealRelation String?     // FASTING, BEFORE_MEAL, WITH_MEAL, AFTER_MEAL, BEDTIME
+  rulesJson    String?
+  medicationId String?
+  medication   Medication? @relation(fields: [medicationId], references: [id], onDelete: SetNull)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  taskLogs TaskLog[]
+}
+
+model TaskLog {
+  id          String    @id @default(cuid())
+  scheduleId  String?
+  schedule    Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  taskTitle   String
+  nurseId     String
+  nurse       User      @relation(fields: [nurseId], references: [id])
+  completedAt DateTime  @default(now())
+  status      String    @default("DONE") // DONE, SKIPPED, REFUSED
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([completedAt])
+  @@index([nurseId])
+}
+
+model VitalLog {
+  id            String   @id @default(cuid())
+  nurseId       String
+  nurse         User     @relation(fields: [nurseId], references: [id])
+  recordedAt    DateTime @default(now())
+  type          String   // blood_sugar, blood_pressure, water_intake, urine_output, bowel_movement, dvt_timer, dvt_measurement, laxative, weight, mobility, food_log
+  valueNum      Float?
+  valueText     String?
+  systolic      Int?
+  diastolic     Int?
+  mealTag       String?  // fasting, 2h_breakfast, before_lunch, 2h_lunch, before_dinner, 2h_dinner, random
+  bowelGrade    String?  // partial, 1_plus, 2_plus, 3_plus
+  laxativeGiven String?
+  extraData     String?
+  createdAt     DateTime @default(now())
+
+  @@index([recordedAt])
+  @@index([type])
+  @@index([nurseId])
+}
+
+model ClinicalNote {
+  id        String   @id @default(cuid())
+  nurseId   String
+  nurse     User     @relation(fields: [nurseId], references: [id])
+  createdAt DateTime @default(now())
+  category  String   // dvt_leg, nails, skin_wound, incident, pain, general
+  noteText  String
+  photoUrl  String?
+
+  @@index([createdAt])
+  @@index([category])
+}
+
+model DietRecipe {
+  id           String   @id @default(cuid())
+  mealType     String   // LUNCH, DINNER, SNACK
+  title        String
+  description  String?
+  instructions String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model SmoothieRecipe {
+  id           String   @id @default(cuid())
+  title        String
+  ingredients  String
+  instructions String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PatientProfile {
+  id               String   @id @default(cuid())
+  fullName         String   @default("آقای جواد یزدانی")
+  age              Int?     @default(78)
+  bloodType        String?  @default("A+")
+  notes            String?  @default("سابقه DVT پای راست، دیابت تحت کنترل، مصرف رقیق‌کننده خون (آپیکسابان)")
+  emergencyContact String?  @default("۰۹۱۲۰۰۰۰۰۰۰")
+  updatedAt        DateTime @updatedAt
+}
