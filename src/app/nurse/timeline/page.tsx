@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   CheckCircle2, Clock, Pill, Utensils, Shield, Check,
-  AlertCircle, Droplets, Activity, Heart, RefreshCw, ChevronDown, ListFilter
+  AlertCircle, Droplets, Activity, Heart, RefreshCw, ChevronDown, ListFilter, Sparkles
 } from "lucide-react";
 import { toPersianDigits, formatJalaliTime } from "@/lib/jalali";
 import QuickActionFAB from "@/components/nurse/QuickActionFAB";
@@ -27,6 +27,15 @@ interface ScheduleItem {
   status: string;
 }
 
+interface AdHocTaskItem {
+  id: string;
+  title: string;
+  completedAt: string;
+  completedBy: string;
+  status: string;
+  notes?: string | null;
+}
+
 interface ShiftStats {
   waterToday: number;
   urineToday: number;
@@ -43,6 +52,7 @@ interface ShiftStats {
 
 export default function NurseTimelinePage() {
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [adhocTasks, setAdhocTasks] = useState<AdHocTaskItem[]>([]);
   const [stats, setStats] = useState<ShiftStats>({ waterToday: 0, urineToday: 0 });
   const [activeFilter, setActiveFilter] = useState<"all" | "medication" | "meal" | "dvt_care">("all");
   const [loading, setLoading] = useState(true);
@@ -54,6 +64,7 @@ export default function NurseTimelinePage() {
       if (res.ok) {
         const data = await res.json();
         setSchedules(data.schedules || []);
+        setAdhocTasks(data.adhocTasks || []);
         if (data.stats) setStats(data.stats);
       }
     } catch (err) {
@@ -221,6 +232,47 @@ export default function NurseTimelinePage() {
           );
         })}
       </div>
+
+      {/* Ad-Hoc Actions Section (if any logged today) */}
+      {adhocTasks.length > 0 && (
+        <div className="bg-indigo-50/80 border border-indigo-200/90 rounded-3xl p-4 shadow-sm space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-indigo-600" />
+              اقدامات موردی و پیش‌بینی‌نشده امروز ({toPersianDigits(adhocTasks.length)})
+            </span>
+            <span className="text-[10px] bg-indigo-200/70 text-indigo-900 font-bold px-2 py-0.5 rounded-full">
+              ثبت‌شده
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {adhocTasks.map((adhoc) => (
+              <div
+                key={adhoc.id}
+                className="bg-white p-3.5 rounded-2xl border border-indigo-100 shadow-xs flex items-start justify-between gap-2.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-black text-xs text-slate-900">{adhoc.title}</span>
+                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                      {adhoc.completedBy}
+                    </span>
+                  </div>
+                  {adhoc.notes && (
+                    <p className="mt-1.5 text-xs text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-200/60 leading-relaxed">
+                      {adhoc.notes}
+                    </p>
+                  )}
+                </div>
+                <div className="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 font-mono text-[11px] font-black flex-shrink-0">
+                  {formatJalaliTime(adhoc.completedAt)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Chronological Timeline List */}
       <div className="space-y-3">

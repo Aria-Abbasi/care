@@ -22,9 +22,15 @@ export default function NurseHeader({ user }: NurseHeaderProps) {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
+      // Explicitly format in Tehran timezone (UTC+3:30)
       setTimeStr(
         toPersianDigits(
-          now.toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+          now.toLocaleTimeString("fa-IR", {
+            timeZone: "Asia/Tehran",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })
         )
       );
       setDateStr(formatJalaliLong(now));
@@ -56,10 +62,11 @@ export default function NurseHeader({ user }: NurseHeaderProps) {
                 <Calendar className="w-3.5 h-3.5 text-emerald-600" />
                 {dateStr || "امروز"}
               </span>
-              <span className="hidden sm:inline-block text-slate-300">•</span>
-              <span className="hidden sm:flex items-center gap-1 font-bold text-slate-700">
+              <span className="text-slate-300">•</span>
+              <span className="flex items-center gap-1 font-bold text-slate-700">
                 <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                {timeStr}
+                <span>{timeStr}</span>
+                <span className="text-[10px] text-slate-400 font-normal">(تهران)</span>
               </span>
             </div>
           </div>

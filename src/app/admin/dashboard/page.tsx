@@ -197,7 +197,9 @@ export default function AdminDashboardPage() {
         {/* KPI 2: Fluid Balance */}
         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500">بالانس مایعات (ورودی / ادرار)</span>
+            <span className="text-xs font-bold text-slate-500">
+              بالانس مایعات ({range === "today" ? "امروز" : range === "7d" ? "۷ روزه" : range === "30d" ? "۳۰ روزه" : "کل سوابق"})
+            </span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-black text-sky-700 font-mono">
                 {data ? toPersianDigits(data.kpi.todayIntake) : "..."}
@@ -210,7 +212,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">اختلاف روز:</span>
+            <span className="text-slate-500">اختلاف در این دوره:</span>
             <span className="font-bold text-slate-800">
               {data ? toPersianDigits(data.kpi.todayIntake - data.kpi.todayOutput) : "..."} cc
             </span>
@@ -220,7 +222,9 @@ export default function AdminDashboardPage() {
         {/* KPI 3: Blood Glucose Trends */}
         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500">میانگین قند خون</span>
+            <span className="text-xs font-bold text-slate-500">
+              میانگین قند خون ({range === "today" ? "امروز" : range === "7d" ? "۷ روزه" : range === "30d" ? "۳۰ روزه" : "کل سوابق"})
+            </span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-black text-slate-900 font-mono">
                 {data ? toPersianDigits(data.kpi.glucoseAvg) : "..."}
@@ -239,7 +243,9 @@ export default function AdminDashboardPage() {
         {/* KPI 4: DVT Leg Elevation */}
         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500">مجموع بالا بردن پای راست (DVT)</span>
+            <span className="text-xs font-bold text-slate-500">
+              مجموع بالا بردن پای راست ({range === "today" ? "امروز" : range === "7d" ? "۷ روزه" : range === "30d" ? "۳۰ روزه" : "کل سوابق"})
+            </span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-black text-teal-700 font-mono">
                 {data ? toPersianDigits(Math.round(data.kpi.totalDvtMinutes / 60)) : "..."}

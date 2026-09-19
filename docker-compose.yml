@@ -11,6 +11,7 @@ services:
       - NODE_ENV=production
       - PORT=8080
       - HOSTNAME=0.0.0.0
+      - TZ=Asia/Tehran
       - DATABASE_URL=file:/app/data/care.db
       - JWT_SECRET=prod-super-secret-care-key-2026-yazdani
     volumes:

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { getTehranTodayStart, getTehranTodayEnd } from "@/lib/jalali";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,10 +10,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Today range (UTC)
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const startOfDay = getTehranTodayStart();
+    const endOfDay = getTehranTodayEnd();
 
     // Fetch active schedules
     const schedules = await prisma.schedule.findMany({
@@ -30,7 +29,7 @@ export async function GET(request: NextRequest) {
       orderBy: { targetTime: "asc" },
     });
 
-    // Fetch today's task logs
+    // Fetch today's task logs (both scheduled and ad-hoc)
     const taskLogs = await prisma.taskLog.findMany({
       where: {
         completedAt: {
@@ -46,7 +45,7 @@ export async function GET(request: NextRequest) {
       orderBy: { completedAt: "asc" },
     });
 
-    // Map schedule with completion status
+    // Map scheduled items
     const mappedSchedules = schedules.map((s) => {
       const log = taskLogs.find((tl) => tl.scheduleId === s.id);
       return {
@@ -64,7 +63,19 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Fetch today's summary metrics
+    // Ad-hoc tasks logged today (tasks registered via ad-hoc quick action)
+    const adhocTasks = taskLogs
+      .filter((tl) => tl.taskTitle.startsWith("[موردی]"))
+      .map((tl) => ({
+        id: tl.id,
+        title: tl.taskTitle.replace("[موردی] ", ""),
+        completedAt: tl.completedAt,
+        completedBy: tl.nurse?.fullName || "پرستار",
+        status: tl.status,
+        notes: tl.notes,
+      }));
+
+    // Today's summary vitals metrics
     const todayVitals = await prisma.vitalLog.findMany({
       where: {
         recordedAt: {
@@ -88,22 +99,23 @@ export async function GET(request: NextRequest) {
       .reduce((sum, v) => sum + (v.valueNum || 0), 0);
 
     const lastSugar = await prisma.vitalLog.findFirst({
-      where: { type: "blood_sugar", valueNum: { not: null } },
+      where: { type: "blood_sugar", valueNum: { not: null }, recordedAt: { lte: new Date() } },
       orderBy: { recordedAt: "desc" },
       select: { valueNum: true, recordedAt: true, mealTag: true },
     });
 
     const lastBowel = await prisma.vitalLog.findFirst({
-      where: { type: "bowel_movement" },
+      where: { type: "bowel_movement", recordedAt: { lte: new Date() } },
       orderBy: { recordedAt: "desc" },
       select: { recordedAt: true, bowelGrade: true, laxativeGiven: true },
     });
 
     return NextResponse.json({
       schedules: mappedSchedules,
+      adhocTasks,
       stats: {
-        waterToday,
-        urineToday,
+        waterToday: Math.round(waterToday),
+        urineToday: Math.round(urineToday),
         lastSugar,
         lastBowel,
       },

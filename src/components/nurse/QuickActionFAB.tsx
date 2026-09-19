@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Plus, X, Droplets, Activity, Heart, Stethoscope,
-  Smile, Camera, Timer, Check, AlertTriangle, Play, Square, Sparkles
+  Smile, Camera, Timer, Check, AlertTriangle, Play, Square, Sparkles, ClipboardPlus, FileText
 } from "lucide-react";
 import { toPersianDigits } from "@/lib/jalali";
 
@@ -20,7 +20,8 @@ type ModalType =
   | "BP"
   | "BOWEL"
   | "DVT"
-  | "NOTE";
+  | "NOTE"
+  | "ADHOC";
 
 export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
@@ -45,6 +46,11 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Ad-hoc task state
+  const [adhocTitle, setAdhocTitle] = useState("");
+  const [adhocCategory, setAdhocCategory] = useState("مراقبتی");
+  const [adhocNotes, setAdhocNotes] = useState("");
 
   // Load DVT timer from localStorage
   useEffect(() => {
@@ -87,6 +93,8 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
     setPhotoFile(null);
     setPhotoPreview(null);
     setNoteText("");
+    setAdhocTitle("");
+    setAdhocNotes("");
     setActiveModal(null);
   }
 
@@ -304,6 +312,35 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
     }
   }
 
+  // Submit Ad-Hoc Task
+  async function submitAdhocTask() {
+    if (!adhocTitle.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/nurse/tasks/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskTitle: adhocTitle.trim(),
+          isAdHoc: true,
+          category: adhocCategory,
+          notes: adhocNotes.trim() || undefined,
+          status: "DONE",
+        }),
+      });
+
+      if (res.ok) {
+        showToast(`اقدام موردی ثبت شد: ${adhocTitle}`);
+        resetForm();
+        onDataLogged?.();
+      }
+    } catch {
+      showToast("خطا در ثبت اقدام موردی");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const formatTimer = (sec: number) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -322,7 +359,7 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
         </div>
       )}
 
-      {/* DVT Sticky Status Banner (Visible when DVT stopwatch is running) */}
+      {/* DVT Sticky Status Banner */}
       {dvtActive && (
         <div className="fixed bottom-24 left-4 right-4 z-30 max-w-lg mx-auto bg-amber-500 text-slate-950 font-black px-4 py-3 rounded-2xl shadow-xl flex items-center justify-between border-2 border-amber-300 animate-pulse">
           <div className="flex items-center gap-2">
@@ -363,8 +400,8 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-slate-900">ثبت سریع پای تخت (بدون تایپ)</h2>
-                  <p className="text-[11px] text-slate-500">انتخاب گزینه جهت ثبت در ۲ ثانیه</p>
+                  <h2 className="text-base font-black text-slate-900">ثبت سریع پای تخت بیمار</h2>
+                  <p className="text-[11px] text-slate-500">انتخاب اقدام جهت ثبت فوری</p>
                 </div>
               </div>
               <button
@@ -377,6 +414,25 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
 
             {/* Grid of Action Buttons */}
             <div className="p-4 grid grid-cols-2 gap-3 overflow-y-auto">
+              {/* NEW: Ad-Hoc Task Button */}
+              <button
+                onClick={() => setActiveModal("ADHOC")}
+                className="col-span-2 flex items-center gap-3 p-3.5 rounded-2xl border-2 border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-right transition active:scale-95 shadow-sm"
+              >
+                <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-600/20">
+                  <ClipboardPlus className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-indigo-950 flex items-center gap-1.5">
+                    <span>ثبت اقدام پیش‌بینی‌نشده / موردی</span>
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-200 text-indigo-900 text-[10px] font-bold">فوری</span>
+                  </div>
+                  <div className="text-[11px] text-indigo-800 font-medium">
+                    کاری خارج از روتین زمان‌بندی‌شده که هم‌اکنون انجام شد
+                  </div>
+                </div>
+              </button>
+
               {/* 1. Water Intake */}
               <button
                 onClick={() => setActiveModal("WATER")}
@@ -492,6 +548,111 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
                 </div>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Ad-Hoc Task */}
+      {activeModal === "ADHOC" && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2">
+                <ClipboardPlus className="w-6 h-6 text-indigo-600" />
+                <div>
+                  <h3 className="font-black text-base text-slate-900">ثبت اقدام پیش‌بینی‌نشده / موردی</h3>
+                  <p className="text-[11px] text-slate-500">اقدامی که در برنامه روتین نبود و انجام شد</p>
+                </div>
+              </div>
+              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Fast chip presets */}
+            <p className="text-xs font-bold text-slate-600 mb-2">انتخاب سریع عنوان اقدام:</p>
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {[
+                "تعویض پانسمان موضعی",
+                "پانسمان زخم پای راست (DVT)",
+                "ماساژ اضافه و چرب کردن ساق پا",
+                "تعویض ملحفه و نظافت فوری",
+                "کنترل دمای بدن و تب",
+                "تنظیم سرم / آنژیوکت",
+                "کمک به جابجایی / ویلچر",
+                "دادن میان‌وعده اضافه",
+              ].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setAdhocTitle(preset)}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                    adhocTitle === preset
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "bg-indigo-50/70 text-indigo-900 hover:bg-indigo-100"
+                  }`}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Title Input */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                یا عنوان دلخواه اقدام انجام‌شده:
+              </label>
+              <input
+                type="text"
+                value={adhocTitle}
+                onChange={(e) => setAdhocTitle(e.target.value)}
+                placeholder="مثلاً تعویض سوند، چک نبض، یا..."
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+
+            {/* Category Chips */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-700 mb-1">دسته‌بندی:</label>
+              <div className="flex flex-wrap gap-1.5">
+                {["مراقبتی", "بهداشتی", "دارویی", "پایش علائم", "فوریت"].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setAdhocCategory(cat)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      adhocCategory === cat
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes / Reason */}
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                توضیحات یا علت انجام اقدام (اختیاری):
+              </label>
+              <textarea
+                rows={3}
+                value={adhocNotes}
+                onChange={(e) => setAdhocNotes(e.target.value)}
+                placeholder="علت نیاز به این اقدام، واکنش بیمار یا شرایط خاص..."
+                className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+
+            <button
+              disabled={submitting || !adhocTitle.trim()}
+              onClick={submitAdhocTask}
+              className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black shadow-lg shadow-indigo-600/30 active:scale-95 transition"
+            >
+              {submitting ? "در حال ثبت..." : "تأیید و ثبت اقدام موردی"}
+            </button>
           </div>
         </div>
       )}

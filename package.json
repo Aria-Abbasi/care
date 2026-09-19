@@ -20,6 +20,7 @@
     "jalali-moment": "^3.3.11",
     "jose": "^6.0.8",
     "lucide-react": "^1.16.0",
+    "moment-timezone": "^0.6.4",
     "next": "^15.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

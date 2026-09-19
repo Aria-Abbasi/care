@@ -1,4 +1,12 @@
 import moment from "jalali-moment";
+import "moment-timezone";
+
+export const TEHRAN_TZ = "Asia/Tehran";
+
+// Helper returning a moment instance forced to Asia/Tehran timezone
+export function tehranMoment(date?: string | Date | number | null): any {
+  return (date ? (moment as any)(date) : (moment as any)()).tz(TEHRAN_TZ);
+}
 
 // Persian digits converter
 export function toPersianDigits(n: number | string | null | undefined): string {
@@ -16,79 +24,95 @@ export function toEnglishDigits(str: string | null | undefined): string {
     .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632));
 }
 
-// Format date to Jalali YYYY/MM/DD
-export function formatJalaliDate(date: string | Date | null | undefined): string {
+// Format date to Jalali YYYY/MM/DD in Tehran timezone
+export function formatJalaliDate(date: string | Date | number | null | undefined): string {
   if (!date) return "";
   try {
-    const m = moment(date).locale("fa");
+    const m = tehranMoment(date).locale("fa");
     return toPersianDigits(m.format("jYYYY/jMM/jDD"));
   } catch {
     return "";
   }
 }
 
-// Format time HH:mm
-export function formatJalaliTime(date: string | Date | null | undefined): string {
+// Format time HH:mm in Tehran timezone
+export function formatJalaliTime(date: string | Date | number | null | undefined): string {
   if (!date) return "";
   try {
-    const m = moment(date).locale("fa");
+    const m = tehranMoment(date).locale("fa");
     return toPersianDigits(m.format("HH:mm"));
   } catch {
     return "";
   }
 }
 
-// Format datetime YYYY/MM/DD HH:mm
-export function formatJalaliDateTime(date: string | Date | null | undefined): string {
+// Format datetime YYYY/MM/DD HH:mm in Tehran timezone
+export function formatJalaliDateTime(date: string | Date | number | null | undefined): string {
   if (!date) return "";
   try {
-    const m = moment(date).locale("fa");
+    const m = tehranMoment(date).locale("fa");
     return toPersianDigits(m.format("jYYYY/jMM/jDD HH:mm"));
   } catch {
     return "";
   }
 }
 
-// Format date with day name: شنبه ۲۱ مهر
-export function formatJalaliLong(date: string | Date | null | undefined): string {
+// Format date with day name in Tehran timezone: شنبه ۲۸ شهریور ۱۴۰۵
+export function formatJalaliLong(date: string | Date | number | null | undefined): string {
   if (!date) return "";
   try {
-    const m = moment(date).locale("fa");
+    const m = tehranMoment(date).locale("fa");
     return toPersianDigits(m.format("dddd jD jMMMM jYYYY"));
   } catch {
     return "";
   }
 }
 
-// Relative time from now (e.g., ۳ ساعت پیش)
-export function formatJalaliFromNow(date: string | Date | null | undefined): string {
+// Relative time from now (e.g., ۳ ساعت پیش) in Tehran
+export function formatJalaliFromNow(date: string | Date | number | null | undefined): string {
   if (!date) return "";
   try {
-    const m = moment(date).locale("fa");
+    const m = tehranMoment(date).locale("fa");
     return toPersianDigits(m.fromNow());
   } catch {
     return "";
   }
 }
 
-// Persian day name
-export function getPersianDayName(date: string | Date | null | undefined): string {
+// Persian day name in Tehran timezone
+export function getPersianDayName(date: string | Date | number | null | undefined): string {
   if (!date) return "";
   try {
-    const m = moment(date).locale("fa");
+    const m = tehranMoment(date).locale("fa");
     return m.format("dddd");
   } catch {
     return "";
   }
 }
 
-// Today in Jalali YYYY/MM/DD
+// Today in Jalali YYYY/MM/DD in Tehran timezone
 export function getJalaliToday(): string {
-  return moment().locale("fa").format("jYYYY/jMM/jDD");
+  return tehranMoment().locale("fa").format("jYYYY/jMM/jDD");
 }
 
-// Convert Jalali string (YYYY/MM/DD) to JS Date (start of day UTC or local)
-export function jalaliToDate(jalaliStr: string): Date {
-  const eng = toEnglishDigits(jalaliStr).replace(/-/g, "/");
-  return moment(eng, "jYYYY/jMM/jDD").toDate();
+// Get current Date in Tehran timezone
+export function getTehranNow(): Date {
+  return new Date();
+}
+
+// Get start of today in Tehran timezone (as UTC Date object)
+export function getTehranTodayStart(): Date {
+  const m = tehranMoment().startOf("day");
+  return m.toDate();
+}
+
+// Get end of today in Tehran timezone (as UTC Date object)
+export function getTehranTodayEnd(): Date {
+  const m = tehranMoment().endOf("day");
+  return m.toDate();
+}
+
+// Get Tehran current time in "HH:mm" format (e.g. "20:48")
+export function getTehranCurrentTime(): string {
+  return tehranMoment().format("HH:mm");
 }

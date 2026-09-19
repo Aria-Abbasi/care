@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import moment from "jalali-moment";
+import { getTehranTodayStart, formatJalaliDate, formatJalaliTime, toPersianDigits, TEHRAN_TZ, tehranMoment } from "@/lib/jalali";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,27 +13,25 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const range = searchParams.get("range") || "7d"; // today, 7d, 30d, all
 
-    // Calculate date filter
     const now = new Date();
-    let startDate = new Date();
+    let startDate: Date;
 
     if (range === "today") {
-      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      startDate = getTehranTodayStart();
     } else if (range === "7d") {
       startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     } else if (range === "30d") {
       startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    } else if (range === "all") {
-      // Historical data in e.xlsx is from 2023-2024
-      startDate = new Date("2023-01-01T00:00:00Z");
     } else {
-      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      // all time
+      startDate = new Date("2020-01-01T00:00:00Z");
     }
 
     // 1. KPI: Last Bowel Movement & Hours Elapsed
     const lastBowel = await prisma.vitalLog.findFirst({
       where: {
         type: "bowel_movement",
+        recordedAt: { lte: now },
       },
       orderBy: { recordedAt: "desc" },
       select: { recordedAt: true, bowelGrade: true, laxativeGiven: true, valueText: true },
@@ -41,60 +39,82 @@ export async function GET(request: NextRequest) {
 
     let hoursSinceLastBowel = 0;
     if (lastBowel) {
-      hoursSinceLastBowel = Math.round((now.getTime() - new Date(lastBowel.recordedAt).getTime()) / (1000 * 60 * 60));
+      hoursSinceLastBowel = Math.max(
+        0,
+        Math.round((now.getTime() - new Date(lastBowel.recordedAt).getTime()) / (1000 * 60 * 60))
+      );
     }
 
-    // 2. Vitals in range
+    // 2. Vitals in selected timeframe
     const vitals = await prisma.vitalLog.findMany({
       where: {
-        recordedAt: { gte: startDate },
+        recordedAt: {
+          gte: startDate,
+          lte: now,
+        },
       },
       orderBy: { recordedAt: "asc" },
     });
 
-    // If querying 7d or 30d returns few records (because today is 2026 and legacy records are from 2024),
-    // fallback or include the latest available active period so charts show rich data!
-    let chartVitals = vitals;
-    if (chartVitals.length < 5 && range !== "today") {
-      // Fetch latest 30 days of historical records
-      const latestVital = await prisma.vitalLog.findFirst({
-        orderBy: { recordedAt: "desc" },
+    // 3. Fluid Balance Chart
+    let fluidBalanceChart: Array<{ date: string; jalaliDate: string; intake: number; output: number }> = [];
+
+    if (range === "today") {
+      // Group by 2-hour intervals for today
+      const hourlyMap: { [slot: string]: { date: string; jalaliDate: string; intake: number; output: number } } = {};
+      const slots = ["06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"];
+      slots.forEach((s) => {
+        hourlyMap[s] = { date: s, jalaliDate: toPersianDigits(s), intake: 0, output: 0 };
       });
-      if (latestVital) {
-        const histEnd = new Date(latestVital.recordedAt);
-        const days = range === "30d" ? 30 : 14;
-        const histStart = new Date(histEnd.getTime() - days * 24 * 60 * 60 * 1000);
-        chartVitals = await prisma.vitalLog.findMany({
-          where: {
-            recordedAt: { gte: histStart, lte: histEnd },
-          },
-          orderBy: { recordedAt: "asc" },
-        });
+
+      vitals.forEach((v) => {
+        const timeStr = tehranMoment(v.recordedAt).format("HH:mm");
+        const hour = parseInt(timeStr.slice(0, 2), 10);
+        let nearestSlot = "06:00";
+        if (hour >= 21) nearestSlot = "22:00";
+        else if (hour >= 19) nearestSlot = "20:00";
+        else if (hour >= 17) nearestSlot = "18:00";
+        else if (hour >= 15) nearestSlot = "16:00";
+        else if (hour >= 13) nearestSlot = "14:00";
+        else if (hour >= 11) nearestSlot = "12:00";
+        else if (hour >= 9) nearestSlot = "10:00";
+        else if (hour >= 7) nearestSlot = "08:00";
+
+        if (v.type === "water_intake" && v.valueNum) {
+          hourlyMap[nearestSlot].intake += Math.round(v.valueNum);
+        } else if (v.type === "urine_output" && v.valueNum) {
+          hourlyMap[nearestSlot].output += Math.round(v.valueNum);
+        }
+      });
+      fluidBalanceChart = Object.values(hourlyMap);
+    } else {
+      // Group by day for 7d, 30d, all
+      const dayMap: { [day: string]: { date: string; jalaliDate: string; intake: number; output: number } } = {};
+      vitals.forEach((v) => {
+        const dayKey = tehranMoment(v.recordedAt).format("YYYY-MM-DD");
+        if (!dayMap[dayKey]) {
+          const jDate = tehranMoment(v.recordedAt).locale("fa").format("jMM/jDD");
+          dayMap[dayKey] = { date: dayKey, jalaliDate: toPersianDigits(jDate), intake: 0, output: 0 };
+        }
+        if (v.type === "water_intake" && v.valueNum) {
+          dayMap[dayKey].intake += Math.round(v.valueNum);
+        } else if (v.type === "urine_output" && v.valueNum) {
+          dayMap[dayKey].output += Math.round(v.valueNum);
+        }
+      });
+      fluidBalanceChart = Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));
+      if (range === "all" && fluidBalanceChart.length > 30) {
+        // Take latest 30 points for readability
+        fluidBalanceChart = fluidBalanceChart.slice(-30);
       }
     }
 
-    // 3. Fluid Balance by day
-    const fluidMap: { [day: string]: { date: string; jalaliDate: string; intake: number; output: number } } = {};
-    chartVitals.forEach((v) => {
-      const dayKey = v.recordedAt.toISOString().slice(0, 10);
-      if (!fluidMap[dayKey]) {
-        const jDate = moment(v.recordedAt).locale("fa").format("jMM/jDD");
-        fluidMap[dayKey] = { date: dayKey, jalaliDate: jDate, intake: 0, output: 0 };
-      }
-      if (v.type === "water_intake" && v.valueNum) {
-        fluidMap[dayKey].intake += Math.round(v.valueNum);
-      } else if (v.type === "urine_output" && v.valueNum) {
-        fluidMap[dayKey].output += Math.round(v.valueNum);
-      }
-    });
-    const fluidBalanceChart = Object.values(fluidMap).sort((a, b) => a.date.localeCompare(b.date));
-
-    // 4. Blood Glucose Series
-    const glucoseLogs = chartVitals.filter((v) => v.type === "blood_sugar" && v.valueNum);
+    // 4. Blood Glucose Series in timeframe
+    const glucoseLogs = vitals.filter((v) => v.type === "blood_sugar" && v.valueNum);
     const glucoseChart = glucoseLogs.map((g) => ({
       id: g.id,
       date: g.recordedAt.toISOString(),
-      jalaliTime: moment(g.recordedAt).locale("fa").format("jMM/jDD HH:mm"),
+      jalaliTime: toPersianDigits(tehranMoment(g.recordedAt).locale("fa").format(range === "today" ? "HH:mm" : "jMM/jDD HH:mm")),
       value: g.valueNum,
       mealTag: g.mealTag || "random",
       isSpike: (g.valueNum || 0) > 180,
@@ -107,28 +127,28 @@ export async function GET(request: NextRequest) {
     const glucoseSpikesCount = glucoseLogs.filter((g) => (g.valueNum || 0) > 180).length;
     const glucoseHypoCount = glucoseLogs.filter((g) => (g.valueNum || 0) < 70).length;
 
-    // 5. DVT & Leg Elevation Stats
-    const dvtLogs = chartVitals.filter((v) => v.type === "dvt_timer" && v.valueNum);
+    // 5. DVT & Leg Elevation Stats in timeframe
+    const dvtLogs = vitals.filter((v) => v.type === "dvt_timer" && v.valueNum);
     const dvtByDay: { [day: string]: { jalaliDate: string; totalMinutes: number } } = {};
     dvtLogs.forEach((d) => {
-      const dayKey = d.recordedAt.toISOString().slice(0, 10);
+      const dayKey = tehranMoment(d.recordedAt).format("YYYY-MM-DD");
       const mins = Math.round((d.valueNum || 0) / 60);
       if (!dvtByDay[dayKey]) {
         dvtByDay[dayKey] = {
-          jalaliDate: moment(d.recordedAt).locale("fa").format("jMM/jDD"),
+          jalaliDate: toPersianDigits(tehranMoment(d.recordedAt).locale("fa").format("jMM/jDD")),
           totalMinutes: 0,
         };
       }
       dvtByDay[dayKey].totalMinutes += mins;
     });
-    const dvtChart = Object.values(dvtByDay);
+    const dvtChart = Object.values(dvtByDay).slice(-14);
 
     // DVT Circumference measurements
-    const dvtMeasurements = chartVitals
+    const dvtMeasurements = vitals
       .filter((v) => v.type === "dvt_measurement" && v.valueNum)
       .map((m) => ({
         date: m.recordedAt.toISOString(),
-        jalaliDate: moment(m.recordedAt).locale("fa").format("jMM/jDD"),
+        jalaliDate: formatJalaliDate(m.recordedAt),
         value: m.valueNum,
         desc: m.valueText,
       }));
@@ -137,6 +157,7 @@ export async function GET(request: NextRequest) {
     const clinicalPhotos = await prisma.clinicalNote.findMany({
       where: {
         photoUrl: { not: null },
+        createdAt: { lte: now },
       },
       orderBy: { createdAt: "desc" },
       take: 8,
@@ -150,23 +171,29 @@ export async function GET(request: NextRequest) {
     });
 
     // 7. Laxative timeline & bowel reactions
-    const bowelTimeline = chartVitals
+    const bowelTimeline = vitals
       .filter((v) => v.type === "bowel_movement" || v.type === "laxative")
       .slice(-15)
       .map((b) => ({
         id: b.id,
         type: b.type,
         date: b.recordedAt.toISOString(),
-        jalaliDateTime: moment(b.recordedAt).locale("fa").format("jYYYY/jMM/jDD HH:mm"),
+        jalaliDateTime: formatJalaliTime(b.recordedAt),
         text: b.valueText,
         grade: b.bowelGrade,
         laxative: b.laxativeGiven,
       }));
 
-    // 8. Total counts
-    const todayIntake = fluidBalanceChart.length > 0 ? fluidBalanceChart[fluidBalanceChart.length - 1].intake : 0;
-    const todayOutput = fluidBalanceChart.length > 0 ? fluidBalanceChart[fluidBalanceChart.length - 1].output : 0;
-    const retentionRisk = todayIntake > 1000 && todayOutput < todayIntake * 0.45;
+    // 8. Period Totals
+    const totalIntake = vitals
+      .filter((v) => v.type === "water_intake" && v.valueNum)
+      .reduce((sum, v) => sum + (v.valueNum || 0), 0);
+
+    const totalOutput = vitals
+      .filter((v) => v.type === "urine_output" && v.valueNum)
+      .reduce((sum, v) => sum + (v.valueNum || 0), 0);
+
+    const retentionRisk = totalIntake > 1000 && totalOutput < totalIntake * 0.45;
 
     return NextResponse.json({
       range,
@@ -175,13 +202,13 @@ export async function GET(request: NextRequest) {
         lastBowelDate: lastBowel?.recordedAt,
         lastBowelGrade: lastBowel?.bowelGrade,
         bowelAlert: hoursSinceLastBowel > 36,
-        todayIntake,
-        todayOutput,
+        todayIntake: Math.round(totalIntake),
+        todayOutput: Math.round(totalOutput),
         retentionRisk,
         glucoseAvg,
         glucoseSpikesCount,
         glucoseHypoCount,
-        totalDvtMinutes: dvtChart.reduce((s, d) => s + d.totalMinutes, 0),
+        totalDvtMinutes: dvtLogs.reduce((s, d) => s + Math.round((d.valueNum || 0) / 60), 0),
       },
       fluidBalanceChart,
       glucoseChart,
