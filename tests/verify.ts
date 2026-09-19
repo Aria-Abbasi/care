@@ -111,6 +111,31 @@ async function runTests() {
     await prisma.vitalLog.delete({ where: { id: testVital.id } });
   }
 
+  // 5. Check Schedule requiresNote column support
+  const scheduleWithRequiresNote = await prisma.schedule.findFirst({
+    select: { id: true, title: true, requiresNote: true },
+  });
+  assert(scheduleWithRequiresNote !== null && typeof scheduleWithRequiresNote.requiresNote === "boolean", "Schedule table supports requiresNote field");
+
+  // 6. Test AdhocSuggestion model
+  const testSuggestion = await prisma.adhocSuggestion.create({
+    data: {
+      title: "تست بررسی عملکرد پانسمان",
+      category: "مراقبتی",
+    },
+  });
+  assert(testSuggestion.title === "تست بررسی عملکرد پانسمان", "AdhocSuggestion creation test");
+
+  const foundSuggestion = await prisma.adhocSuggestion.findUnique({
+    where: { id: testSuggestion.id },
+  });
+  assert(foundSuggestion?.title === "تست بررسی عملکرد پانسمان", "AdhocSuggestion read test");
+
+  await prisma.adhocSuggestion.delete({
+    where: { id: testSuggestion.id },
+  });
+  assert(true, "AdhocSuggestion deletion test");
+
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);
 

@@ -51,6 +51,34 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
   const [adhocTitle, setAdhocTitle] = useState("");
   const [adhocCategory, setAdhocCategory] = useState("مراقبتی");
   const [adhocNotes, setAdhocNotes] = useState("");
+  const [adhocSuggestions, setAdhocSuggestions] = useState<Array<{ id: string; title: string; category?: string }>>([
+    { id: "1", title: "تعویض پانسمان موضعی", category: "مراقبتی" },
+    { id: "2", title: "پانسمان زخم پای راست (DVT)", category: "مراقبتی" },
+    { id: "3", title: "ماساژ اضافه و چرب کردن ساق پا", category: "مراقبتی" },
+    { id: "4", title: "تعویض ملحفه و نظافت فوری", category: "بهداشتی" },
+    { id: "5", title: "کنترل دمای بدن و تب", category: "پایش علائم" },
+    { id: "6", title: "تنظیم سرم / آنژیوکت", category: "مراقبتی" },
+    { id: "7", title: "کمک به جابجایی / ویلچر", category: "مراقبتی" },
+    { id: "8", title: "دادن میان‌وعده اضافه", category: "بهداشتی" },
+  ]);
+
+  // Load ad-hoc suggestions dynamically from server
+  useEffect(() => {
+    async function loadSuggestions() {
+      try {
+        const res = await fetch("/api/admin/adhoc-suggestions");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.suggestions && data.suggestions.length > 0) {
+            setAdhocSuggestions(data.suggestions);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load adhoc suggestions:", err);
+      }
+    }
+    loadSuggestions();
+  }, []);
 
   // Load DVT timer from localStorage
   useEffect(() => {
@@ -571,28 +599,22 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
 
             {/* Fast chip presets */}
             <p className="text-xs font-bold text-slate-600 mb-2">انتخاب سریع عنوان اقدام:</p>
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              {[
-                "تعویض پانسمان موضعی",
-                "پانسمان زخم پای راست (DVT)",
-                "ماساژ اضافه و چرب کردن ساق پا",
-                "تعویض ملحفه و نظافت فوری",
-                "کنترل دمای بدن و تب",
-                "تنظیم سرم / آنژیوکت",
-                "کمک به جابجایی / ویلچر",
-                "دادن میان‌وعده اضافه",
-              ].map((preset) => (
+            <div className="flex flex-wrap gap-1.5 mb-4 max-h-36 overflow-y-auto p-0.5">
+              {adhocSuggestions.map((suggestion) => (
                 <button
-                  key={preset}
+                  key={suggestion.id}
                   type="button"
-                  onClick={() => setAdhocTitle(preset)}
+                  onClick={() => {
+                    setAdhocTitle(suggestion.title);
+                    if (suggestion.category) setAdhocCategory(suggestion.category);
+                  }}
                   className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition ${
-                    adhocTitle === preset
+                    adhocTitle === suggestion.title
                       ? "bg-indigo-600 text-white shadow-sm"
                       : "bg-indigo-50/70 text-indigo-900 hover:bg-indigo-100"
                   }`}
                 >
-                  {preset}
+                  {suggestion.title}
                 </button>
               ))}
             </div>

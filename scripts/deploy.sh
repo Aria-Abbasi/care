@@ -8,19 +8,21 @@ OLD_DIR="/home/aria/care-task-management"
 echo "=== 1. Tearing down old application on $SERVER ==="
 ssh $SERVER "if [ -d $OLD_DIR ]; then cd $OLD_DIR && docker compose down || true; fi"
 
-echo "=== 2. Creating remote application directories ==="
-ssh $SERVER "mkdir -p $REMOTE_DIR/data $REMOTE_DIR/uploads"
+echo "=== 2. Creating remote application directories and DB backup ==="
+ssh $SERVER "mkdir -p $REMOTE_DIR/data $REMOTE_DIR/uploads && if [ -f $REMOTE_DIR/data/care.db ]; then cp $REMOTE_DIR/data/care.db $REMOTE_DIR/data/care.db.bak_\$(date +%Y%m%d_%H%M%S); fi"
 
-echo "=== 3. Syncing application and migrated database to $SERVER ==="
+echo "=== 3. Syncing application codebase to $SERVER ==="
 rsync -avz --delete \
   --exclude 'node_modules' \
   --exclude '.next' \
   --exclude '.git' \
+  --exclude 'data' \
+  --exclude 'uploads' \
   ./ $SERVER:$REMOTE_DIR/
 
 # Ensure database exists in data/care.db on server and permissions are open for container
 ssh $SERVER "if [ ! -f $REMOTE_DIR/data/care.db ] && [ -f $REMOTE_DIR/prisma/care.db ]; then cp $REMOTE_DIR/prisma/care.db $REMOTE_DIR/data/care.db; fi"
-ssh $SERVER "chmod -R 777 $REMOTE_DIR/data $REMOTE_DIR/uploads"
+ssh $SERVER "sudo chmod -R 777 $REMOTE_DIR/data $REMOTE_DIR/uploads"
 
 echo "=== 4. Updating Nginx configuration for care.kori.rest ==="
 ssh $SERVER "sudo cp $REMOTE_DIR/deploy/care.kori.rest.conf /etc/nginx/sites-available/care.kori.rest"

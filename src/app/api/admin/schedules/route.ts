@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
         intervalUnit: s.intervalUnit || "DAYS",
         intervalValue: s.intervalValue || 1,
         endDate: s.endDate,
+        requiresNote: s.requiresNote || false,
         isActive: s.isActive,
         status,
         recurrenceText,
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
       intervalUnit = "DAYS",
       intervalValue = 1,
       endDate,
+      requiresNote = false,
       mealRelation,
       medicationId,
       rulesJson,
@@ -146,6 +148,7 @@ export async function POST(request: NextRequest) {
         intervalUnit,
         intervalValue: parseInt(String(intervalValue), 10) || 1,
         endDate: parsedEndDate,
+        requiresNote: Boolean(requiresNote),
         mealRelation: mealRelation || null,
         medicationId: medicationId || null,
         rulesJson: rulesJson || null,
@@ -187,6 +190,9 @@ export async function PATCH(request: NextRequest) {
     }
     if ("intervalValue" in updateData && updateData.intervalValue) {
       updateData.intervalValue = parseInt(String(updateData.intervalValue), 10) || 1;
+    }
+    if ("requiresNote" in updateData) {
+      updateData.requiresNote = Boolean(updateData.requiresNote);
     }
 
     const updated = await prisma.schedule.update({

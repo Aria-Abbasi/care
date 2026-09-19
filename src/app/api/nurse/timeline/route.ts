@@ -120,10 +120,12 @@ export async function GET(request: NextRequest) {
           itemType: s.itemType,
           mealRelation: s.mealRelation,
           medication: s.medication,
+          requiresNote: s.requiresNote || false,
           isCompleted: !!matchedLog,
           completedAt: matchedLog?.completedAt || null,
           completedBy: matchedLog?.nurse?.fullName || null,
           status: matchedLog?.status || "PENDING",
+          notes: matchedLog?.notes || null,
         });
       }
     }

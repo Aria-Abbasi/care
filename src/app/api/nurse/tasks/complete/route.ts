@@ -30,13 +30,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // If ad-hoc task with notes, also log to ClinicalNote for comprehensive history
-    if (isAdHoc && notes) {
+    // If notes provided, also log to ClinicalNote for comprehensive history
+    if (notes) {
       await prisma.clinicalNote.create({
         data: {
           nurseId: user.id,
-          category: category || "general",
-          noteText: `اقدام موردی: ${rawTitle} - توضیحات: ${notes}`,
+          category: category || (isAdHoc ? "general" : "task_report"),
+          noteText: isAdHoc
+            ? `اقدام موردی: ${rawTitle} - توضیحات: ${notes}`
+            : `گزارش تسک: ${rawTitle} - توضیحات: ${notes}`,
           createdAt: new Date(),
         },
       });

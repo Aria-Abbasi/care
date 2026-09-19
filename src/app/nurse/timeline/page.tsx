@@ -3,13 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   CheckCircle2, Clock, Pill, Utensils, Shield, Check,
-  AlertCircle, Droplets, Activity, Heart, RefreshCw, ChevronDown, ListFilter, Sparkles
+  AlertCircle, Droplets, Activity, Heart, RefreshCw, ChevronDown, ListFilter, Sparkles,
+  FileText, X
 } from "lucide-react";
 import { toPersianDigits, formatJalaliTime } from "@/lib/jalali";
 import QuickActionFAB from "@/components/nurse/QuickActionFAB";
 
 interface ScheduleItem {
   id: string;
+  scheduleId?: string;
   title: string;
   targetTime: string;
   category: string;
@@ -21,10 +23,12 @@ interface ScheduleItem {
     timeConstraints?: string | null;
     stockCount?: number;
   } | null;
+  requiresNote?: boolean;
   isCompleted: boolean;
   completedAt?: string | null;
   completedBy?: string | null;
   status: string;
+  notes?: string | null;
 }
 
 interface AdHocTaskItem {
@@ -58,6 +62,11 @@ export default function NurseTimelinePage() {
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState<string | null>(null);
 
+  // Note popup state for tasks with requiresNote
+  const [noteModalItem, setNoteModalItem] = useState<ScheduleItem | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [submittingNote, setSubmittingNote] = useState(false);
+
   const fetchTimeline = useCallback(async () => {
     try {
       const res = await fetch("/api/nurse/timeline");
@@ -80,8 +89,21 @@ export default function NurseTimelinePage() {
     return () => clearInterval(interval);
   }, [fetchTimeline]);
 
-  // 1-Tap complete task
-  async function handleCompleteTask(item: ScheduleItem) {
+  // Handle task completion click
+  function handleTaskClick(item: ScheduleItem) {
+    if (item.isCompleted || completingId) return;
+
+    if (item.requiresNote) {
+      setNoteModalItem(item);
+      setNoteText("");
+      return;
+    }
+
+    executeCompleteTask(item);
+  }
+
+  // Execute complete task (with or without notes)
+  async function executeCompleteTask(item: ScheduleItem, customNotes?: string) {
     if (item.isCompleted || completingId) return;
     setCompletingId(item.id);
 
@@ -95,6 +117,7 @@ export default function NurseTimelinePage() {
               completedAt: new Date().toISOString(),
               completedBy: "پرستار",
               status: "DONE",
+              notes: customNotes || null,
             }
           : s
       )
@@ -108,6 +131,7 @@ export default function NurseTimelinePage() {
           scheduleId: item.id,
           taskTitle: item.title,
           status: "DONE",
+          notes: customNotes?.trim() || undefined,
         }),
       });
 
@@ -119,7 +143,17 @@ export default function NurseTimelinePage() {
       fetchTimeline();
     } finally {
       setCompletingId(null);
+      setNoteModalItem(null);
+      setNoteText("");
+      setSubmittingNote(false);
     }
+  }
+
+  async function handleNoteModalSubmit() {
+    if (!noteModalItem) return;
+    if (!noteText.trim()) return;
+    setSubmittingNote(true);
+    await executeCompleteTask(noteModalItem, noteText);
   }
 
   // Filter items
@@ -340,15 +374,30 @@ export default function NurseTimelinePage() {
                             {item.medication.instructions}
                           </span>
                         )}
+
+                        {!isCompleted && item.requiresNote && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200">
+                            📝 نیاز به ثبت گزارش
+                          </span>
+                        )}
                       </div>
 
                       {/* Completed note */}
                       {isCompleted && (
-                        <div className="mt-2 text-[11px] font-bold text-emerald-700 flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5" />
-                          <span>
-                            انجام شد {item.completedAt ? `(ساعت ${formatJalaliTime(item.completedAt)})` : ""}
-                          </span>
+                        <div className="mt-2 space-y-1.5">
+                          <div className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>
+                              انجام شد {item.completedAt ? `(ساعت ${formatJalaliTime(item.completedAt)})` : ""}
+                              {item.completedBy ? ` توسط ${item.completedBy}` : ""}
+                            </span>
+                          </div>
+                          {item.notes && (
+                            <p className="text-xs text-slate-700 bg-emerald-50/80 p-2.5 rounded-2xl border border-emerald-200/70 leading-relaxed font-medium">
+                              <span className="font-bold text-emerald-900 block mb-0.5">گزارش ثبت‌شده:</span>
+                              {item.notes}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -363,7 +412,7 @@ export default function NurseTimelinePage() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => handleCompleteTask(item)}
+                        onClick={() => handleTaskClick(item)}
                         disabled={completingId === item.id}
                         className="px-4 py-3 rounded-2xl bg-care-600 hover:bg-care-700 active:scale-95 text-white font-black text-xs shadow-lg shadow-care-600/30 flex items-center gap-1.5 transition"
                       >
@@ -378,6 +427,78 @@ export default function NurseTimelinePage() {
           })
         )}
       </div>
+
+      {/* Note Requirement Modal - No quick chips per user request */}
+      {noteModalItem && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-slate-900">ثبت گزارش انجام تسک</h3>
+                  <p className="text-[11px] text-slate-500">این اقدام نیاز به ثبت توضیحات توسط پرستار دارد</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNoteModalItem(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Task Info Banner */}
+            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200/80 mb-4 flex items-center justify-between">
+              <div className="font-black text-xs text-slate-800 truncate">
+                {noteModalItem.title}
+              </div>
+              <div className="text-[11px] font-mono font-black text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                ساعت {toPersianDigits(noteModalItem.targetTime)}
+              </div>
+            </div>
+
+            {/* Clean Description Textarea */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                توضیحات و گزارش انجام کار:
+              </label>
+              <textarea
+                rows={4}
+                autoFocus
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="توضیحات مربوط به انجام این اقدام، مقدار مصرف، وضعیت یا واکنش بیمار را بنویسید..."
+                className="w-full p-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={submittingNote || !noteText.trim()}
+                onClick={handleNoteModalSubmit}
+                className="flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-emerald-600/20 active:scale-95 transition flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{submittingNote ? "در حال ثبت..." : "ثبت و انجام شد"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNoteModalItem(null)}
+                className="py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs active:scale-95 transition"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating Action Button with Zero-Typing Modals */}
       <QuickActionFAB onDataLogged={fetchTimeline} />

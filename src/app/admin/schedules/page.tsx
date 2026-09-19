@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   CalendarClock, Plus, Search, Check, X, Clock, Pill, Utensils,
   Shield, AlertCircle, Trash2, Edit3, Power, RefreshCw, Sparkles,
-  ChevronDown, Calendar, Info, CheckCircle2, XCircle
+  ChevronDown, Calendar, Info, CheckCircle2, XCircle, FileText, Tag, ClipboardPlus
 } from "lucide-react";
 import {
   toPersianDigits, formatJalaliDate, formatJalaliTime,
@@ -31,6 +31,7 @@ interface ScheduleItem {
   intervalUnit: string;
   intervalValue: number;
   endDate?: string | null;
+  requiresNote: boolean;
   isActive: boolean;
   status: "ACTIVE" | "INACTIVE" | "EXPIRED";
   recurrenceText: string;
@@ -59,12 +60,20 @@ export default function AdminSchedulesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Ad-hoc suggestions management state
+  const [isAdhocModalOpen, setIsAdhocModalOpen] = useState(false);
+  const [adhocSuggestions, setAdhocSuggestions] = useState<Array<{ id: string; title: string; category?: string }>>([]);
+  const [newSuggestionTitle, setNewSuggestionTitle] = useState("");
+  const [newSuggestionCategory, setNewSuggestionCategory] = useState("مراقبتی");
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
   // Form states
   const [formCategory, setFormCategory] = useState<"medication" | "meal" | "dvt_care" | "routine">("routine");
   const [formMedicationId, setFormMedicationId] = useState<string>("");
   const [formTitle, setFormTitle] = useState("");
   const [formTargetTime, setFormTargetTime] = useState("08:00");
   const [formMealRelation, setFormMealRelation] = useState("NONE");
+  const [formRequiresNote, setFormRequiresNote] = useState<boolean>(false);
   
   // Recurrence states
   const [formStartDateOffset, setFormStartDateOffset] = useState<number>(0); // 0 = today, 1 = tomorrow, etc.
@@ -110,10 +119,70 @@ export default function AdminSchedulesPage() {
     }
   }, []);
 
+  // Fetch Ad-hoc Suggestions
+  const fetchAdhocSuggestions = useCallback(async () => {
+    try {
+      setLoadingSuggestions(true);
+      const res = await fetch("/api/admin/adhoc-suggestions");
+      if (res.ok) {
+        const data = await res.json();
+        setAdhocSuggestions(data.suggestions || []);
+      }
+    } catch (err) {
+      console.error("Failed to load adhoc suggestions:", err);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSchedules();
     fetchMedications();
-  }, [fetchSchedules, fetchMedications]);
+    fetchAdhocSuggestions();
+  }, [fetchSchedules, fetchMedications, fetchAdhocSuggestions]);
+
+  // Add new Ad-hoc suggestion
+  async function handleAddSuggestion(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newSuggestionTitle.trim()) return;
+    try {
+      const res = await fetch("/api/admin/adhoc-suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newSuggestionTitle.trim(),
+          category: newSuggestionCategory,
+        }),
+      });
+      if (res.ok) {
+        setNewSuggestionTitle("");
+        showToast("عنوان اقدام موردی اضافه شد");
+        fetchAdhocSuggestions();
+      } else {
+        const err = await res.json();
+        showToast(err.error || "خطا در افزودن پیشنهاد");
+      }
+    } catch {
+      showToast("خطا در ارتباط با سرور");
+    }
+  }
+
+  // Delete Ad-hoc suggestion
+  async function handleDeleteSuggestion(id: string) {
+    try {
+      const res = await fetch(`/api/admin/adhoc-suggestions?id=${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        showToast("عنوان اقدام موردی حذف شد");
+        fetchAdhocSuggestions();
+      } else {
+        showToast("خطا در حذف پیشنهاد");
+      }
+    } catch {
+      showToast("خطا در ارتباط با سرور");
+    }
+  }
 
   // Open Create Modal
   function openCreateModal() {
@@ -123,6 +192,7 @@ export default function AdminSchedulesPage() {
     setFormTitle("");
     setFormTargetTime("08:00");
     setFormMealRelation("NONE");
+    setFormRequiresNote(false);
     setFormStartDateOffset(0);
     setFormIntervalPreset("DAYS_1");
     setFormCustomUnit("HOURS");
@@ -140,6 +210,7 @@ export default function AdminSchedulesPage() {
     setFormTitle(s.title);
     setFormTargetTime(s.targetTime);
     setFormMealRelation(s.mealRelation || "NONE");
+    setFormRequiresNote(s.requiresNote || false);
     setFormStartDateOffset(0);
 
     // Set interval preset
@@ -262,6 +333,7 @@ export default function AdminSchedulesPage() {
             intervalUnit: resolvedUnit,
             intervalValue: resolvedValue,
             endDate: computedEndDate ? computedEndDate.toISOString() : null,
+            requiresNote: formRequiresNote,
           }),
         });
 
@@ -287,6 +359,7 @@ export default function AdminSchedulesPage() {
             intervalUnit: resolvedUnit,
             intervalValue: resolvedValue,
             endDate: computedEndDate ? computedEndDate.toISOString() : null,
+            requiresNote: formRequiresNote,
           }),
         });
 
@@ -389,6 +462,19 @@ export default function AdminSchedulesPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              fetchAdhocSuggestions();
+              setIsAdhocModalOpen(true);
+            }}
+            className="px-4 py-3 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"
+            title="مدیریت عناوین پیشنهادی اقدام موردی پرستار"
+          >
+            <ClipboardPlus className="w-4 h-4 text-indigo-600" />
+            <span className="hidden sm:inline">پیشنهادات اقدامات موردی</span>
+            <span className="sm:hidden">اقدامات موردی</span>
+          </button>
+
           <button
             onClick={fetchSchedules}
             className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
@@ -575,6 +661,14 @@ export default function AdminSchedulesPage() {
                         <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold text-[10px]">
                           {isMed ? "دارو" : isDvt ? "مراقبت/DVT" : isMeal ? "غذا/اسموتی" : "روتین"}
                         </span>
+
+                        {/* Requires Note badge */}
+                        {s.requiresNote && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-100 text-sky-900 border border-sky-200 font-bold text-[10px]">
+                            <FileText className="w-3 h-3 text-sky-700" />
+                            نیاز به ثبت گزارش
+                          </span>
+                        )}
                       </div>
 
                       {/* Recurrence sentence */}
@@ -922,6 +1016,29 @@ export default function AdminSchedulesPage() {
                 )}
               </div>
 
+              {/* Step 4: Requires Note on Completion */}
+              <div className="p-3.5 rounded-2xl bg-sky-50/80 border border-sky-200 flex items-center justify-between">
+                <label className="flex items-center gap-2.5 cursor-pointer flex-1">
+                  <input
+                    type="checkbox"
+                    checked={formRequiresNote}
+                    onChange={(e) => setFormRequiresNote(e.target.checked)}
+                    className="w-4 h-4 rounded text-care-600 focus:ring-care-500"
+                  />
+                  <div>
+                    <span className="text-xs font-black text-sky-950">
+                      نیاز به ثبت گزارش / توضیحات پرستار هنگام انجام دارد
+                    </span>
+                    <p className="text-[10px] text-sky-800 mt-0.5 leading-relaxed">
+                      با تایید «انجام شد» توسط پرستار، پاپ‌آپ باز می‌شود تا گزارش بالینی ثبت شود (مانند مقدار مصرف صبحانه یا وضعیت موضع)
+                    </p>
+                  </div>
+                </label>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-200/80 text-sky-950 flex-shrink-0">
+                  {formRequiresNote ? "الزامی" : "اختیاری"}
+                </span>
+              </div>
+
               {/* Live Preview Box */}
               <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-950 flex items-start gap-2.5">
                 <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
@@ -951,6 +1068,126 @@ export default function AdminSchedulesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Ad-Hoc Suggestions Management Modal */}
+      {isAdhocModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-indigo-50/60">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-indigo-100 text-indigo-800">
+                  <ClipboardPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-slate-900">
+                    مدیریت عناوین پیشنهادی اقدامات موردی
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    این عناوین در منوی «اقدام پیش‌بینی‌نشده» پرستار جهت انتخاب سریع نمایش داده می‌شوند
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAdhocModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-5">
+              {/* Add New Suggestion Form */}
+              <form onSubmit={handleAddSuggestion} className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-xs font-black text-slate-800">افزودن عنوان جدید:</span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="مثلاً: ماساژ گردن و شانه، پانسمان آرنج..."
+                    value={newSuggestionTitle}
+                    onChange={(e) => setNewSuggestionTitle(e.target.value)}
+                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-500"
+                  />
+                  <select
+                    value={newSuggestionCategory}
+                    onChange={(e) => setNewSuggestionCategory(e.target.value)}
+                    className="px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="مراقبتی">مراقبتی</option>
+                    <option value="بهداشتی">بهداشتی</option>
+                    <option value="دارویی">دارویی</option>
+                    <option value="پایش علائم">پایش علائم</option>
+                    <option value="فوریت">فوریت</option>
+                  </select>
+                  <button
+                    type="submit"
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black transition active:scale-95 whitespace-nowrap"
+                  >
+                    + افزودن
+                  </button>
+                </div>
+              </form>
+
+              {/* Current Suggestions List */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black text-slate-700">عناوین فعال فعلی:</span>
+                  <span className="text-[11px] font-bold text-slate-500">
+                    {toPersianDigits(adhocSuggestions.length)} مورد
+                  </span>
+                </div>
+
+                {loadingSuggestions ? (
+                  <div className="p-6 text-center text-slate-400">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
+                    <span className="text-xs">در حال بارگذاری...</span>
+                  </div>
+                ) : adhocSuggestions.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400 text-xs font-bold">
+                    هیچ عنوان پیشنهادی ثبت نشده است.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1">
+                    {adhocSuggestions.map((sug) => (
+                      <div
+                        key={sug.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-950 border border-indigo-200 text-xs font-bold shadow-xs group"
+                      >
+                        <span>{sug.title}</span>
+                        {sug.category && (
+                          <span className="text-[9px] text-indigo-600 bg-indigo-100/60 px-1 py-0.2 rounded font-normal">
+                            {sug.category}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSuggestion(sug.id)}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="حذف این پیشنهاد"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Close button */}
+              <div className="pt-3 border-t border-slate-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsAdhocModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition"
+                >
+                  بستن
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

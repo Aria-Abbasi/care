@@ -53,6 +53,7 @@ model Schedule {
   intervalUnit  String?     @default("DAYS") // ONCE, HOURS, DAYS, WEEKS
   intervalValue Int?        @default(1)
   endDate       DateTime?
+  requiresNote  Boolean     @default(false)
   rulesJson     String?
   medicationId  String?
   medication    Medication? @relation(fields: [medicationId], references: [id], onDelete: SetNull)
@@ -143,3 +144,11 @@ model PatientProfile {
   emergencyContact String?  @default("۰۹۱۲۰۰۰۰۰۰۰")
   updatedAt        DateTime @updatedAt
 }
+
+model AdhocSuggestion {
+  id        String   @id @default(cuid())
+  title     String   @unique
+  category  String?  @default("مراقبتی")
+  createdAt DateTime @default(now())
+}
+
