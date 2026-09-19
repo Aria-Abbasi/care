@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { HeartPulse, ShieldCheck, UserCheck, AlertCircle, ArrowLeft } from "lucide-react";
+import { HeartPulse, AlertCircle, ArrowLeft, Lock, User } from "lucide-react";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -13,7 +13,8 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin(u = username, p = password) {
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
     setError("");
     setLoading(true);
 
@@ -21,17 +22,17 @@ function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: u, password: p }),
+        body: JSON.stringify({ username: username.trim(), password }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "ورود ناموفق بود");
+        setError(data.error || "نام کاربری یا رمز عبور اشتباه است");
         setLoading(false);
         return;
       }
 
-      // Full navigation to ensure cookies are fresh
+      // Automatically route according to role
       if (from) {
         window.location.href = from;
       } else if (data.user.role === "ADMIN") {
@@ -45,17 +46,11 @@ function LoginForm() {
     }
   }
 
-  function quickLogin(u: string, p: string) {
-    setUsername(u);
-    setPassword(p);
-    handleLogin(u, p);
-  }
-
   return (
     <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-100 p-6 sm:p-8">
-      {/* Header with Medical Icon */}
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-care-500 text-white shadow-lg shadow-care-500/30 mb-3">
+      {/* Medical Header */}
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-care-600 text-white shadow-lg shadow-care-600/30 mb-3">
           <HeartPulse className="w-9 h-9" />
         </div>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -67,97 +62,61 @@ function LoginForm() {
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center gap-2">
+        <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Quick 1-Tap Login Presets */}
-      <div className="mb-6 space-y-2">
-        <p className="text-xs font-semibold text-slate-500 text-center mb-2">
-          ورود سریع پای تخت بیمار (تک لمس):
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => quickLogin("nurse", "Nurse@Care2026!")}
-            disabled={loading}
-            className="flex flex-col items-center justify-center p-3.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 hover:bg-emerald-100 text-emerald-900 transition active:scale-95 text-center font-bold"
-          >
-            <UserCheck className="w-6 h-6 text-emerald-600 mb-1" />
-            <span className="text-sm">ورود پرستار</span>
-            <span className="text-[11px] text-emerald-600 font-normal">شیفت پای تخت</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => quickLogin("admin", "Admin@Care2026!")}
-            disabled={loading}
-            className="flex flex-col items-center justify-center p-3.5 rounded-2xl border-2 border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-900 transition active:scale-95 text-center font-bold"
-          >
-            <ShieldCheck className="w-6 h-6 text-slate-700 mb-1" />
-            <span className="text-sm">ورود سرپرست</span>
-            <span className="text-[11px] text-slate-500 font-normal">داشبورد و گزارشات</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="relative my-6 text-center">
-        <hr className="border-slate-200" />
-        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-xs text-slate-400">
-          یا با نام کاربری دلخواه
-        </span>
-      </div>
-
-      {/* Standard Form */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleLogin();
-        }}
-        className="space-y-4"
-      >
+      {/* Unified Single Login Form */}
+      <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
             نام کاربری
           </label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="مثلاً nurse یا admin"
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-care-500 text-sm font-medium bg-slate-50 focus:bg-white transition"
-            required
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="نام کاربری خود را وارد کنید"
+              className="w-full px-4 py-3.5 pr-11 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-care-500 text-sm font-medium bg-slate-50 focus:bg-white transition"
+              required
+              autoFocus
+            />
+            <User className="w-5 h-5 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+          </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
             رمز عبور
           </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-care-500 text-sm font-medium bg-slate-50 focus:bg-white transition text-left"
-            dir="ltr"
-            required
-          />
+          <div className="relative">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full px-4 py-3.5 pr-11 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-care-500 text-sm font-medium bg-slate-50 focus:bg-white transition text-left font-mono"
+              dir="ltr"
+              required
+            />
+            <Lock className="w-5 h-5 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+          </div>
         </div>
 
         <button
           type="submit"
-          disabled={loading}
-          className="w-full py-3.5 px-4 rounded-xl bg-care-600 hover:bg-care-700 active:scale-[0.98] text-white font-bold shadow-md shadow-care-600/30 flex items-center justify-center gap-2 transition"
+          disabled={loading || !username || !password}
+          className="w-full mt-2 py-4 px-4 rounded-2xl bg-care-600 hover:bg-care-700 disabled:opacity-50 text-white font-black shadow-lg shadow-care-600/30 flex items-center justify-center gap-2 transition active:scale-[0.98]"
         >
           {loading ? (
             <span className="text-sm">در حال ورود...</span>
           ) : (
             <>
               <span className="text-sm">ورود به سامانه</span>
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
             </>
           )}
         </button>
