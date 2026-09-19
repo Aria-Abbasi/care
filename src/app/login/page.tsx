@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { HeartPulse, AlertCircle, ArrowLeft, Lock, User } from "lucide-react";
 
@@ -12,6 +12,28 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // If user is already authenticated (e.g. client router or fast load), redirect to role home
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          if (from && from.startsWith("/") && !from.startsWith("//") && !from.startsWith("/login")) {
+            if (data.user.role === "ADMIN" || !from.startsWith("/admin")) {
+              window.location.href = from;
+              return;
+            }
+          }
+          if (data.user.role === "ADMIN") {
+            window.location.href = "/admin/dashboard";
+          } else {
+            window.location.href = "/nurse/timeline";
+          }
+        }
+      })
+      .catch(() => {});
+  }, [from]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

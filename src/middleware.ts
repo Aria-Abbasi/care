@@ -9,13 +9,11 @@ const JWT_SECRET = new TextEncoder().encode(
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public paths
+  // Static assets, public resources, sw.js, and health check
   if (
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/api/auth/login") ||
-    pathname.startsWith("/api/health") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/uploads") ||
+    pathname.startsWith("/api/health") ||
     pathname === "/sw.js" ||
     pathname.includes("favicon") ||
     pathname.includes("icon") ||
@@ -24,7 +22,41 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow login API route without authentication
+  if (pathname.startsWith("/api/auth/login")) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get("care_token")?.value;
+
+  // If user is accessing /login while already authenticated, redirect to their role home
+  if (pathname.startsWith("/login")) {
+    if (token) {
+      try {
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const role = payload.role as string;
+        const from = request.nextUrl.searchParams.get("from");
+
+        // If a redirect destination was passed and user has access
+        if (from && from.startsWith("/") && !from.startsWith("//") && !from.startsWith("/login")) {
+          if (role === "ADMIN" || !from.startsWith("/admin")) {
+            return NextResponse.redirect(new URL(from, request.url));
+          }
+        }
+
+        // Default home redirect by role
+        if (role === "ADMIN") {
+          return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+        } else {
+          return NextResponse.redirect(new URL("/nurse/timeline", request.url));
+        }
+      } catch {
+        // Invalid or expired token, proceed to login page
+        return NextResponse.next();
+      }
+    }
+    return NextResponse.next();
+  }
 
   if (!token) {
     if (pathname.startsWith("/api/")) {

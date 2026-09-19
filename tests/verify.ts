@@ -8,6 +8,8 @@ import {
   formatJalaliLong
 } from "../src/lib/jalali";
 import { hashPassword, comparePassword, signToken, verifyToken } from "../src/lib/auth";
+import { middleware } from "../src/middleware";
+import { NextRequest } from "next/server";
 
 let passed = 0;
 let failed = 0;
@@ -51,6 +53,20 @@ async function runTests() {
 
   const verified = await verifyToken(token);
   assert(verified !== null && verified.username === "nurse_test" && verified.role === "NURSE", "JWT token verification");
+
+  // Middleware /login redirect tests
+  const adminToken = await signToken({ id: "admin_test_id", username: "admin_test", fullName: "ادمین تست", role: "ADMIN" });
+  const anonReq = new NextRequest("http://localhost:3000/login");
+  const anonRes = await middleware(anonReq);
+  assert(anonRes.headers.get("location") === null, "Unauthenticated user visiting /login is not redirected");
+
+  const nurseReq = new NextRequest("http://localhost:3000/login", { headers: { cookie: `care_token=${token}` } });
+  const nurseRes = await middleware(nurseReq);
+  assert(nurseRes.headers.get("location") === "http://localhost:3000/nurse/timeline", "Logged in nurse visiting /login is redirected to /nurse/timeline");
+
+  const adminReq = new NextRequest("http://localhost:3000/login", { headers: { cookie: `care_token=${adminToken}` } });
+  const adminRes = await middleware(adminReq);
+  assert(adminRes.headers.get("location") === "http://localhost:3000/admin/dashboard", "Logged in admin visiting /login is redirected to /admin/dashboard");
 
   console.log("\n================ 3. DATABASE INTEGRITY TESTS ================");
   const adminUser = await prisma.user.findUnique({ where: { username: "admin" } });
