@@ -136,6 +136,39 @@ async function runTests() {
   });
   assert(true, "AdhocSuggestion deletion test");
 
+  // 7. Test Schedule with vitalType and interval
+  const testSchedule = await prisma.schedule.create({
+    data: {
+      title: "سنجش قند خون تستی",
+      category: "vital",
+      vitalType: "blood_sugar",
+      targetTime: "08:00",
+      intervalUnit: "HOURS",
+      intervalValue: 12,
+      mealRelation: "FASTING",
+      itemType: "vital",
+    },
+  });
+  assert(testSchedule.vitalType === "blood_sugar", "Schedule vitalType field test");
+  assert(testSchedule.intervalValue === 12, "Schedule interval 12h test");
+
+  // Simulate logging a vital linked to this schedule
+  const testTaskLog = await prisma.taskLog.create({
+    data: {
+      scheduleId: testSchedule.id,
+      taskTitle: testSchedule.title,
+      nurseId: nurseUser!.id,
+      status: "DONE",
+      notes: "قند خون: ۱۱۵ mg/dL (fasting)",
+    },
+  });
+  assert(testTaskLog.scheduleId === testSchedule.id, "Vital task log linking test");
+
+  // Cleanup
+  await prisma.taskLog.delete({ where: { id: testTaskLog.id } });
+  await prisma.schedule.delete({ where: { id: testSchedule.id } });
+  assert(true, "Vital reminder schedule cleanup test");
+
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);
 

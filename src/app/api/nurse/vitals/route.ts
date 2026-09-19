@@ -42,7 +42,30 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, vital });
+    let taskLog = null;
+    if (body.scheduleId) {
+      const cleanScheduleId = String(body.scheduleId).split("_")[0];
+      let valueSummary = "";
+      if (type === "blood_sugar") valueSummary = `قند خون: ${valueNum} mg/dL${mealTag ? ` (${mealTag})` : ""}`;
+      else if (type === "blood_pressure") valueSummary = `فشار خون: ${systolic}/${diastolic} mmHg`;
+      else if (type === "water_intake") valueSummary = `مصرف مایعات: ${valueNum} cc`;
+      else if (type === "urine_output") valueSummary = `تخلیه ادرار: ${valueNum} cc${valueText ? ` (${valueText})` : ""}`;
+      else if (type === "dvt_timer") valueSummary = `مراقبت DVT: ${valueNum} دقیقه بالا بردن پا`;
+      else if (type === "bowel_movement") valueSummary = `کارکرد روده: ${bowelGrade || "طبیعی"}${laxativeGiven ? ` (ملین: ${laxativeGiven})` : ""}`;
+
+      taskLog = await prisma.taskLog.create({
+        data: {
+          scheduleId: cleanScheduleId,
+          taskTitle: body.taskTitle || "ثبت بالینی",
+          nurseId: user.id,
+          status: "DONE",
+          notes: valueSummary || valueText || null,
+          completedAt: new Date(),
+        },
+      });
+    }
+
+    return NextResponse.json({ success: true, vital, taskLog });
   } catch (error) {
     console.error("Vital log error:", error);
     return NextResponse.json({ error: "Failed to log vitals" }, { status: 500 });

@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import {
   CalendarClock, Plus, Search, Check, X, Clock, Pill, Utensils,
   Shield, AlertCircle, Trash2, Edit3, Power, RefreshCw, Sparkles,
-  ChevronDown, Calendar, Info, CheckCircle2, XCircle, FileText, Tag, ClipboardPlus
+  ChevronDown, Calendar, Info, CheckCircle2, XCircle, FileText, Tag, ClipboardPlus,
+  Droplets, Activity, Heart, Stethoscope, Timer, Smile, Camera
 } from "lucide-react";
 import {
   toPersianDigits, formatJalaliDate, formatJalaliTime,
@@ -32,6 +33,7 @@ interface ScheduleItem {
   intervalValue: number;
   endDate?: string | null;
   requiresNote: boolean;
+  vitalType?: string | null;
   isActive: boolean;
   status: "ACTIVE" | "INACTIVE" | "EXPIRED";
   recurrenceText: string;
@@ -68,7 +70,8 @@ export default function AdminSchedulesPage() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   // Form states
-  const [formCategory, setFormCategory] = useState<"medication" | "meal" | "dvt_care" | "routine">("routine");
+  const [formCategory, setFormCategory] = useState<"medication" | "meal" | "vital" | "dvt_care" | "routine">("routine");
+  const [formVitalType, setFormVitalType] = useState<string | null>(null);
   const [formMedicationId, setFormMedicationId] = useState<string>("");
   const [formTitle, setFormTitle] = useState("");
   const [formTargetTime, setFormTargetTime] = useState("08:00");
@@ -188,6 +191,7 @@ export default function AdminSchedulesPage() {
   function openCreateModal() {
     setEditingSchedule(null);
     setFormCategory("routine");
+    setFormVitalType(null);
     setFormMedicationId("");
     setFormTitle("");
     setFormTargetTime("08:00");
@@ -205,7 +209,8 @@ export default function AdminSchedulesPage() {
   // Open Edit Modal
   function openEditModal(s: ScheduleItem) {
     setEditingSchedule(s);
-    setFormCategory(s.category as any || "routine");
+    setFormCategory((s.category as any) || "routine");
+    setFormVitalType(s.vitalType || null);
     setFormMedicationId(s.medication?.id || "");
     setFormTitle(s.title);
     setFormTargetTime(s.targetTime);
@@ -326,6 +331,7 @@ export default function AdminSchedulesPage() {
             id: editingSchedule.id,
             title: formTitle.trim(),
             category: formCategory,
+            itemType: formCategory === "medication" ? "medication" : (formCategory === "vital" ? "vital" : (formCategory === "dvt_care" ? "dvt_care" : "routine_task")),
             targetTime: formTargetTime,
             mealRelation: formMealRelation === "NONE" ? null : formMealRelation,
             medicationId: formCategory === "medication" ? formMedicationId || null : null,
@@ -334,6 +340,7 @@ export default function AdminSchedulesPage() {
             intervalValue: resolvedValue,
             endDate: computedEndDate ? computedEndDate.toISOString() : null,
             requiresNote: formRequiresNote,
+            vitalType: (formCategory === "vital" || formCategory === "dvt_care") ? formVitalType : null,
           }),
         });
 
@@ -352,6 +359,7 @@ export default function AdminSchedulesPage() {
           body: JSON.stringify({
             title: formTitle.trim(),
             category: formCategory,
+            itemType: formCategory === "medication" ? "medication" : (formCategory === "vital" ? "vital" : (formCategory === "dvt_care" ? "dvt_care" : "routine_task")),
             targetTime: formTargetTime,
             mealRelation: formMealRelation === "NONE" ? null : formMealRelation,
             medicationId: formCategory === "medication" ? formMedicationId || null : null,
@@ -360,6 +368,7 @@ export default function AdminSchedulesPage() {
             intervalValue: resolvedValue,
             endDate: computedEndDate ? computedEndDate.toISOString() : null,
             requiresNote: formRequiresNote,
+            vitalType: (formCategory === "vital" || formCategory === "dvt_care") ? formVitalType : null,
           }),
         });
 
@@ -418,7 +427,13 @@ export default function AdminSchedulesPage() {
   // Filtered schedules list
   const filtered = schedules.filter((s) => {
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
-    if (categoryFilter !== "all" && s.category !== categoryFilter) return false;
+    if (categoryFilter !== "all") {
+      if (categoryFilter === "vital") {
+        if (!s.vitalType && s.category !== "vital") return false;
+      } else if (s.category !== categoryFilter) {
+        return false;
+      }
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitle = s.title.toLowerCase().includes(q);
@@ -569,8 +584,9 @@ export default function AdminSchedulesPage() {
         {[
           { id: "all", label: "تمام دسته‌ها" },
           { id: "medication", label: "دارویی", icon: Pill },
+          { id: "vital", label: "سنجش‌ها و مراقبت بالینی", icon: Activity },
           { id: "meal", label: "غذا و میان‌وعده", icon: Utensils },
-          { id: "dvt_care", label: "مراقبت بالینی و DVT", icon: Shield },
+          { id: "dvt_care", label: "مراقبت DVT", icon: Shield },
           { id: "routine", label: "روتین و عمومی", icon: Clock },
         ].map((cat) => {
           const Icon = cat.icon;
@@ -661,9 +677,21 @@ export default function AdminSchedulesPage() {
                         )}
 
                         {/* Category tag */}
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold text-[10px]">
-                          {isMed ? "دارو" : isDvt ? "مراقبت/DVT" : isMeal ? "غذا/اسموتی" : "روتین"}
-                        </span>
+                        {s.vitalType ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold text-[10px] bg-slate-100 text-slate-800 border border-slate-200">
+                            {s.vitalType === "blood_sugar" && "🩸 قند خون"}
+                            {s.vitalType === "blood_pressure" && "🩺 فشار خون"}
+                            {s.vitalType === "urine_output" && "⚡ ادرار سوند"}
+                            {s.vitalType === "water_intake" && "💧 آب و مایعات"}
+                            {s.vitalType === "dvt_care" && "⏱️ مراقبت DVT"}
+                            {s.vitalType === "bowel_movement" && "😊 کارکرد روده"}
+                            {s.vitalType === "clinical_photo" && "📷 تصویر بالینی"}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold text-[10px]">
+                            {isMed ? "دارو" : isDvt ? "مراقبت/DVT" : isMeal ? "غذا/اسموتی" : "روتین"}
+                          </span>
+                        )}
 
                         {/* Requires Note badge */}
                         {s.requiresNote && (
@@ -780,36 +808,166 @@ export default function AdminSchedulesPage() {
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5">
                 {/* Category selector */}
                 <div>
-                <label className="block text-xs font-black text-slate-700 mb-1.5">
-                  دسته‌بندی اقدام:
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: "medication", label: "دارویی", icon: Pill },
-                    { id: "meal", label: "غذا و میان‌وعده", icon: Utensils },
-                    { id: "dvt_care", label: "مراقبت / DVT", icon: Shield },
-                    { id: "routine", label: "عمومی / سایر", icon: Clock },
-                  ].map((cat) => {
-                    const Icon = cat.icon;
-                    const isSelected = formCategory === cat.id;
-                    return (
-                      <button
-                        type="button"
-                        key={cat.id}
-                        onClick={() => setFormCategory(cat.id as any)}
-                        className={`p-2.5 rounded-2xl border-2 font-bold text-xs flex items-center justify-center gap-1.5 transition ${
-                          isSelected
-                            ? "bg-care-50 border-care-600 text-care-900 shadow-xs"
-                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                        }`}
-                      >
-                        <Icon className={`w-4 h-4 ${isSelected ? "text-care-600" : "text-slate-400"}`} />
-                        <span>{cat.label}</span>
-                      </button>
-                    );
-                  })}
+                  <label className="block text-xs font-black text-slate-700 mb-1.5">
+                    دسته‌بندی اقدام:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {[
+                      { id: "vital", label: "سنجش بالینی", icon: Activity },
+                      { id: "medication", label: "دارویی", icon: Pill },
+                      { id: "meal", label: "غذا و میان‌وعده", icon: Utensils },
+                      { id: "dvt_care", label: "مراقبت DVT", icon: Shield },
+                      { id: "routine", label: "عمومی / سایر", icon: Clock },
+                    ].map((cat) => {
+                      const Icon = cat.icon;
+                      const isSelected = formCategory === cat.id;
+                      return (
+                        <button
+                          type="button"
+                          key={cat.id}
+                          onClick={() => {
+                            setFormCategory(cat.id as any);
+                            if (cat.id !== "vital" && cat.id !== "dvt_care") {
+                              setFormVitalType(null);
+                            } else if (cat.id === "dvt_care") {
+                              setFormVitalType("dvt_care");
+                              if (!formTitle || formTitle.startsWith("سنجش") || formTitle.startsWith("تخلیه") || formTitle.startsWith("ثبت") || formTitle.startsWith("مراقبت")) {
+                                setFormTitle("مراقبت DVT و بالا بردن پای راست");
+                              }
+                            }
+                          }}
+                          className={`p-2.5 rounded-2xl border-2 font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                            isSelected
+                              ? "bg-care-50 border-care-600 text-care-900 shadow-xs"
+                              : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 ${isSelected ? "text-care-600" : "text-slate-400"}`} />
+                          <span>{cat.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+
+                {/* Clinical Parameter Selector (matching QuickActionFAB cards from screenshot) */}
+                {(formCategory === "vital" || formCategory === "dvt_care") && (
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2">
+                    <label className="block text-xs font-black text-slate-800">
+                      انتخاب پارامتر بالینی (نوع ثبت مستقیم در تایم‌لاین پرستار):
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {[
+                        {
+                          id: "blood_sugar",
+                          title: "قند خون",
+                          desc: "ناشتا / ۲ ساعته / کیپد",
+                          defaultTitle: "سنجش قند خون",
+                          defaultMeal: "FASTING",
+                          icon: Heart,
+                          color: "border-rose-300 bg-rose-50 text-rose-950",
+                          iconBg: "bg-rose-500 text-white",
+                        },
+                        {
+                          id: "blood_pressure",
+                          title: "فشار خون",
+                          desc: "سیستول / دیاستول",
+                          defaultTitle: "سنجش فشار خون",
+                          defaultMeal: "NONE",
+                          icon: Stethoscope,
+                          color: "border-purple-300 bg-purple-50 text-purple-950",
+                          iconBg: "bg-purple-500 text-white",
+                        },
+                        {
+                          id: "urine_output",
+                          title: "تخلیه ادرار سوند",
+                          desc: "سی سی + رنگ",
+                          defaultTitle: "تخلیه ادرار سوند",
+                          defaultMeal: "NONE",
+                          icon: Activity,
+                          color: "border-amber-300 bg-amber-50 text-amber-950",
+                          iconBg: "bg-amber-500 text-white",
+                        },
+                        {
+                          id: "water_intake",
+                          title: "آب و مایعات",
+                          desc: "استکان / لیوان / ماگ",
+                          defaultTitle: "ثبت مصرف آب و مایعات",
+                          defaultMeal: "NONE",
+                          icon: Droplets,
+                          color: "border-sky-300 bg-sky-50 text-sky-950",
+                          iconBg: "bg-sky-500 text-white",
+                        },
+                        {
+                          id: "dvt_care",
+                          title: "DVT پای راست",
+                          desc: "تایمر بالا بردن پا",
+                          defaultTitle: "مراقبت DVT و بالا بردن پای راست",
+                          defaultMeal: "NONE",
+                          icon: Timer,
+                          color: "border-teal-300 bg-teal-50 text-teal-950",
+                          iconBg: "bg-teal-600 text-white",
+                        },
+                        {
+                          id: "bowel_movement",
+                          title: "کارکرد روده و ملین",
+                          desc: "+۱ / +۲ / شیاف / ساشه",
+                          defaultTitle: "بررسی کارکرد روده و ملین",
+                          defaultMeal: "NONE",
+                          icon: Smile,
+                          color: "border-orange-300 bg-orange-50 text-orange-950",
+                          iconBg: "bg-orange-500 text-white",
+                        },
+                        {
+                          id: "clinical_photo",
+                          title: "ثبت تصویر یا یادداشت بالینی",
+                          desc: "عکس پا/DVT، قرمزی پوست، رویداد",
+                          defaultTitle: "بررسی بالینی و ثبت عکس",
+                          defaultMeal: "NONE",
+                          icon: Camera,
+                          color: "border-emerald-300 bg-emerald-50 text-emerald-950",
+                          iconBg: "bg-emerald-600 text-white",
+                        },
+                      ].map((item) => {
+                        const Icon = item.icon;
+                        const isSelected = formVitalType === item.id;
+                        return (
+                          <button
+                            type="button"
+                            key={item.id}
+                            onClick={() => {
+                              setFormVitalType(item.id);
+                              if (item.id === "dvt_care") {
+                                setFormCategory("dvt_care");
+                              } else {
+                                setFormCategory("vital");
+                              }
+                              if (!formTitle || formTitle.startsWith("سنجش") || formTitle.startsWith("تخلیه") || formTitle.startsWith("ثبت") || formTitle.startsWith("مراقبت") || formTitle.startsWith("بررسی")) {
+                                setFormTitle(item.defaultTitle);
+                              }
+                              if (item.defaultMeal !== "NONE") {
+                                setFormMealRelation(item.defaultMeal);
+                              }
+                            }}
+                            className={`p-2.5 rounded-2xl border-2 text-right flex items-center justify-between transition ${
+                              isSelected
+                                ? `${item.color} ring-2 ring-slate-800 shadow-xs font-black`
+                                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-black">{item.title}</div>
+                              <div className="text-[10px] text-slate-500 font-medium truncate">{item.desc}</div>
+                            </div>
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mr-2 ${item.iconBg}`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
               {/* Medication Selector if category is medication */}
               {formCategory === "medication" && (

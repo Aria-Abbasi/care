@@ -7,11 +7,7 @@ import {
 } from "lucide-react";
 import { toPersianDigits } from "@/lib/jalali";
 
-interface QuickActionFABProps {
-  onDataLogged?: () => void;
-}
-
-type ModalType =
+export type QuickModalType =
   | null
   | "MENU"
   | "WATER"
@@ -23,10 +19,39 @@ type ModalType =
   | "NOTE"
   | "ADHOC";
 
-export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
-  const [activeModal, setActiveModal] = useState<ModalType>(null);
+export interface ActiveActionTrigger {
+  modal: QuickModalType;
+  scheduleId?: string;
+  taskTitle?: string;
+  mealRelation?: string | null;
+}
+
+interface QuickActionFABProps {
+  onDataLogged?: () => void;
+  activeAction?: ActiveActionTrigger | null;
+  onCloseAction?: () => void;
+}
+
+export default function QuickActionFAB({
+  onDataLogged,
+  activeAction,
+  onCloseAction,
+}: QuickActionFABProps) {
+  const [activeModal, setActiveModal] = useState<QuickModalType>(null);
   const [submitting, setSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Sync with external trigger (e.g. nurse clicked a smart vital card on timeline)
+  useEffect(() => {
+    if (activeAction?.modal) {
+      setActiveModal(activeAction.modal);
+      if (activeAction.mealRelation === "FASTING") {
+        setSelectedTag("fasting");
+      } else if (activeAction.mealRelation === "AFTER_MEAL") {
+        setSelectedTag("2h_breakfast");
+      }
+    }
+  }, [activeAction]);
 
   // DVT Stopwatch state (persisted in localStorage)
   const [dvtActive, setDvtActive] = useState(false);
@@ -124,6 +149,7 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
     setAdhocTitle("");
     setAdhocNotes("");
     setActiveModal(null);
+    onCloseAction?.();
   }
 
   // Handle DVT Start/Stop
@@ -150,9 +176,12 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
             type: "dvt_timer",
             valueNum: elapsed,
             valueText: `پای راست بالا برده شد به مدت ${minutes} دقیقه`,
+            scheduleId: activeAction?.scheduleId,
+            taskTitle: activeAction?.taskTitle,
           }),
         });
         showToast(`DVT ثبت شد: ${toPersianDigits(minutes)} دقیقه پای راست بالا بود`);
+        resetForm();
         onDataLogged?.();
       } catch {
         showToast("خطا در ثبت تایمر DVT");
@@ -184,6 +213,8 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
           type: "water_intake",
           valueNum: amount,
           valueText: `آب مصرفی ${amount} سی سی`,
+          scheduleId: activeAction?.scheduleId,
+          taskTitle: activeAction?.taskTitle,
         }),
       });
       if (res.ok) {
@@ -210,6 +241,8 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
           valueNum: amount,
           valueText: `تخلیه ادرار ${amount} سی سی - ${urineColor}`,
           extraData: { color: urineColor },
+          scheduleId: activeAction?.scheduleId,
+          taskTitle: activeAction?.taskTitle,
         }),
       });
       if (res.ok) {
@@ -239,6 +272,8 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
           valueNum: val,
           mealTag: selectedTag,
           valueText: `قند خون ${val} (${selectedTag})`,
+          scheduleId: activeAction?.scheduleId,
+          taskTitle: activeAction?.taskTitle,
         }),
       });
       if (res.ok) {
@@ -269,6 +304,8 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
           systolic: s < 30 ? s * 10 : s,
           diastolic: d < 20 ? d * 10 : d,
           valueText: `فشار خون ${s}/${d}`,
+          scheduleId: activeAction?.scheduleId,
+          taskTitle: activeAction?.taskTitle,
         }),
       });
       if (res.ok) {
@@ -298,6 +335,8 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
           bowelGrade,
           laxativeGiven: laxStr,
           valueText: `کارکرد روده ${bowelGrade}${laxStr ? " همراه ملین: " + laxStr : ""}`,
+          scheduleId: activeAction?.scheduleId,
+          taskTitle: activeAction?.taskTitle,
         }),
       });
       if (res.ok) {
@@ -321,6 +360,12 @@ export default function QuickActionFAB({ onDataLogged }: QuickActionFABProps) {
       fd.append("noteText", noteText);
       if (photoFile) {
         fd.append("photo", photoFile);
+      }
+      if (activeAction?.scheduleId) {
+        fd.append("scheduleId", activeAction.scheduleId);
+      }
+      if (activeAction?.taskTitle) {
+        fd.append("taskTitle", activeAction.taskTitle);
       }
 
       const res = await fetch("/api/nurse/notes", {

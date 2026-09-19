@@ -54,6 +54,7 @@ model Schedule {
   intervalValue Int?        @default(1)
   endDate       DateTime?
   requiresNote  Boolean     @default(false)
+  vitalType     String?     // blood_sugar, blood_pressure, urine_output, water_intake, dvt_care, bowel_movement, clinical_photo
   rulesJson     String?
   medicationId  String?
   medication    Medication? @relation(fields: [medicationId], references: [id], onDelete: SetNull)

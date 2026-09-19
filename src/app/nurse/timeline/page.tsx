@@ -4,10 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import {
   CheckCircle2, Clock, Pill, Utensils, Shield, Check,
   AlertCircle, Droplets, Activity, Heart, RefreshCw, ChevronDown, ListFilter, Sparkles,
-  FileText, X
+  FileText, X, Stethoscope, Timer, Smile, Camera, HeartPulse
 } from "lucide-react";
 import { toPersianDigits, formatJalaliTime } from "@/lib/jalali";
-import QuickActionFAB from "@/components/nurse/QuickActionFAB";
+import QuickActionFAB, { ActiveActionTrigger, QuickModalType } from "@/components/nurse/QuickActionFAB";
 
 interface ScheduleItem {
   id: string;
@@ -24,6 +24,7 @@ interface ScheduleItem {
     stockCount?: number;
   } | null;
   requiresNote?: boolean;
+  vitalType?: string | null;
   isCompleted: boolean;
   completedAt?: string | null;
   completedBy?: string | null;
@@ -54,13 +55,104 @@ interface ShiftStats {
   } | null;
 }
 
+const VITAL_META: Record<string, {
+  label: string;
+  icon: any;
+  border: string;
+  badgeBg: string;
+  badgeText: string;
+  btnBg: string;
+  btnText: string;
+  actionLabel: string;
+  modal: QuickModalType;
+}> = {
+  blood_sugar: {
+    label: "قند خون",
+    icon: Heart,
+    border: "border-rose-200",
+    badgeBg: "bg-rose-50 border-rose-200",
+    badgeText: "text-rose-800",
+    btnBg: "bg-rose-600 hover:bg-rose-700 shadow-rose-600/30",
+    btnText: "text-white",
+    actionLabel: "ثبت قند خون",
+    modal: "GLUCOSE",
+  },
+  blood_pressure: {
+    label: "فشار خون",
+    icon: Stethoscope,
+    border: "border-purple-200",
+    badgeBg: "bg-purple-50 border-purple-200",
+    badgeText: "text-purple-800",
+    btnBg: "bg-purple-600 hover:bg-purple-700 shadow-purple-600/30",
+    btnText: "text-white",
+    actionLabel: "ثبت فشار خون",
+    modal: "BP",
+  },
+  urine_output: {
+    label: "تخلیه ادرار",
+    icon: Activity,
+    border: "border-amber-200",
+    badgeBg: "bg-amber-50 border-amber-200",
+    badgeText: "text-amber-900",
+    btnBg: "bg-amber-600 hover:bg-amber-700 shadow-amber-600/30",
+    btnText: "text-white",
+    actionLabel: "ثبت ادرار سوند",
+    modal: "URINE",
+  },
+  water_intake: {
+    label: "آب و مایعات",
+    icon: Droplets,
+    border: "border-sky-200",
+    badgeBg: "bg-sky-50 border-sky-200",
+    badgeText: "text-sky-800",
+    btnBg: "bg-sky-600 hover:bg-sky-700 shadow-sky-600/30",
+    btnText: "text-white",
+    actionLabel: "ثبت آب",
+    modal: "WATER",
+  },
+  dvt_care: {
+    label: "مراقبت DVT",
+    icon: Timer,
+    border: "border-teal-200",
+    badgeBg: "bg-teal-50 border-teal-200",
+    badgeText: "text-teal-900",
+    btnBg: "bg-teal-600 hover:bg-teal-700 shadow-teal-600/30",
+    btnText: "text-white",
+    actionLabel: "تایمر DVT",
+    modal: "DVT",
+  },
+  bowel_movement: {
+    label: "کارکرد روده",
+    icon: Smile,
+    border: "border-orange-200",
+    badgeBg: "bg-orange-50 border-orange-200",
+    badgeText: "text-orange-900",
+    btnBg: "bg-orange-600 hover:bg-orange-700 shadow-orange-600/30",
+    btnText: "text-white",
+    actionLabel: "ثبت روده",
+    modal: "BOWEL",
+  },
+  clinical_photo: {
+    label: "تصویر بالینی",
+    icon: Camera,
+    border: "border-emerald-200",
+    badgeBg: "bg-emerald-50 border-emerald-200",
+    badgeText: "text-emerald-900",
+    btnBg: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30",
+    btnText: "text-white",
+    actionLabel: "ثبت تصویر",
+    modal: "NOTE",
+  },
+};
+
 export default function NurseTimelinePage() {
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [adhocTasks, setAdhocTasks] = useState<AdHocTaskItem[]>([]);
   const [stats, setStats] = useState<ShiftStats>({ waterToday: 0, urineToday: 0 });
-  const [activeFilter, setActiveFilter] = useState<"all" | "medication" | "meal" | "dvt_care">("all");
+  const [activeFilter, setActiveFilter] = useState<"all" | "medication" | "vital" | "meal" | "dvt_care">("all");
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [activeAction, setActiveAction] = useState<ActiveActionTrigger | null>(null);
 
   // Note popup state for tasks with requiresNote
   const [noteModalItem, setNoteModalItem] = useState<ScheduleItem | null>(null);
@@ -92,6 +184,17 @@ export default function NurseTimelinePage() {
   // Handle task completion click
   function handleTaskClick(item: ScheduleItem) {
     if (item.isCompleted || completingId) return;
+
+    // Direct 1-tap open of dedicated vital modal (matching screenshot)
+    if (item.vitalType && VITAL_META[item.vitalType]) {
+      setActiveAction({
+        modal: VITAL_META[item.vitalType].modal,
+        scheduleId: item.id,
+        taskTitle: item.title,
+        mealRelation: item.mealRelation,
+      });
+      return;
+    }
 
     if (item.requiresNote) {
       setNoteModalItem(item);
@@ -160,8 +263,9 @@ export default function NurseTimelinePage() {
   const filteredItems = schedules.filter((item) => {
     if (activeFilter === "all") return true;
     if (activeFilter === "medication") return item.category === "medication" || item.itemType === "medication";
+    if (activeFilter === "vital") return !!item.vitalType || item.category === "vital";
     if (activeFilter === "meal") return item.category === "meal";
-    if (activeFilter === "dvt_care") return item.category === "dvt_care" || item.category === "routine";
+    if (activeFilter === "dvt_care") return item.category === "dvt_care" || item.vitalType === "dvt_care";
     return true;
   });
 
@@ -245,6 +349,7 @@ export default function NurseTimelinePage() {
         {[
           { id: "all", label: "همه تسک‌ها", icon: ListFilter },
           { id: "medication", label: "داروها", icon: Pill },
+          { id: "vital", label: "سنجش‌های بالینی", icon: HeartPulse },
           { id: "meal", label: "غذا و میان‌وعده", icon: Utensils },
           { id: "dvt_care", label: "مراقبت و DVT", icon: Shield },
         ].map((tab) => {
@@ -320,7 +425,28 @@ export default function NurseTimelinePage() {
             const isCompleted = item.isCompleted;
             const isMed = item.category === "medication" || item.itemType === "medication";
             const isMeal = item.category === "meal";
-            const isDvt = item.category === "dvt_care";
+            const vitalMeta = item.vitalType ? VITAL_META[item.vitalType] : null;
+            const VitalIcon = vitalMeta?.icon;
+
+            // Calculate overdue (> 30 minutes past target time in Tehran timezone)
+            let isOverdue = false;
+            if (!isCompleted) {
+              try {
+                const [tH, tM] = item.targetTime.split(":").map(Number);
+                const targetMin = (tH || 0) * 60 + (tM || 0);
+                const d = new Date();
+                const parts = new Intl.DateTimeFormat("en-US", {
+                  timeZone: "Asia/Tehran",
+                  hour: "numeric",
+                  minute: "numeric",
+                  hour12: false,
+                }).formatToParts(d);
+                const nowH = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+                const nowM = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
+                const nowMin = nowH * 60 + nowM;
+                isOverdue = nowMin - targetMin > 30;
+              } catch {}
+            }
 
             return (
               <div
@@ -328,6 +454,10 @@ export default function NurseTimelinePage() {
                 className={`p-4 rounded-3xl border-2 transition-all duration-200 ${
                   isCompleted
                     ? "bg-emerald-50/70 border-emerald-200/80 opacity-90"
+                    : vitalMeta
+                    ? `bg-white ${vitalMeta.border} shadow-sm hover:border-slate-400`
+                    : isOverdue
+                    ? "bg-amber-50/30 border-amber-300 shadow-sm"
                     : "bg-white border-slate-200/80 shadow-sm hover:border-slate-300"
                 }`}
               >
@@ -339,6 +469,8 @@ export default function NurseTimelinePage() {
                       className={`px-2.5 py-1.5 rounded-2xl font-mono text-xs font-black flex items-center justify-center flex-shrink-0 ${
                         isCompleted
                           ? "bg-emerald-200 text-emerald-900"
+                          : isOverdue
+                          ? "bg-amber-500 text-white animate-pulse"
                           : "bg-slate-100 text-slate-900"
                       }`}
                     >
@@ -357,6 +489,19 @@ export default function NurseTimelinePage() {
 
                       {/* Medication / Task Metadata */}
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        {vitalMeta && (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold text-[10px] border ${vitalMeta.badgeBg} ${vitalMeta.badgeText}`}>
+                            <VitalIcon className="w-3 h-3" />
+                            {vitalMeta.label}
+                          </span>
+                        )}
+
+                        {isOverdue && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-bold text-[10px] border border-amber-300">
+                            ⚠️ موعد گذشته
+                          </span>
+                        )}
+
                         {item.medication?.boxNumber && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-bold text-[11px] border border-amber-200">
                             جعبه {toPersianDigits(item.medication.boxNumber)}
@@ -394,7 +539,7 @@ export default function NurseTimelinePage() {
                           </div>
                           {item.notes && (
                             <p className="text-xs text-slate-700 bg-emerald-50/80 p-2.5 rounded-2xl border border-emerald-200/70 leading-relaxed font-medium">
-                              <span className="font-bold text-emerald-900 block mb-0.5">گزارش ثبت‌شده:</span>
+                              <span className="font-bold text-emerald-900 block mb-0.5">مقدار / گزارش ثبت‌شده:</span>
                               {item.notes}
                             </p>
                           )}
@@ -403,7 +548,7 @@ export default function NurseTimelinePage() {
                     </div>
                   </div>
 
-                  {/* Right: Big 1-Tap Done Button */}
+                  {/* Right: Big Action Button */}
                   <div className="flex-shrink-0">
                     {isCompleted ? (
                       <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
@@ -414,10 +559,23 @@ export default function NurseTimelinePage() {
                         type="button"
                         onClick={() => handleTaskClick(item)}
                         disabled={completingId === item.id}
-                        className="px-4 py-3 rounded-2xl bg-care-600 hover:bg-care-700 active:scale-95 text-white font-black text-xs shadow-lg shadow-care-600/30 flex items-center gap-1.5 transition"
+                        className={`px-4 py-3 rounded-2xl active:scale-95 font-black text-xs shadow-lg flex items-center gap-1.5 transition ${
+                          vitalMeta
+                            ? `${vitalMeta.btnBg} ${vitalMeta.btnText}`
+                            : "bg-care-600 hover:bg-care-700 text-white shadow-care-600/30"
+                        }`}
                       >
-                        <Check className="w-4 h-4 stroke-[3]" />
-                        <span>انجام شد</span>
+                        {vitalMeta ? (
+                          <>
+                            <VitalIcon className="w-4 h-4 stroke-[2.5]" />
+                            <span>{vitalMeta.actionLabel}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4 stroke-[3]" />
+                            <span>انجام شد</span>
+                          </>
+                        )}
                       </button>
                     )}
                   </div>
@@ -501,7 +659,11 @@ export default function NurseTimelinePage() {
       )}
 
       {/* Floating Action Button with Zero-Typing Modals */}
-      <QuickActionFAB onDataLogged={fetchTimeline} />
+      <QuickActionFAB
+        onDataLogged={fetchTimeline}
+        activeAction={activeAction}
+        onCloseAction={() => setActiveAction(null)}
+      />
     </div>
   );
 }

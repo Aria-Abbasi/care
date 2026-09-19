@@ -121,6 +121,7 @@ export async function GET(request: NextRequest) {
           mealRelation: s.mealRelation,
           medication: s.medication,
           requiresNote: s.requiresNote || false,
+          vitalType: s.vitalType || null,
           isCompleted: !!matchedLog,
           completedAt: matchedLog?.completedAt || null,
           completedBy: matchedLog?.nurse?.fullName || null,
