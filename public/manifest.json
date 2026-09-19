@@ -1,16 +1,39 @@
 {
-  "name": "سامانه مراقبت در منزل",
+  "name": "سامانه هوشمند مراقبت در منزل",
   "short_name": "مراقبت",
-  "description": "سامانه هوشمند مدیریت مراقبت در منزل بیمار",
+  "description": "سامانه جامع مدیریت و پایش سلامت و مراقبت در منزل",
   "start_url": "/login",
+  "scope": "/",
+  "id": "/login",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#f8fafc",
-  "theme_color": "#16a34a",
+  "theme_color": "#15803d",
   "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/icon.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "categories": ["medical", "health", "lifestyle"]
 }

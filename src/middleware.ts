@@ -16,6 +16,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/uploads") ||
+    pathname === "/sw.js" ||
     pathname.includes("favicon") ||
     pathname.includes("icon") ||
     pathname.includes("manifest")
@@ -71,6 +72,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js).*)",
   ],
 };
