@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Pill, UtensilsCrossed, Users,
-  FileText, Smartphone, LogOut, HeartPulse
+  FileText, Smartphone, LogOut, HeartPulse, CalendarClock
 } from "lucide-react";
 
 export default function AdminNav() {
@@ -18,6 +18,7 @@ export default function AdminNav() {
 
   const navItems = [
     { href: "/admin/dashboard", label: "تحلیل و نمودارها", icon: LayoutDashboard },
+    { href: "/admin/schedules", label: "برنامه تسک‌ها", icon: CalendarClock },
     { href: "/admin/medications", label: "پروتکل داروها و انبار", icon: Pill },
     { href: "/admin/recipes", label: "رژیم و اسموتی‌ها", icon: UtensilsCrossed },
     { href: "/admin/users", label: "پرستاران و کاربران", icon: Users },

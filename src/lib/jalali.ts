@@ -116,3 +116,47 @@ export function getTehranTodayEnd(): Date {
 export function getTehranCurrentTime(): string {
   return tehranMoment().format("HH:mm");
 }
+
+// Human-readable Persian recurrence description
+export function formatRecurrenceText(
+  intervalUnit?: string | null,
+  intervalValue?: number | null,
+  targetTime?: string | null,
+  endDate?: string | Date | null
+): string {
+  const time = targetTime ? toPersianDigits(targetTime) : "";
+  let text = "";
+
+  if (intervalUnit === "ONCE") {
+    text = `یک‌باره (ساعت ${time})`;
+  } else if (intervalUnit === "HOURS") {
+    const val = intervalValue || 8;
+    text = `هر ${toPersianDigits(val)} ساعت یک‌بار (شروع از ${time})`;
+  } else if (intervalUnit === "DAYS") {
+    const val = intervalValue || 1;
+    if (val === 1) {
+      text = `هر روز ساعت ${time}`;
+    } else {
+      text = `هر ${toPersianDigits(val)} روز یک‌بار ساعت ${time}`;
+    }
+  } else if (intervalUnit === "WEEKS") {
+    const val = intervalValue || 1;
+    if (val === 1) {
+      text = `هفتگی ساعت ${time}`;
+    } else {
+      text = `هر ${toPersianDigits(val)} هفته یک‌بار ساعت ${time}`;
+    }
+  } else {
+    text = `روزانه ساعت ${time}`;
+  }
+
+  if (endDate) {
+    const endStr = formatJalaliDate(endDate);
+    text += ` تا ${endStr}`;
+  } else {
+    text += " (دائمی)";
+  }
+
+  return text;
+}
+

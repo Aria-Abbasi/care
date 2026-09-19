@@ -42,19 +42,23 @@ model Medication {
 }
 
 model Schedule {
-  id           String      @id @default(cuid())
-  itemType     String      // medication, routine_task, meal, dvt_care
-  title        String
-  targetTime   String      // HH:mm (e.g. 07:00)
-  category     String      // medication, meal, dvt_care, routine
-  daysOfWeek   String?     @default("ALL") // ALL or comma-separated days
-  mealRelation String?     // FASTING, BEFORE_MEAL, WITH_MEAL, AFTER_MEAL, BEDTIME
-  rulesJson    String?
-  medicationId String?
-  medication   Medication? @relation(fields: [medicationId], references: [id], onDelete: SetNull)
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id            String      @id @default(cuid())
+  itemType      String      // medication, routine_task, meal, dvt_care
+  title         String
+  targetTime    String      // HH:mm (e.g. 07:00)
+  category      String      // medication, meal, dvt_care, routine
+  daysOfWeek    String?     @default("ALL") // ALL or comma-separated days
+  mealRelation  String?     // FASTING, BEFORE_MEAL, WITH_MEAL, AFTER_MEAL, BEDTIME
+  startDate     DateTime?
+  intervalUnit  String?     @default("DAYS") // ONCE, HOURS, DAYS, WEEKS
+  intervalValue Int?        @default(1)
+  endDate       DateTime?
+  rulesJson     String?
+  medicationId  String?
+  medication    Medication? @relation(fields: [medicationId], references: [id], onDelete: SetNull)
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   taskLogs TaskLog[]
 }

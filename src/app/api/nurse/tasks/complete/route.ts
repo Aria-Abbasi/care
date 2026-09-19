@@ -17,10 +17,11 @@ export async function POST(request: NextRequest) {
     }
 
     const finalTitle = isAdHoc ? `[موردی] ${rawTitle}` : rawTitle;
+    const cleanScheduleId = scheduleId ? String(scheduleId).split("_")[0] : null;
 
     const log = await prisma.taskLog.create({
       data: {
-        scheduleId: scheduleId || null,
+        scheduleId: cleanScheduleId,
         taskTitle: finalTitle,
         nurseId: user.id,
         status,
