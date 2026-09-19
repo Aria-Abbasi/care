@@ -745,16 +745,16 @@ export default function AdminSchedulesPage() {
 
       {/* Modern Task Modal (Add / Edit) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
+          <div className="bg-white w-full max-w-xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header (Fixed at top) */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-care-100 text-care-800">
                   <CalendarClock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-base text-slate-900">
+                  <h3 className="font-black text-sm sm:text-base text-slate-900">
                     {editingSchedule ? "ویرایش زمان‌بندی تسک" : "تعریف تسک مراقبتی جدید"}
                   </h3>
                   <p className="text-[11px] text-slate-500">
@@ -763,6 +763,7 @@ export default function AdminSchedulesPage() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
               >
@@ -771,9 +772,11 @@ export default function AdminSchedulesPage() {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5">
-              {/* Category selector */}
-              <div>
+            <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* Scrollable Form Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5">
+                {/* Category selector */}
+                <div>
                 <label className="block text-xs font-black text-slate-700 mb-1.5">
                   دسته‌بندی اقدام:
                 </label>
@@ -1048,8 +1051,10 @@ export default function AdminSchedulesPage() {
                 </div>
               </div>
 
-              {/* Modal Buttons */}
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+              </div>
+
+              {/* Modal Buttons (Fixed at bottom) */}
+              <div className="p-3.5 sm:p-4 bg-slate-50/90 border-t border-slate-100 flex items-center justify-end gap-2 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
@@ -1074,16 +1079,16 @@ export default function AdminSchedulesPage() {
 
       {/* Ad-Hoc Suggestions Management Modal */}
       {isAdhocModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
+          <div className="bg-white w-full max-w-lg max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-indigo-50/60">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-indigo-50/60 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-indigo-100 text-indigo-800">
                   <ClipboardPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-base text-slate-900">
+                  <h3 className="font-black text-sm sm:text-base text-slate-900">
                     مدیریت عناوین پیشنهادی اقدامات موردی
                   </h3>
                   <p className="text-[11px] text-slate-500">
@@ -1092,6 +1097,7 @@ export default function AdminSchedulesPage() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsAdhocModalOpen(false)}
                 className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
               >
@@ -1099,7 +1105,7 @@ export default function AdminSchedulesPage() {
               </button>
             </div>
 
-            <div className="p-5 sm:p-6 space-y-5">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
               {/* Add New Suggestion Form */}
               <form onSubmit={handleAddSuggestion} className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
                 <span className="text-xs font-black text-slate-800">افزودن عنوان جدید:</span>
@@ -1176,17 +1182,17 @@ export default function AdminSchedulesPage() {
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* Close button */}
-              <div className="pt-3 border-t border-slate-100 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsAdhocModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition"
-                >
-                  بستن
-                </button>
-              </div>
+            {/* Close button (Fixed at bottom) */}
+            <div className="p-3.5 sm:p-4 bg-slate-50/90 border-t border-slate-100 flex justify-end flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsAdhocModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition"
+              >
+                بستن
+              </button>
             </div>
           </div>
         </div>
