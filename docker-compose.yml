@@ -1,0 +1,24 @@
+services:
+  care-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: care-web-app
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - HOSTNAME=0.0.0.0
+      - DATABASE_URL=file:/app/data/care.db
+      - JWT_SECRET=prod-super-secret-care-key-2026-yazdani
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/public/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
