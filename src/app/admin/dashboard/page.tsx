@@ -112,32 +112,36 @@ export default function AdminDashboardPage() {
           </p>
         </div>
 
-        {/* Timeframe Chips */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl">
-          {[
-            { id: "today", label: "امروز" },
-            { id: "7d", label: "۷ روز گذشته" },
-            { id: "30d", label: "۳۰ روز اخیر" },
-            { id: "all", label: "کل سوابق" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setRange(t.id as any)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                range === t.id
-                  ? "bg-white text-slate-900 shadow-sm font-black"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        {/* Timeframe Chips & Refresh */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl">
+            {[
+              { id: "today", label: "امروز" },
+              { id: "7d", label: "۷ روز گذشته" },
+              { id: "30d", label: "۳۰ روز اخیر" },
+              { id: "all", label: "کل سوابق" },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setRange(t.id as any)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                  range === t.id
+                    ? "bg-white text-slate-900 shadow-sm font-black"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={fetchAnalytics}
-            className="p-1.5 rounded-xl text-slate-600 hover:text-slate-900 transition"
-            title="بروزرسانی"
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200/80 px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 transition active:scale-95 whitespace-nowrap shadow-2xs"
+            title="بروزرسانی داده‌ها"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span>بروزرسانی</span>
           </button>
         </div>
       </div>

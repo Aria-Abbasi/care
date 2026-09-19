@@ -477,10 +477,11 @@ export default function AdminSchedulesPage() {
 
           <button
             onClick={fetchSchedules}
-            className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
-            title="بروزرسانی"
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200/80 px-3.5 py-3 rounded-2xl flex items-center gap-1.5 transition active:scale-95 whitespace-nowrap shadow-2xs"
+            title="بروزرسانی تسک‌ها"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span>بروزرسانی</span>
           </button>
 
           <button
