@@ -44,6 +44,24 @@ model Medication {
   updatedAt         DateTime   @updatedAt
 
   schedules Schedule[]
+  history   MedicationHistory[]
+}
+
+model MedicationHistory {
+  id             String      @id @default(cuid())
+  medicationId   String?
+  medication     Medication? @relation(fields: [medicationId], references: [id], onDelete: SetNull)
+  medicationName String
+  actionType     String      // CREATED, SCHEDULE_CHANGED, STOPPED, REACTIVATED
+  description    String      // Full Persian human-readable narrative
+  reason         String?     // Discontinuation or change reason
+  doctorName     String?     // Doctor or practitioner name
+  performedBy    String?     // User or admin who performed the change
+  detailsJson    String?     // Structured metadata
+  createdAt      DateTime    @default(now())
+
+  @@index([medicationId])
+  @@index([createdAt])
 }
 
 model Schedule {

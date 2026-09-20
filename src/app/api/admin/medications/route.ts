@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import {
+  buildMedicationCreatedNarrative,
+  buildScheduleChangedNarrative,
+  buildMedicationStoppedNarrative,
+} from "@/lib/medicationHistory";
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,7 +33,12 @@ export async function GET(request: NextRequest) {
       orderBy: [{ isActive: "desc" }, { boxNumber: "asc" }, { createdAt: "desc" }],
     });
 
-    return NextResponse.json({ medications });
+    const history = await prisma.medicationHistory.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+
+    return NextResponse.json({ medications, history });
   } catch (error) {
     console.error("Medications error:", error);
     return NextResponse.json({ error: "Failed to fetch medications" }, { status: 500 });
@@ -85,6 +95,11 @@ export async function POST(request: NextRequest) {
     // 2. If discontinuing other medications as ordered by the doctor
     if (Array.isArray(discontinueMedIds) && discontinueMedIds.length > 0) {
       const reasonText = discontinueReason || `به دستور پزشک متوقف و داروی ${nameFa} جایگزین شد`;
+      
+      const discMeds = await prisma.medication.findMany({
+        where: { id: { in: discontinueMedIds } },
+      });
+
       await prisma.medication.updateMany({
         where: { id: { in: discontinueMedIds } },
         data: {
@@ -104,6 +119,25 @@ export async function POST(request: NextRequest) {
         },
         data: { isActive: false },
       });
+
+      // Log history entries for discontinued meds
+      for (const dm of discMeds) {
+        await prisma.medicationHistory.create({
+          data: {
+            medicationId: dm.id,
+            medicationName: dm.nameFa,
+            actionType: "STOPPED",
+            description: buildMedicationStoppedNarrative({
+              nameFa: dm.nameFa,
+              reason: reasonText,
+            }),
+            reason: reasonText,
+            doctorName: doctorName || null,
+            performedBy: user.fullName || "سرپرست پرونده",
+            createdAt: new Date(),
+          },
+        });
+      }
     }
 
     // 3. Create connected schedule automatically if schedule details provided
@@ -127,6 +161,29 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
+    // 4. Log Medication Created History entry
+    const createdNarrative = buildMedicationCreatedNarrative({
+      nameFa: medication.nameFa,
+      startDate: schedule?.startDate,
+      intervalUnit: schedule?.intervalUnit,
+      intervalValue: schedule?.intervalValue,
+      targetTime: schedule?.targetTime,
+      notes: medication.doctorOrderNotes || medication.instructions,
+    });
+
+    await prisma.medicationHistory.create({
+      data: {
+        medicationId: medication.id,
+        medicationName: medication.nameFa,
+        actionType: "CREATED",
+        description: createdNarrative,
+        doctorName: doctorName || null,
+        performedBy: user.fullName || "سرپرست پرونده",
+        detailsJson: JSON.stringify({ schedule: createdSchedule }),
+        createdAt: new Date(),
+      },
+    });
 
     return NextResponse.json({ success: true, medication, schedule: createdSchedule });
   } catch (error) {
@@ -218,6 +275,30 @@ export async function PUT(request: NextRequest) {
           },
         });
       }
+
+      // Log SCHEDULE_CHANGED in MedicationHistory
+      const changeNarrative = buildScheduleChangedNarrative({
+        nameFa: updated.nameFa,
+        startDate: schedule.startDate,
+        endDate: schedule.endDate,
+        intervalUnit: schedule.intervalUnit,
+        intervalValue: schedule.intervalValue,
+        targetTime: schedule.targetTime,
+        notes: updated.doctorOrderNotes || updated.instructions,
+      });
+
+      await prisma.medicationHistory.create({
+        data: {
+          medicationId: updated.id,
+          medicationName: updated.nameFa,
+          actionType: "SCHEDULE_CHANGED",
+          description: changeNarrative,
+          doctorName: updated.doctorName || null,
+          performedBy: user.fullName || "سرپرست پرونده",
+          detailsJson: JSON.stringify({ schedule }),
+          createdAt: new Date(),
+        },
+      });
     }
 
     return NextResponse.json({ success: true, medication: updated });
@@ -242,6 +323,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "شناسه دارو الزامی است" }, { status: 400 });
     }
 
+    const med = await prisma.medication.findUnique({ where: { id } });
+    if (!med) {
+      return NextResponse.json({ error: "دارو یافت نشد" }, { status: 404 });
+    }
+
     await prisma.medication.update({
       where: { id },
       data: {
@@ -256,6 +342,23 @@ export async function DELETE(request: NextRequest) {
     await prisma.schedule.updateMany({
       where: { medicationId: id, isActive: true },
       data: { isActive: false },
+    });
+
+    // Log STOPPED history
+    await prisma.medicationHistory.create({
+      data: {
+        medicationId: id,
+        medicationName: med.nameFa,
+        actionType: "STOPPED",
+        description: buildMedicationStoppedNarrative({
+          nameFa: med.nameFa,
+          reason,
+        }),
+        reason,
+        doctorName: med.doctorName,
+        performedBy: user.fullName || "سرپرست پرونده",
+        createdAt: new Date(),
+      },
     });
 
     return NextResponse.json({ success: true });

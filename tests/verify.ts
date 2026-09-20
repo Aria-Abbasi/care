@@ -7,6 +7,11 @@ import {
   formatJalaliDateTime,
   formatJalaliLong
 } from "../src/lib/jalali";
+import {
+  buildMedicationCreatedNarrative,
+  buildScheduleChangedNarrative,
+  buildMedicationStoppedNarrative,
+} from "../src/lib/medicationHistory";
 import { hashPassword, comparePassword, signToken, verifyToken } from "../src/lib/auth";
 import { middleware } from "../src/middleware";
 import { NextRequest } from "next/server";
@@ -276,6 +281,91 @@ async function runTests() {
   await prisma.medication.delete({ where: { id: oldMed.id } });
   await prisma.medication.delete({ where: { id: newMed.id } });
   assert(true, "Discontinuation and undo test records cleanup");
+
+  console.log("\n================ 5. MEDICATION HISTORY & NARRATIVE TESTS ================");
+  // Test narrative builders
+  const narrCreated = buildMedicationCreatedNarrative({
+    nameFa: "آپیکسابان ۲.۵",
+    startDate: new Date("2026-03-20T08:00:00Z"),
+    intervalUnit: "HOURS",
+    intervalValue: 6,
+    targetTime: "08:00",
+  });
+  assert(
+    narrCreated.includes("داروی آپیکسابان ۲.۵ از شروع") && narrCreated.includes("هر ۶ ساعت اضافه شد"),
+    `Created narrative test: ${narrCreated}`
+  );
+
+  const narrChanged = buildScheduleChangedNarrative({
+    nameFa: "هپارین ۵۰۰۰",
+    startDate: new Date("2026-03-20T08:00:00Z"),
+    endDate: new Date("2026-03-25T08:00:00Z"),
+    intervalUnit: "HOURS",
+    intervalValue: 8,
+    targetTime: "08:00",
+  });
+  assert(
+    narrChanged.includes("داروی هپارین ۵۰۰۰ زمان‌بندیش به شروع از") &&
+    narrChanged.includes("هر ۸ ساعت") &&
+    narrChanged.includes("تغییر پیدا کرد"),
+    `Schedule changed narrative test: ${narrChanged}`
+  );
+
+  const narrStopped = buildMedicationStoppedNarrative({
+    nameFa: "وارفارین ۵",
+    reason: "خونریزی گوارشی",
+    notes: "توقف فوری طبق دستور آنکال",
+  });
+  assert(
+    narrStopped.includes("داروی وارفارین ۵ به علت خونریزی گوارشی مصرف‌اش متوقف شد.") &&
+    narrStopped.includes("توضیحات: توقف فوری طبق دستور آنکال"),
+    `Stopped narrative test: ${narrStopped}`
+  );
+
+  // Test MedicationHistory database persistence
+  const testHistMed = await prisma.medication.create({
+    data: {
+      nameFa: "داروی تست تاریخچه",
+      stockCount: 20,
+      isActive: true,
+    },
+  });
+
+  const histEntry = await prisma.medicationHistory.create({
+    data: {
+      medicationId: testHistMed.id,
+      medicationName: testHistMed.nameFa,
+      actionType: "STOPPED",
+      description: buildMedicationStoppedNarrative({
+        nameFa: testHistMed.nameFa,
+        reason: "اتمام دوره درمان",
+        notes: "بیمار ترخیص شد",
+      }),
+      reason: "اتمام دوره درمان",
+      doctorName: "دکتر آزمایشی",
+      performedBy: "ادمین سامانه",
+    },
+  });
+
+  const fetchedHist = await prisma.medicationHistory.findUnique({
+    where: { id: histEntry.id },
+  });
+  assert(
+    fetchedHist !== null &&
+    fetchedHist.actionType === "STOPPED" &&
+    fetchedHist.description.includes("داروی تست تاریخچه به علت اتمام دوره درمان مصرف‌اش متوقف شد.") &&
+    fetchedHist.description.includes("توضیحات: بیمار ترخیص شد"),
+    "MedicationHistory database insertion and retrieval"
+  );
+
+  // Verify history count in DB is populated
+  const totalHistCount = await prisma.medicationHistory.count();
+  assert(totalHistCount >= 70, `MedicationHistory entries populated in DB: ${totalHistCount} >= 70`);
+
+  // Cleanup
+  await prisma.medicationHistory.delete({ where: { id: histEntry.id } });
+  await prisma.medication.delete({ where: { id: testHistMed.id } });
+  assert(true, "MedicationHistory test records cleanup");
 
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);

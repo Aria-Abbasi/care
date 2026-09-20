@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Printer, HeartPulse, Shield, Calendar, User, FileText } from "lucide-react";
-import { toPersianDigits, formatJalaliDate, formatJalaliLong } from "@/lib/jalali";
+import { toPersianDigits, formatJalaliDate, formatJalaliLong, formatJalaliDateTime } from "@/lib/jalali";
 
 interface ReportData {
   patient: {
@@ -36,6 +36,14 @@ interface ReportData {
     discontinuedAt?: string | null;
     discontinuedBy?: string | null;
     discontinuedReason?: string | null;
+  }>;
+  medicationHistory?: Array<{
+    id: string;
+    actionType: string;
+    medicationName: string;
+    description: string;
+    createdAt: string;
+    doctorName?: string | null;
   }>;
   recentIncidents: Array<{
     date: string;
@@ -86,6 +94,7 @@ export default function DoctorReportPage() {
             },
             activeMedications: activeMeds,
             discontinuedMedications: discontinuedMeds,
+            medicationHistory: medsJson.history || [],
             recentIncidents: analytics.clinicalPhotos.map((p: any) => ({
               date: p.createdAt,
               category: p.category,
@@ -297,6 +306,51 @@ export default function DoctorReportPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Detailed Medication Events Timeline (Narrative) */}
+        {data.medicationHistory && data.medicationHistory.length > 0 && (
+          <div className="my-6">
+            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+              <span>گزارش تفصیلی وقایع و تغییرات زمانی داروها</span>
+            </h3>
+
+            <div className="space-y-2 text-xs">
+              {data.medicationHistory.slice(0, 15).map((h, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                >
+                  <div className="flex items-center gap-2.5 flex-1">
+                    <span
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${
+                        h.actionType === "CREATED"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                          : h.actionType === "STOPPED"
+                          ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                          : "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300"
+                      }`}
+                    >
+                      {h.actionType === "CREATED"
+                        ? "افزودن"
+                        : h.actionType === "STOPPED"
+                        ? "توقف"
+                        : "تغییر زمان‌بندی"}
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100 leading-relaxed">
+                      {h.description}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
+                    {h.doctorName && <span>پزشک: {h.doctorName}</span>}
+                    <span>{formatJalaliDateTime(h.createdAt)}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -31,6 +31,31 @@ m_cols=[r[1] for r in con.execute('PRAGMA table_info(Medication)').fetchall()]; 
 ('discontinuedBy' in m_cols) or con.execute('ALTER TABLE Medication ADD COLUMN discontinuedBy TEXT'); \
 ('replacedById' in m_cols) or con.execute('ALTER TABLE Medication ADD COLUMN replacedById TEXT'); \
 ('doctorOrderNotes' in m_cols) or con.execute('ALTER TABLE Medication ADD COLUMN doctorOrderNotes TEXT'); \
+con.execute('''CREATE TABLE IF NOT EXISTS MedicationHistory ( \
+    id TEXT NOT NULL PRIMARY KEY, \
+    medicationId TEXT, \
+    medicationName TEXT NOT NULL, \
+    actionType TEXT NOT NULL, \
+    description TEXT NOT NULL, \
+    reason TEXT, \
+    doctorName TEXT, \
+    performedBy TEXT, \
+    detailsJson TEXT, \
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, \
+    CONSTRAINT MedicationHistory_medicationId_fkey FOREIGN KEY (medicationId) REFERENCES Medication (id) ON DELETE SET NULL ON UPDATE CASCADE \
+)'''); \
+con.execute('CREATE INDEX IF NOT EXISTS MedicationHistory_medicationId_idx ON MedicationHistory(medicationId)'); \
+con.execute('CREATE INDEX IF NOT EXISTS MedicationHistory_actionType_idx ON MedicationHistory(actionType)'); \
+con.execute('CREATE INDEX IF NOT EXISTS MedicationHistory_createdAt_idx ON MedicationHistory(createdAt)'); \
+if con.execute('SELECT COUNT(*) FROM MedicationHistory').fetchone()[0] == 0: \
+    for row in con.execute('SELECT id, nameFa, doctorName, createdAt, isActive, discontinuedAt, discontinuedReason, discontinuedBy FROM Medication').fetchall(): \
+        mid, nameFa, docName, createdAt, isActive, discAt, discReason, discBy = row; \
+        con.execute('INSERT INTO MedicationHistory (id, medicationId, medicationName, actionType, description, doctorName, performedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', ('mh_init_' + mid, mid, nameFa, 'CREATED', 'داروی ' + nameFa + ' به لیست داروها اضافه شد.', docName, 'سرپرست پرونده', createdAt)); \
+        if (not isActive) or discAt: \
+            rText = discReason or 'به دستور پزشک معالج'; \
+            dText = discBy or docName or 'پزشک معالج'; \
+            dDate = discAt or createdAt; \
+            con.execute('INSERT INTO MedicationHistory (id, medicationId, medicationName, actionType, description, reason, doctorName, performedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', ('mh_stop_' + mid, mid, nameFa, 'STOPPED', 'داروی ' + nameFa + ' به علت ' + rText + ' مصرف‌اش متوقف شد.', rText, dText, 'سرپرست پرونده', dDate)); \
 con.commit()\""
 ssh $SERVER "sudo chmod -R 777 $REMOTE_DIR/data $REMOTE_DIR/uploads"
 
