@@ -456,7 +456,7 @@ export default function QuickActionFAB({
       <button
         type="button"
         onClick={() => setActiveModal("MENU")}
-        className="fixed bottom-6 left-6 z-40 w-16 h-16 rounded-3xl bg-care-600 hover:bg-care-700 text-white shadow-2xl shadow-care-600/50 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-90 border-2 border-white"
+        className="fixed bottom-6 left-6 z-40 w-16 h-16 rounded-3xl bg-care-600 hover:bg-care-700 text-white shadow-2xl shadow-care-600/50 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-90 border-2 border-white dark:border-slate-800"
         aria-label="ثبت سریع بدون تایپ"
       >
         <Plus className="w-8 h-8 stroke-[2.5]" />
@@ -1016,7 +1016,7 @@ export default function QuickActionFAB({
 
       {/* Modal: Bowel Movement */}
       {activeModal === "BOWEL" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div className="flex items-center gap-2">
@@ -1102,7 +1102,7 @@ export default function QuickActionFAB({
 
       {/* Modal: Clinical Note & Photo */}
       {activeModal === "NOTE" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div className="flex items-center gap-2">

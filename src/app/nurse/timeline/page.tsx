@@ -453,11 +453,11 @@ export default function NurseTimelinePage() {
                 key={item.id}
                 className={`p-4 rounded-3xl border-2 transition-all duration-200 ${
                   isCompleted
-                    ? "bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-800/40 opacity-90"
+                    ? "bg-emerald-50/60 dark:bg-slate-900/90 border-emerald-200/70 dark:border-emerald-900/60 shadow-sm"
                     : vitalMeta
                     ? `bg-white dark:bg-slate-900 ${vitalMeta.border} shadow-sm hover:border-slate-400 dark:hover:border-slate-600`
                     : isOverdue
-                    ? "bg-amber-50/30 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700/60 shadow-sm"
+                    ? "bg-amber-50/40 dark:bg-slate-900 border-amber-300 dark:border-amber-600/60 shadow-sm"
                     : "bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-slate-300 dark:hover:border-slate-700"
                 }`}
               >
@@ -468,10 +468,10 @@ export default function NurseTimelinePage() {
                     <div
                       className={`px-2.5 py-1.5 rounded-2xl font-mono text-xs font-black flex items-center justify-center flex-shrink-0 ${
                         isCompleted
-                          ? "bg-emerald-200 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200"
+                          ? "bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"
                           : isOverdue
                           ? "bg-amber-500 text-white animate-pulse"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
                       }`}
                     >
                       {toPersianDigits(item.targetTime)}
@@ -481,7 +481,9 @@ export default function NurseTimelinePage() {
                       {/* Title */}
                       <h2
                         className={`text-sm font-black leading-snug ${
-                          isCompleted ? "text-emerald-950 dark:text-emerald-300 line-through decoration-emerald-600/40" : "text-slate-900 dark:text-slate-100"
+                          isCompleted
+                            ? "text-slate-700 dark:text-slate-300 line-through decoration-emerald-500/50"
+                            : "text-slate-900 dark:text-slate-100"
                         }`}
                       >
                         {item.title}
@@ -503,13 +505,13 @@ export default function NurseTimelinePage() {
                         )}
 
                         {item.medication?.boxNumber && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-bold text-[11px] border border-amber-200 dark:border-amber-800/60">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 font-bold text-[11px] border border-amber-200 dark:border-amber-800/60">
                             جعبه {toPersianDigits(item.medication.boxNumber)}
                           </span>
                         )}
 
                         {item.medication?.timeConstraints && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 font-bold text-[10px] border border-rose-200 dark:border-rose-900/60">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 font-bold text-[10px] border border-rose-200 dark:border-rose-900/60">
                             ⚠️ {item.medication.timeConstraints}
                           </span>
                         )}
@@ -538,7 +540,7 @@ export default function NurseTimelinePage() {
                             </span>
                           </div>
                           {item.notes && (
-                            <p className="text-xs text-slate-700 dark:text-slate-200 bg-emerald-50/80 dark:bg-emerald-950/40 p-2.5 rounded-2xl border border-emerald-200/70 dark:border-emerald-800/50 leading-relaxed font-medium">
+                            <p className="text-xs text-slate-700 dark:text-slate-200 bg-emerald-50/80 dark:bg-slate-950/70 p-2.5 rounded-2xl border border-emerald-200/70 dark:border-emerald-800/50 leading-relaxed font-medium">
                               <span className="font-bold text-emerald-900 dark:text-emerald-300 block mb-0.5">مقدار / گزارش ثبت‌شده:</span>
                               {item.notes}
                             </p>
@@ -551,7 +553,7 @@ export default function NurseTimelinePage() {
                   {/* Right: Big Action Button */}
                   <div className="flex-shrink-0">
                     {isCompleted ? (
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 border border-emerald-400/40">
                         <Check className="w-6 h-6 stroke-[3]" />
                       </div>
                     ) : (
