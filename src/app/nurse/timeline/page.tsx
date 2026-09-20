@@ -448,17 +448,55 @@ export default function NurseTimelinePage() {
               } catch {}
             }
 
+            // Calculate right accent strip color (Option 3)
+            let stripColor = "border-r-slate-400 dark:border-r-slate-600";
+            if (isCompleted) {
+              stripColor = "border-r-emerald-500 dark:border-r-emerald-400";
+            } else if (isOverdue) {
+              stripColor = "border-r-amber-500 animate-pulse";
+            } else if (item.vitalType) {
+              switch (item.vitalType) {
+                case "blood_sugar":
+                  stripColor = "border-r-rose-500";
+                  break;
+                case "blood_pressure":
+                  stripColor = "border-r-purple-500";
+                  break;
+                case "urine_output":
+                  stripColor = "border-r-amber-500";
+                  break;
+                case "water_intake":
+                  stripColor = "border-r-sky-500";
+                  break;
+                case "dvt_care":
+                  stripColor = "border-r-teal-500";
+                  break;
+                case "bowel_movement":
+                  stripColor = "border-r-orange-500";
+                  break;
+                case "clinical_photo":
+                  stripColor = "border-r-emerald-500";
+                  break;
+                default:
+                  stripColor = "border-r-emerald-500";
+              }
+            } else if (isMed) {
+              stripColor = "border-r-care-500 dark:border-r-care-400";
+            } else if (isMeal) {
+              stripColor = "border-r-amber-500 dark:border-r-amber-400";
+            }
+
             return (
               <div
                 key={item.id}
-                className={`p-4 rounded-3xl border-2 transition-all duration-200 ${
+                className={`p-4 rounded-3xl border border-r-[5px] transition-all duration-200 ${
                   isCompleted
-                    ? "bg-emerald-50/60 dark:bg-slate-900/90 border-emerald-200/70 dark:border-emerald-900/60 shadow-sm"
+                    ? "bg-emerald-50/90 dark:bg-[#06241a]/90 border-emerald-300/80 dark:border-emerald-800/60 border-r-emerald-500 dark:border-r-emerald-400 opacity-80 hover:opacity-100"
                     : vitalMeta
-                    ? `bg-white dark:bg-slate-900 ${vitalMeta.border} shadow-sm hover:border-slate-400 dark:hover:border-slate-600`
+                    ? `bg-white dark:bg-slate-900 ${vitalMeta.border} ${stripColor} shadow-md hover:shadow-lg dark:shadow-black/20 hover:border-slate-400 dark:hover:border-slate-600`
                     : isOverdue
-                    ? "bg-amber-50/40 dark:bg-slate-900 border-amber-300 dark:border-amber-600/60 shadow-sm"
-                    : "bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-slate-300 dark:hover:border-slate-700"
+                    ? `bg-amber-50/50 dark:bg-slate-900 border-amber-300 dark:border-amber-600/60 ${stripColor} shadow-md dark:shadow-black/20`
+                    : `bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 ${stripColor} shadow-md hover:shadow-lg dark:shadow-black/20 hover:border-slate-300 dark:hover:border-slate-700`
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -468,7 +506,7 @@ export default function NurseTimelinePage() {
                     <div
                       className={`px-2.5 py-1.5 rounded-2xl font-mono text-xs font-black flex items-center justify-center flex-shrink-0 ${
                         isCompleted
-                          ? "bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"
+                          ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/80"
                           : isOverdue
                           ? "bg-amber-500 text-white animate-pulse"
                           : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
