@@ -8,7 +8,7 @@ import {
   Droplets, Activity, Heart, Stethoscope, Timer, Smile, Camera
 } from "lucide-react";
 import {
-  toPersianDigits, formatJalaliDate, formatJalaliTime,
+  toPersianDigits, formatJalaliDate, formatJalaliTime, formatJalaliDateTime,
   getJalaliToday, formatRecurrenceText, tehranMoment
 } from "@/lib/jalali";
 
@@ -77,16 +77,26 @@ export default function AdminSchedulesPage() {
   const [formTargetTime, setFormTargetTime] = useState("08:00");
   const [formMealRelation, setFormMealRelation] = useState("NONE");
   const [formRequiresNote, setFormRequiresNote] = useState<boolean>(false);
+  const [userRole, setUserRole] = useState<string>("ADMIN");
   
   // Recurrence states
+  const [formStartDateMode, setFormStartDateMode] = useState<"PRESET" | "CUSTOM">("PRESET");
   const [formStartDateOffset, setFormStartDateOffset] = useState<number>(0); // 0 = today, 1 = tomorrow, etc.
+  const [formCustomStartDate, setFormCustomStartDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
   const [formIntervalPreset, setFormIntervalPreset] = useState<string>("DAYS_1");
   const [formCustomUnit, setFormCustomUnit] = useState<"HOURS" | "DAYS" | "WEEKS">("HOURS");
   const [formCustomValue, setFormCustomValue] = useState<number>(8);
   
   // End Date states
   const [formHasEndDate, setFormHasEndDate] = useState<boolean>(false);
+  const [formEndDateMode, setFormEndDateMode] = useState<"DURATION" | "CUSTOM">("DURATION");
   const [formDurationDays, setFormDurationDays] = useState<number>(5); // 3, 5, 7, 14, 30
+  const [formCustomEndDate, setFormCustomEndDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 5);
+    return d.toISOString().split("T")[0];
+  });
+  const [formCustomEndTime, setFormCustomEndTime] = useState<string>("23:59");
 
   // Notification Toast
   function showToast(msg: string) {
@@ -139,6 +149,13 @@ export default function AdminSchedulesPage() {
   }, []);
 
   useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user?.role) setUserRole(data.user.role);
+      })
+      .catch(() => {});
+
     fetchSchedules();
     fetchMedications();
     fetchAdhocSuggestions();
@@ -197,12 +214,19 @@ export default function AdminSchedulesPage() {
     setFormTargetTime("08:00");
     setFormMealRelation("NONE");
     setFormRequiresNote(false);
+    setFormStartDateMode("PRESET");
     setFormStartDateOffset(0);
+    setFormCustomStartDate(new Date().toISOString().split("T")[0]);
     setFormIntervalPreset("DAYS_1");
     setFormCustomUnit("HOURS");
     setFormCustomValue(8);
     setFormHasEndDate(false);
+    setFormEndDateMode("DURATION");
     setFormDurationDays(5);
+    const defEnd = new Date();
+    defEnd.setDate(defEnd.getDate() + 5);
+    setFormCustomEndDate(defEnd.toISOString().split("T")[0]);
+    setFormCustomEndTime("23:59");
     setIsModalOpen(true);
   }
 
@@ -216,7 +240,16 @@ export default function AdminSchedulesPage() {
     setFormTargetTime(s.targetTime);
     setFormMealRelation(s.mealRelation || "NONE");
     setFormRequiresNote(s.requiresNote || false);
-    setFormStartDateOffset(0);
+
+    if (s.startDate) {
+      const startD = new Date(s.startDate);
+      setFormStartDateMode("CUSTOM");
+      setFormCustomStartDate(startD.toISOString().split("T")[0]);
+    } else {
+      setFormStartDateMode("PRESET");
+      setFormStartDateOffset(0);
+      setFormCustomStartDate(new Date().toISOString().split("T")[0]);
+    }
 
     // Set interval preset
     if (s.intervalUnit === "ONCE") {
@@ -241,12 +274,23 @@ export default function AdminSchedulesPage() {
 
     if (s.endDate) {
       setFormHasEndDate(true);
-      const diffMs = new Date(s.endDate).getTime() - new Date().getTime();
+      setFormEndDateMode("CUSTOM");
+      const endD = new Date(s.endDate);
+      setFormCustomEndDate(endD.toISOString().split("T")[0]);
+      const endH = String(endD.getHours()).padStart(2, "0");
+      const endM = String(endD.getMinutes()).padStart(2, "0");
+      setFormCustomEndTime(`${endH}:${endM}`);
+      const diffMs = endD.getTime() - new Date().getTime();
       const diffDays = Math.max(1, Math.round(diffMs / 86400000));
       setFormDurationDays(diffDays);
     } else {
       setFormHasEndDate(false);
+      setFormEndDateMode("DURATION");
       setFormDurationDays(5);
+      const defEnd = new Date();
+      defEnd.setDate(defEnd.getDate() + 5);
+      setFormCustomEndDate(defEnd.toISOString().split("T")[0]);
+      setFormCustomEndTime("23:59");
     }
 
     setIsModalOpen(true);
@@ -269,10 +313,30 @@ export default function AdminSchedulesPage() {
   }
 
   // Calculate Start and End Date objects
-  const computedStartDate = new Date(Date.now() + formStartDateOffset * 86400000);
-  const computedEndDate = formHasEndDate
-    ? new Date(computedStartDate.getTime() + formDurationDays * 86400000)
-    : null;
+  function getComputedStartDate(): Date {
+    const [h, min] = (formTargetTime || "08:00").split(":").map(Number);
+    if (formStartDateMode === "CUSTOM" && formCustomStartDate) {
+      const [y, m, d] = formCustomStartDate.split("-").map(Number);
+      return new Date(y, m - 1, d, h || 0, min || 0, 0);
+    }
+    const d = new Date(Date.now() + formStartDateOffset * 86400000);
+    d.setHours(h || 0, min || 0, 0, 0);
+    return d;
+  }
+
+  function getComputedEndDate(): Date | null {
+    if (!formHasEndDate) return null;
+    if (formEndDateMode === "CUSTOM" && formCustomEndDate) {
+      const [y, m, d] = formCustomEndDate.split("-").map(Number);
+      const [h, min] = (formCustomEndTime || "23:59").split(":").map(Number);
+      return new Date(y, m - 1, d, h || 0, min || 0, 0);
+    }
+    const start = getComputedStartDate();
+    return new Date(start.getTime() + formDurationDays * 86400000);
+  }
+
+  const computedStartDate = getComputedStartDate();
+  const computedEndDate = getComputedEndDate();
 
   // Resolve actual interval values
   let resolvedUnit = "DAYS";
@@ -309,7 +373,8 @@ export default function AdminSchedulesPage() {
     resolvedUnit,
     resolvedValue,
     formTargetTime,
-    computedEndDate
+    computedEndDate,
+    computedStartDate
   );
 
   // Submit Form
@@ -487,28 +552,37 @@ export default function AdminSchedulesPage() {
         </div>
 
         {/* Action buttons row */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <button
-            onClick={openCreateModal}
-            className="px-5 py-2.5 rounded-2xl bg-care-600 hover:bg-care-700 text-white font-black text-xs shadow-lg shadow-care-600/30 flex items-center gap-2 transition active:scale-95"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>افزودن تسک جدید</span>
-          </button>
+        {userRole === "ADMIN" ? (
+          <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button
+              onClick={openCreateModal}
+              className="px-5 py-2.5 rounded-2xl bg-care-600 hover:bg-care-700 text-white font-black text-xs shadow-lg shadow-care-600/30 flex items-center gap-2 transition active:scale-95"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>افزودن تسک جدید</span>
+            </button>
 
-          <button
-            onClick={() => {
-              fetchAdhocSuggestions();
-              setIsAdhocModalOpen(true);
-            }}
-            className="px-4 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-950 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"
-            title="مدیریت عناوین پیشنهادی اقدام موردی پرستار"
-          >
-            <ClipboardPlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <span className="hidden sm:inline">پیشنهادات اقدامات موردی</span>
-            <span className="sm:hidden">اقدامات موردی</span>
-          </button>
-        </div>
+            <button
+              onClick={() => {
+                fetchAdhocSuggestions();
+                setIsAdhocModalOpen(true);
+              }}
+              className="px-4 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-950 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"
+              title="مدیریت عناوین پیشنهادی اقدام موردی پرستار"
+            >
+              <ClipboardPlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span className="hidden sm:inline">پیشنهادات اقدامات موردی</span>
+              <span className="sm:hidden">اقدامات موردی</span>
+            </button>
+          </div>
+        ) : (
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div className="bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/80 rounded-2xl p-2.5 px-3.5 text-xs font-bold text-sky-800 dark:text-sky-300 flex items-center gap-2">
+              <Info className="w-4 h-4 flex-shrink-0 text-sky-600 dark:text-sky-400" />
+              <span>دسترسی پرستار: حالت نظارت و بررسی فعال است (تعریف و حذف تسک در انحصار ادمین است).</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Statistics Cards */}
@@ -734,39 +808,51 @@ export default function AdminSchedulesPage() {
                   </div>
 
                   {/* Right: Actions */}
-                  <div className="flex items-center gap-2 self-end sm:self-center">
-                    {/* Toggle Active Button */}
-                    <button
-                      onClick={() => toggleActive(s)}
-                      className={`p-2.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition ${
+                  {userRole === "ADMIN" ? (
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      {/* Toggle Active Button */}
+                      <button
+                        onClick={() => toggleActive(s)}
+                        className={`p-2.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition ${
+                          s.isActive
+                            ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                            : "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                        }`}
+                        title={s.isActive ? "غیرفعال کردن موقت" : "فعال‌سازی مجدد"}
+                      >
+                        <Power className="w-4 h-4" />
+                        <span className="text-[11px]">{s.isActive ? "غیرفعال" : "فعال‌سازی"}</span>
+                      </button>
+
+                      {/* Edit Button */}
+                      <button
+                        onClick={() => openEditModal(s)}
+                        className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+                        title="ویرایش زمان‌بندی"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => handleDelete(s)}
+                        className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition"
+                        title="حذف کامل تسک"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      <span className={`px-2.5 py-1 rounded-xl text-[11px] font-bold ${
                         s.isActive
-                          ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                          : "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
-                      }`}
-                      title={s.isActive ? "غیرفعال کردن موقت" : "فعال‌سازی مجدد"}
-                    >
-                      <Power className="w-4 h-4" />
-                      <span className="text-[11px]">{s.isActive ? "غیرفعال" : "فعال‌سازی"}</span>
-                    </button>
-
-                    {/* Edit Button */}
-                    <button
-                      onClick={() => openEditModal(s)}
-                      className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
-                      title="ویرایش زمان‌بندی"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => handleDelete(s)}
-                      className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition"
-                      title="حذف کامل تسک"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                      }`}>
+                        {s.isActive ? "فعال" : "غیرفعال"}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -1040,31 +1126,69 @@ export default function AdminSchedulesPage() {
 
                 {/* First Run Date */}
                 <div>
-                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                    تاریخ اولین اجرا:
-                  </label>
-                  <div className="flex items-center gap-1.5">
-                    {[
-                      { offset: 0, label: "از امروز" },
-                      { offset: 1, label: "از فردا" },
-                      { offset: 2, label: "از پس‌فردا" },
-                    ].map((d) => (
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300">
+                      تاریخ اولین اجرا:
+                    </label>
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
                       <button
-                        key={d.offset}
                         type="button"
-                        onClick={() => setFormStartDateOffset(d.offset)}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold border transition ${
-                          formStartDateOffset === d.offset
-                            ? "bg-care-700 dark:bg-emerald-600 text-white border-care-700 dark:border-emerald-600 shadow-xs"
-                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        onClick={() => setFormStartDateMode("PRESET")}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
+                          formStartDateMode === "PRESET"
+                            ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs"
+                            : "text-slate-500 dark:text-slate-400 hover:text-slate-900"
                         }`}
                       >
-                        {d.label}
+                        سریع
                       </button>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={() => setFormStartDateMode("CUSTOM")}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
+                          formStartDateMode === "CUSTOM"
+                            ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs"
+                            : "text-slate-500 dark:text-slate-400 hover:text-slate-900"
+                        }`}
+                      >
+                        دلخواه
+                      </button>
+                    </div>
                   </div>
+
+                  {formStartDateMode === "PRESET" ? (
+                    <div className="flex items-center gap-1.5">
+                      {[
+                        { offset: 0, label: "از امروز" },
+                        { offset: 1, label: "از فردا" },
+                        { offset: 2, label: "از پس‌فردا" },
+                      ].map((d) => (
+                        <button
+                          key={d.offset}
+                          type="button"
+                          onClick={() => setFormStartDateOffset(d.offset)}
+                          className={`flex-1 py-2 rounded-xl text-xs font-bold border transition ${
+                            formStartDateOffset === d.offset
+                              ? "bg-care-700 dark:bg-emerald-600 text-white border-care-700 dark:border-emerald-600 shadow-xs"
+                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                          }`}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={formCustomStartDate}
+                        onChange={(e) => setFormCustomStartDate(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-xs"
+                      />
+                    </div>
+                  )}
                   <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-2">
-                    موعد: {formatJalaliDate(computedStartDate)}
+                    موعد: {formatJalaliDate(computedStartDate)} ساعت {toPersianDigits(formTargetTime)}
                   </div>
                 </div>
               </div>
@@ -1139,7 +1263,7 @@ export default function AdminSchedulesPage() {
                       className="w-4 h-4 rounded text-care-600 focus:ring-care-500"
                     />
                     <span className="text-xs font-black text-amber-950 dark:text-amber-200">
-                      این تسک دوره درمانی / تاریخ پایان دارد
+                      این تسک دوره درمانی / تاریخ و ساعت پایان دارد
                     </span>
                   </label>
                   <span className="text-[10px] font-bold text-amber-800 dark:text-amber-400">
@@ -1148,32 +1272,85 @@ export default function AdminSchedulesPage() {
                 </div>
 
                 {formHasEndDate && (
-                  <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/60">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {[
-                        { days: 3, label: "۳ روزه" },
-                        { days: 5, label: "۵ روزه" },
-                        { days: 7, label: "۱ هفته" },
-                        { days: 14, label: "۲ هفته" },
-                        { days: 30, label: "۱ ماه" },
-                      ].map((dur) => (
-                        <button
-                          type="button"
-                          key={dur.days}
-                          onClick={() => setFormDurationDays(dur.days)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
-                            formDurationDays === dur.days
-                              ? "bg-amber-600 text-white border-amber-600"
-                              : "bg-white dark:bg-slate-800 border-amber-200 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40"
-                          }`}
-                        >
-                          {dur.label}
-                        </button>
-                      ))}
+                  <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/60 space-y-2.5">
+                    <div className="flex items-center gap-1 bg-white/80 dark:bg-slate-900/80 p-0.5 rounded-xl border border-amber-200 dark:border-amber-800/60 w-fit">
+                      <button
+                        type="button"
+                        onClick={() => setFormEndDateMode("DURATION")}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
+                          formEndDateMode === "DURATION"
+                            ? "bg-amber-600 text-white"
+                            : "text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        طول دوره (روز)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormEndDateMode("CUSTOM")}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
+                          formEndDateMode === "CUSTOM"
+                            ? "bg-amber-600 text-white"
+                            : "text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        تاریخ و ساعت دلخواه
+                      </button>
                     </div>
+
+                    {formEndDateMode === "DURATION" ? (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {[
+                          { days: 3, label: "۳ روزه" },
+                          { days: 5, label: "۵ روزه" },
+                          { days: 7, label: "۱ هفته" },
+                          { days: 14, label: "۲ هفته" },
+                          { days: 30, label: "۱ ماه" },
+                        ].map((dur) => (
+                          <button
+                            type="button"
+                            key={dur.days}
+                            onClick={() => setFormDurationDays(dur.days)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                              formDurationDays === dur.days
+                                ? "bg-amber-600 text-white border-amber-600"
+                                : "bg-white dark:bg-slate-800 border-amber-200 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                            }`}
+                          >
+                            {dur.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex-1 min-w-[140px]">
+                          <label className="block text-[10px] font-bold text-amber-900 dark:text-amber-300 mb-1">
+                            تاریخ پایان:
+                          </label>
+                          <input
+                            type="date"
+                            value={formCustomEndDate}
+                            onChange={(e) => setFormCustomEndDate(e.target.value)}
+                            className="w-full px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-xs"
+                          />
+                        </div>
+                        <div className="w-28">
+                          <label className="block text-[10px] font-bold text-amber-900 dark:text-amber-300 mb-1">
+                            ساعت پایان:
+                          </label>
+                          <input
+                            type="time"
+                            value={formCustomEndTime}
+                            onChange={(e) => setFormCustomEndTime(e.target.value)}
+                            className="w-full px-2 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-xs text-center"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {computedEndDate && (
                       <div className="mt-2 text-xs font-bold text-amber-900 dark:text-amber-300">
-                        پایان دوره: {formatJalaliDate(computedEndDate)} (به مدت {toPersianDigits(formDurationDays)} روز)
+                        پایان دوره: {formatJalaliDateTime(computedEndDate)}
                       </div>
                     )}
                   </div>

@@ -35,6 +35,11 @@ model Medication {
   lowStockThreshold Int        @default(15)
   timeConstraints   String?
   isActive          Boolean    @default(true)
+  discontinuedAt    DateTime?
+  discontinuedReason String?
+  discontinuedBy    String?
+  replacedById      String?
+  doctorOrderNotes  String?
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 

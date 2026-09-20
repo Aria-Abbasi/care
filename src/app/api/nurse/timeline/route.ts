@@ -102,8 +102,21 @@ export async function GET(request: NextRequest) {
         occurrencesToday.push(targetTime);
       }
 
+      // Filter occurrences today by exact startDate and endDate timestamp
+      const validOccurrences = occurrencesToday.filter((timeStr) => {
+        const [occH, occM] = timeStr.split(":").map(Number);
+        const occurrenceDate = tehranMoment().hour(occH || 0).minute(occM || 0).second(0).millisecond(0).toDate();
+        if (s.startDate && occurrenceDate.getTime() < new Date(s.startDate).getTime()) {
+          return false;
+        }
+        if (s.endDate && occurrenceDate.getTime() > new Date(s.endDate).getTime()) {
+          return false;
+        }
+        return true;
+      });
+
       // Add each occurrence and match against taskLogs
-      for (const timeStr of occurrencesToday) {
+      for (const timeStr of validOccurrences) {
         const scheduleLogs = taskLogs.filter((tl) => tl.scheduleId === s.id && !usedLogIds.has(tl.id));
         let matchedLog: any = null;
         if (scheduleLogs.length > 0) {
@@ -127,6 +140,7 @@ export async function GET(request: NextRequest) {
           completedBy: matchedLog?.nurse?.fullName || null,
           status: matchedLog?.status || "PENDING",
           notes: matchedLog?.notes || null,
+          taskLogId: matchedLog?.id || null,
         });
       }
     }

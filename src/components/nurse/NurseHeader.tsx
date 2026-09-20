@@ -77,15 +77,13 @@ export default function NurseHeader({ user }: NurseHeaderProps) {
         <div className="flex items-center gap-2 flex-shrink-0">
           <ThemeToggle />
 
-          {user?.role === "ADMIN" && (
-            <button
-              onClick={() => router.push("/admin/dashboard")}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-transparent dark:border-slate-700 transition"
-              title="ورود به پنل سرپرست"
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-            </button>
-          )}
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-transparent dark:border-slate-700 transition"
+            title={user?.role === "ADMIN" ? "ورود به پنل سرپرست" : "مشاهده داشبورد و گزارشات"}
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+          </button>
 
           <button
             onClick={handleLogout}

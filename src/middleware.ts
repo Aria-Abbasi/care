@@ -39,14 +39,12 @@ export async function middleware(request: NextRequest) {
 
         // If a redirect destination was passed and user has access
         if (from && from.startsWith("/") && !from.startsWith("//") && !from.startsWith("/login")) {
-          if (role === "ADMIN" || !from.startsWith("/admin")) {
-            return NextResponse.redirect(new URL(from, request.url));
-          }
+          return NextResponse.redirect(new URL(from, request.url));
         }
 
         // Default home redirect by role
         if (role === "ADMIN") {
-          return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+          return NextResponse.redirect(new URL("/dashboard", request.url));
         } else {
           return NextResponse.redirect(new URL("/nurse/timeline", request.url));
         }
@@ -56,6 +54,12 @@ export async function middleware(request: NextRequest) {
       }
     }
     return NextResponse.next();
+  }
+
+  // Redirect legacy /admin/* routes to flat /* routes
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    const target = pathname.replace(/^\/admin/, "") || "/dashboard";
+    return NextResponse.redirect(new URL(target, request.url));
   }
 
   if (!token) {
@@ -74,15 +78,15 @@ export async function middleware(request: NextRequest) {
     // Root path redirects to appropriate role home
     if (pathname === "/") {
       if (role === "ADMIN") {
-        return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+        return NextResponse.redirect(new URL("/dashboard", request.url));
       } else {
         return NextResponse.redirect(new URL("/nurse/timeline", request.url));
       }
     }
 
-    // Protect admin routes
-    if (pathname.startsWith("/admin") && role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/nurse/timeline", request.url));
+    // Protect users management route (ADMIN only)
+    if (pathname.startsWith("/users") && role !== "ADMIN") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
     // Set user headers for downstream server components

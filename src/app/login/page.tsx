@@ -27,7 +27,7 @@ function LoginForm() {
             }
           }
           if (data.user.role === "ADMIN") {
-            window.location.href = "/admin/dashboard";
+            window.location.href = "/dashboard";
           } else {
             window.location.href = "/nurse/timeline";
           }
@@ -59,7 +59,7 @@ function LoginForm() {
       if (from) {
         window.location.href = from;
       } else if (data.user.role === "ADMIN") {
-        window.location.href = "/admin/dashboard";
+        window.location.href = "/dashboard";
       } else {
         window.location.href = "/nurse/timeline";
       }

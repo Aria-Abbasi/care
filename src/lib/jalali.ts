@@ -122,7 +122,8 @@ export function formatRecurrenceText(
   intervalUnit?: string | null,
   intervalValue?: number | null,
   targetTime?: string | null,
-  endDate?: string | Date | null
+  endDate?: string | Date | null,
+  startDate?: string | Date | null
 ): string {
   const time = targetTime ? toPersianDigits(targetTime) : "";
   let text = "";
@@ -131,7 +132,7 @@ export function formatRecurrenceText(
     text = `یک‌باره (ساعت ${time})`;
   } else if (intervalUnit === "HOURS") {
     const val = intervalValue || 8;
-    text = `هر ${toPersianDigits(val)} ساعت یک‌بار (شروع از ${time})`;
+    text = `هر ${toPersianDigits(val)} ساعت یک‌بار (از ${time})`;
   } else if (intervalUnit === "DAYS") {
     const val = intervalValue || 1;
     if (val === 1) {
@@ -150,8 +151,16 @@ export function formatRecurrenceText(
     text = `روزانه ساعت ${time}`;
   }
 
+  if (startDate) {
+    const todayStr = getJalaliToday();
+    const startStr = formatJalaliDate(startDate);
+    if (startStr && startStr !== todayStr) {
+      text = `از ${startStr} - ` + text;
+    }
+  }
+
   if (endDate) {
-    const endStr = formatJalaliDate(endDate);
+    const endStr = formatJalaliDateTime(endDate);
     text += ` تا ${endStr}`;
   } else {
     text += " (دائمی)";

@@ -7,7 +7,7 @@ import { getTehranTodayStart, getTehranTodayEnd, formatRecurrenceText, tehranMom
 export async function GET(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request);
-    if (!user || user.role !== "ADMIN") {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
         s.intervalUnit,
         s.intervalValue,
         s.targetTime,
-        s.endDate
+        s.endDate,
+        s.startDate
       );
 
       return {

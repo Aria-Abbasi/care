@@ -22,7 +22,16 @@ rsync -avz --delete \
 
 # Ensure database exists in data/care.db on server and permissions are open for container
 ssh $SERVER "if [ ! -f $REMOTE_DIR/data/care.db ] && [ -f $REMOTE_DIR/prisma/care.db ]; then cp $REMOTE_DIR/prisma/care.db $REMOTE_DIR/data/care.db; fi"
-ssh $SERVER "python3 -c \"import sqlite3; con=sqlite3.connect('$REMOTE_DIR/data/care.db'); cols=[r[1] for r in con.execute('PRAGMA table_info(Schedule)').fetchall()]; ('vitalType' in cols) or (con.execute('ALTER TABLE Schedule ADD COLUMN vitalType TEXT') and con.commit())\""
+ssh $SERVER "python3 -c \"import sqlite3; con=sqlite3.connect('$REMOTE_DIR/data/care.db'); \
+s_cols=[r[1] for r in con.execute('PRAGMA table_info(Schedule)').fetchall()]; \
+('vitalType' in s_cols) or con.execute('ALTER TABLE Schedule ADD COLUMN vitalType TEXT'); \
+m_cols=[r[1] for r in con.execute('PRAGMA table_info(Medication)').fetchall()]; \
+('discontinuedAt' in m_cols) or con.execute('ALTER TABLE Medication ADD COLUMN discontinuedAt DATETIME'); \
+('discontinuedReason' in m_cols) or con.execute('ALTER TABLE Medication ADD COLUMN discontinuedReason TEXT'); \
+('discontinuedBy' in m_cols) or con.execute('ALTER TABLE Medication ADD COLUMN discontinuedBy TEXT'); \
+('replacedById' in m_cols) or con.execute('ALTER TABLE Medication ADD COLUMN replacedById TEXT'); \
+('doctorOrderNotes' in m_cols) or con.execute('ALTER TABLE Medication ADD COLUMN doctorOrderNotes TEXT'); \
+con.commit()\""
 ssh $SERVER "sudo chmod -R 777 $REMOTE_DIR/data $REMOTE_DIR/uploads"
 
 echo "=== 4. Updating Nginx configuration for care.kori.rest ==="

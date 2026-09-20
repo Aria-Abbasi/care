@@ -6,11 +6,22 @@ import {
   LayoutDashboard, Pill, Users, UtensilsCrossed,
   FileText, Stethoscope, LogOut, HeartPulse, CalendarClock
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const [userRole, setUserRole] = useState<string>("ADMIN");
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user?.role) setUserRole(data.user.role);
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -18,12 +29,12 @@ export default function AdminNav() {
   }
 
   const navItems = [
-    { href: "/admin/dashboard", label: "تحلیل و نمودارها", icon: LayoutDashboard },
-    { href: "/admin/schedules", label: "برنامه تسک‌ها", icon: CalendarClock },
-    { href: "/admin/medications", label: "پروتکل داروها و انبار", icon: Pill },
-    { href: "/admin/recipes", label: "رژیم و اسموتی‌ها", icon: UtensilsCrossed },
-    { href: "/admin/users", label: "پرستاران و کاربران", icon: Users },
-    { href: "/admin/report", label: "گزارش پزشک معالج", icon: FileText },
+    { href: "/dashboard", label: "تحلیل و نمودارها", icon: LayoutDashboard },
+    { href: "/schedules", label: "برنامه تسک‌ها", icon: CalendarClock },
+    { href: "/medications", label: "پروتکل داروها و انبار", icon: Pill },
+    { href: "/recipes", label: "رژیم و اسموتی‌ها", icon: UtensilsCrossed },
+    { href: "/report", label: "گزارش پزشک معالج", icon: FileText },
+    ...(userRole === "ADMIN" ? [{ href: "/users", label: "کاربران", icon: Users }] : []),
   ];
 
   return (
@@ -40,7 +51,7 @@ export default function AdminNav() {
                 سامانه مراقبت در منزل
               </div>
               <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                پرونده آقای جواد یزدانی (سرپرستی)
+                پرونده آقای جواد یزدانی ({userRole === "ADMIN" ? "سرپرستی" : "مشاهده و گزارش"})
               </div>
             </div>
           </div>

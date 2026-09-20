@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  CheckCircle2, Clock, Pill, Utensils, Shield, Check,
-  AlertCircle, Droplets, Activity, Heart, RefreshCw, ChevronDown, ListFilter, Sparkles,
-  FileText, X, Stethoscope, Timer, Smile, Camera, HeartPulse
+  CheckCircle2, Clock, Pill, Check,
+  AlertCircle, Droplets, Activity, Heart, RefreshCw, ListFilter, Sparkles,
+  FileText, X, Stethoscope, Timer, Smile, Camera, HeartPulse, RotateCcw, Edit3
 } from "lucide-react";
 import { toPersianDigits, formatJalaliTime } from "@/lib/jalali";
 import QuickActionFAB, { ActiveActionTrigger, QuickModalType } from "@/components/nurse/QuickActionFAB";
@@ -30,6 +30,7 @@ interface ScheduleItem {
   completedBy?: string | null;
   status: string;
   notes?: string | null;
+  taskLogId?: string | null;
 }
 
 interface AdHocTaskItem {
@@ -149,7 +150,7 @@ export default function NurseTimelinePage() {
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [adhocTasks, setAdhocTasks] = useState<AdHocTaskItem[]>([]);
   const [stats, setStats] = useState<ShiftStats>({ waterToday: 0, urineToday: 0 });
-  const [activeFilter, setActiveFilter] = useState<"all" | "medication" | "vital" | "meal" | "dvt_care">("all");
+  const [activeFilter, setActiveFilter] = useState<"all" | "medication" | "vital" | "done">("all");
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<ActiveActionTrigger | null>(null);
@@ -158,6 +159,14 @@ export default function NurseTimelinePage() {
   const [noteModalItem, setNoteModalItem] = useState<ScheduleItem | null>(null);
   const [noteText, setNoteText] = useState("");
   const [submittingNote, setSubmittingNote] = useState(false);
+
+  // Edit done task modal state
+  const [editModalItem, setEditModalItem] = useState<ScheduleItem | null>(null);
+  const [editNoteText, setEditNoteText] = useState("");
+  const [editValueNum, setEditValueNum] = useState("");
+  const [editSys, setEditSys] = useState("");
+  const [editDia, setEditDia] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchTimeline = useCallback(async () => {
     try {
@@ -185,7 +194,6 @@ export default function NurseTimelinePage() {
   function handleTaskClick(item: ScheduleItem) {
     if (item.isCompleted || completingId) return;
 
-    // Direct 1-tap open of dedicated vital modal (matching screenshot)
     if (item.vitalType && VITAL_META[item.vitalType]) {
       setActiveAction({
         modal: VITAL_META[item.vitalType].modal,
@@ -205,12 +213,11 @@ export default function NurseTimelinePage() {
     executeCompleteTask(item);
   }
 
-  // Execute complete task (with or without notes)
+  // Execute complete task
   async function executeCompleteTask(item: ScheduleItem, customNotes?: string) {
     if (item.isCompleted || completingId) return;
     setCompletingId(item.id);
 
-    // Optimistic UI update
     setSchedules((prev) =>
       prev.map((s) =>
         s.id === item.id
@@ -239,7 +246,8 @@ export default function NurseTimelinePage() {
       });
 
       if (!res.ok) {
-        // revert if failed
+        fetchTimeline();
+      } else {
         fetchTimeline();
       }
     } catch {
@@ -259,18 +267,132 @@ export default function NurseTimelinePage() {
     await executeCompleteTask(noteModalItem, noteText);
   }
 
-  // Filter items
-  const filteredItems = schedules.filter((item) => {
-    if (activeFilter === "all") return true;
-    if (activeFilter === "medication") return item.category === "medication" || item.itemType === "medication";
-    if (activeFilter === "vital") return !!item.vitalType || item.category === "vital";
-    if (activeFilter === "meal") return item.category === "meal";
-    if (activeFilter === "dvt_care") return item.category === "dvt_care" || item.vitalType === "dvt_care";
-    return true;
-  });
+  // Undo a completed task
+  async function handleUndoTask(item: ScheduleItem) {
+    if (!confirm(`آیا از لغو انجام و بازگردانی تسک «${item.title}» به لیست کارهای امروز اطمینان دارید؟`)) {
+      return;
+    }
 
-  const completedCount = schedules.filter((s) => s.isCompleted).length;
+    try {
+      const res = await fetch("/api/nurse/tasks/undo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskLogId: item.taskLogId,
+          scheduleId: item.scheduleId || item.id,
+        }),
+      });
+
+      if (res.ok) {
+        setSchedules((prev) =>
+          prev.map((s) =>
+            s.id === item.id
+              ? {
+                  ...s,
+                  isCompleted: false,
+                  completedAt: null,
+                  completedBy: null,
+                  notes: null,
+                  taskLogId: null,
+                }
+              : s
+          )
+        );
+        fetchTimeline();
+      } else {
+        alert("خطا در بازگردانی تسک");
+      }
+    } catch (err) {
+      console.error("Undo task error:", err);
+      alert("خطا در ارتباط با سرور");
+    }
+  }
+
+  // Open edit modal for completed task
+  function handleOpenEditModal(item: ScheduleItem) {
+    setEditModalItem(item);
+    setEditNoteText(item.notes || "");
+
+    if (item.notes) {
+      const bpMatch = item.notes.match(/(\d+)\/(\d+)/);
+      if (bpMatch) {
+        setEditSys(bpMatch[1]);
+        setEditDia(bpMatch[2]);
+        setEditValueNum("");
+      } else {
+        const numMatch = item.notes.match(/(\d+(\.\d+)?)/);
+        setEditValueNum(numMatch ? numMatch[1] : "");
+        setEditSys("");
+        setEditDia("");
+      }
+    } else {
+      setEditValueNum("");
+      setEditSys("");
+      setEditDia("");
+    }
+  }
+
+  // Save edited values/notes
+  async function handleSaveEdit() {
+    if (!editModalItem) return;
+    setSavingEdit(true);
+
+    try {
+      const res = await fetch("/api/nurse/tasks/edit-log", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskLogId: editModalItem.taskLogId,
+          scheduleId: editModalItem.scheduleId || editModalItem.id,
+          notes: editNoteText,
+          valueNum: editValueNum ? Number(editValueNum) : undefined,
+          systolic: editSys ? Number(editSys) : undefined,
+          diastolic: editDia ? Number(editDia) : undefined,
+        }),
+      });
+
+      if (res.ok) {
+        setEditModalItem(null);
+        fetchTimeline();
+      } else {
+        alert("خطا در ذخیره تغییرات");
+      }
+    } catch (err) {
+      console.error("Save edit error:", err);
+      alert("خطا در ارتباط با سرور");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  // Completed schedules sorted by most recent completed first
+  const completedSchedules = schedules
+    .filter((s) => s.isCompleted)
+    .sort((a, b) => (b.completedAt || "").localeCompare(a.completedAt || ""));
+
+  const lastDoneOverall = completedSchedules[0] || null;
+  const lastDoneMed = completedSchedules.find((s) => s.category === "medication" || s.itemType === "medication") || null;
+  const lastDoneVital = completedSchedules.find((s) => s.category === "vital" || s.vitalType) || null;
+
+  // Filter items based on selected tab (Requirement 2)
+  let displayItems: ScheduleItem[] = [];
+  if (activeFilter === "done") {
+    displayItems = completedSchedules;
+  } else if (activeFilter === "medication") {
+    const pendingMeds = schedules.filter((s) => !s.isCompleted && (s.category === "medication" || s.itemType === "medication"));
+    displayItems = lastDoneMed ? [lastDoneMed, ...pendingMeds] : pendingMeds;
+  } else if (activeFilter === "vital") {
+    const pendingVitals = schedules.filter((s) => !s.isCompleted && (s.category === "vital" || s.vitalType));
+    displayItems = lastDoneVital ? [lastDoneVital, ...pendingVitals] : pendingVitals;
+  } else {
+    // "all" tab: all pending tasks + ONLY the last completed task of shift
+    const pendingAll = schedules.filter((s) => !s.isCompleted);
+    displayItems = lastDoneOverall ? [lastDoneOverall, ...pendingAll] : pendingAll;
+  }
+
+  const completedCount = completedSchedules.length;
   const totalCount = schedules.length;
+  const pendingCount = totalCount - completedCount;
 
   return (
     <div className="p-4 space-y-4">
@@ -318,21 +440,21 @@ export default function NurseTimelinePage() {
                 "---"
               )}
             </div>
-            <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-              {stats.lastSugar?.mealTag ? "ناشتا/۲س" : "هنوز ثبت نشده"}
+            <div className="text-[10px] text-slate-500 dark:text-slate-400">
+              {stats.lastSugar?.mealTag ? "ناشتا/۲س" : "ثبت‌نشده"}
             </div>
           </div>
 
-          {/* Routine Progress */}
-          <div className="p-2.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 flex flex-col">
+          {/* Shift Tasks Progress */}
+          <div className="p-2.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 flex flex-col justify-between">
             <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               تسک‌های روتین
             </span>
             <div className="mt-1 text-sm font-black text-slate-900 dark:text-slate-100">
-              {toPersianDigits(completedCount)} از {toPersianDigits(totalCount)}
+              {toPersianDigits(completedCount)} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">از {toPersianDigits(totalCount)}</span>
             </div>
-            <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+            <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1">
               <div
                 className="bg-emerald-500 h-full rounded-full transition-all duration-500"
                 style={{
@@ -344,14 +466,13 @@ export default function NurseTimelinePage() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* 4 Dedicated Filter Tabs (Requirement 2) */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {[
-          { id: "all", label: "همه تسک‌ها", icon: ListFilter },
-          { id: "medication", label: "داروها", icon: Pill },
-          { id: "vital", label: "سنجش‌های بالینی", icon: HeartPulse },
-          { id: "meal", label: "غذا و میان‌وعده", icon: Utensils },
-          { id: "dvt_care", label: "مراقبت و DVT", icon: Shield },
+          { id: "all", label: "همه تسک‌ها", icon: ListFilter, count: pendingCount },
+          { id: "medication", label: "داروها", icon: Pill, count: schedules.filter(s => !s.isCompleted && (s.category === "medication" || s.itemType === "medication")).length },
+          { id: "vital", label: "سنجش‌های بالینی", icon: HeartPulse, count: schedules.filter(s => !s.isCompleted && (s.category === "vital" || s.vitalType)).length },
+          { id: "done", label: "تسک‌های انجام‌شده", icon: CheckCircle2, count: completedCount },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeFilter === tab.id;
@@ -367,21 +488,25 @@ export default function NurseTimelinePage() {
             >
               <Icon className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400 dark:text-white" : "text-slate-500 dark:text-slate-400"}`} />
               <span>{tab.label}</span>
+              {tab.count > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  isActive ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                }`}>
+                  {toPersianDigits(tab.count)}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
 
-      {/* Ad-Hoc Actions Section (if any logged today) */}
-      {adhocTasks.length > 0 && (
+      {/* Ad-Hoc Actions Section (shown only in Done tab or if adhoc exists) */}
+      {activeFilter === "done" && adhocTasks.length > 0 && (
         <div className="bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200/90 dark:border-indigo-900/50 rounded-3xl p-4 shadow-sm space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               اقدامات موردی و پیش‌بینی‌نشده امروز ({toPersianDigits(adhocTasks.length)})
-            </span>
-            <span className="text-[10px] bg-indigo-200/70 dark:bg-indigo-900/70 text-indigo-900 dark:text-indigo-200 font-bold px-2 py-0.5 rounded-full">
-              ثبت‌شده
             </span>
           </div>
 
@@ -415,14 +540,17 @@ export default function NurseTimelinePage() {
 
       {/* Chronological Timeline List */}
       <div className="space-y-3">
-        {filteredItems.length === 0 ? (
+        {displayItems.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 text-center border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
             <Clock className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-            <p className="font-bold text-sm">تسکی در این دسته‌بندی یافت نشد</p>
+            <p className="font-bold text-sm">
+              {activeFilter === "done" ? "هنوز تسکی در این شیفت انجام نشده است" : "تمام تسک‌های این بخش انجام شده‌اند"}
+            </p>
           </div>
         ) : (
-          filteredItems.map((item) => {
+          displayItems.map((item) => {
             const isCompleted = item.isCompleted;
+            const isLastDone = item.id === lastDoneOverall?.id;
             const isMed = item.category === "medication" || item.itemType === "medication";
             const isMeal = item.category === "meal";
             const vitalMeta = item.vitalType ? VITAL_META[item.vitalType] : null;
@@ -448,7 +576,7 @@ export default function NurseTimelinePage() {
               } catch {}
             }
 
-            // Calculate right accent strip color (Option 3)
+            // Calculate right accent strip color
             let stripColor = "border-r-slate-400 dark:border-r-slate-600";
             if (isCompleted) {
               stripColor = "border-r-emerald-500 dark:border-r-emerald-400";
@@ -499,6 +627,16 @@ export default function NurseTimelinePage() {
                     : `bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 ${stripColor} shadow-md hover:shadow-lg dark:shadow-black/20 hover:border-slate-300 dark:hover:border-slate-700`
                 }`}
               >
+                {/* Last Done Task Indicator Banner (Requirement 2) */}
+                {isCompleted && isLastDone && activeFilter !== "done" && (
+                  <div className="mb-2 flex items-center justify-between pb-2 border-b border-emerald-200/60 dark:border-emerald-800/40">
+                    <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      آخرین تسک انجام‌شده شیفت (قابلیت بازگردانی یا ویرایش)
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-start justify-between gap-3">
                   {/* Left: Time and Badges */}
                   <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -588,11 +726,36 @@ export default function NurseTimelinePage() {
                     </div>
                   </div>
 
-                  {/* Right: Big Action Button */}
-                  <div className="flex-shrink-0">
+                  {/* Right: Big Action Button / Undo & Edit controls */}
+                  <div className="flex-shrink-0 flex items-center gap-1.5">
                     {isCompleted ? (
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 border border-emerald-400/40">
-                        <Check className="w-6 h-6 stroke-[3]" />
+                      <div className="flex items-center gap-1.5">
+                        {/* Undo button */}
+                        <button
+                          type="button"
+                          onClick={() => handleUndoTask(item)}
+                          className="p-2.5 rounded-2xl bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-600 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-300 border border-slate-200 dark:border-slate-700 transition active:scale-95 flex items-center gap-1 text-[11px] font-bold"
+                          title="لغو انجام و بازگردانی به لیست کارهای امروز"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                          <span className="hidden sm:inline">لغو</span>
+                        </button>
+
+                        {/* Edit button */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditModal(item)}
+                          className="p-2.5 rounded-2xl bg-slate-100 hover:bg-amber-50 dark:bg-slate-800 dark:hover:bg-amber-950/50 text-slate-600 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-300 border border-slate-200 dark:border-slate-700 transition active:scale-95 flex items-center gap-1 text-[11px] font-bold"
+                          title="ویرایش عدد یا گزارش ثبت‌شده"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          <span className="hidden sm:inline">ویرایش</span>
+                        </button>
+
+                        {/* Checkmark Status Box */}
+                        <div className="w-11 h-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 border border-emerald-400/40 flex-shrink-0">
+                          <Check className="w-5 h-5 stroke-[3]" />
+                        </div>
                       </div>
                     ) : (
                       <button
@@ -626,11 +789,126 @@ export default function NurseTimelinePage() {
         )}
       </div>
 
+      {/* Edit Done Task Modal (Requirement 2) */}
+      {editModalItem && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">ویرایش ثبت بالینی / گزارش</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">اصلاح مقدار عددی یا توضیحات ثبت‌شده</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditModalItem(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-xl"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Task Info Banner */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700 mb-4 flex items-center justify-between">
+              <div className="font-black text-xs text-slate-800 dark:text-slate-200 truncate">
+                {editModalItem.title}
+              </div>
+              <div className="text-[11px] font-mono font-black text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                ساعت {toPersianDigits(editModalItem.targetTime)}
+              </div>
+            </div>
+
+            {/* If Blood Pressure: Systolic & Diastolic */}
+            {(editModalItem.vitalType === "blood_pressure" || editSys || editDia) ? (
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">سیستول (بالا):</label>
+                  <input
+                    type="number"
+                    value={editSys}
+                    onChange={(e) => setEditSys(e.target.value)}
+                    placeholder="مثلاً ۱۲۰"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-center font-black text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">دیاستول (پایین):</label>
+                  <input
+                    type="number"
+                    value={editDia}
+                    onChange={(e) => setEditDia(e.target.value)}
+                    placeholder="مثلاً ۸۰"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-center font-black text-sm"
+                  />
+                </div>
+              </div>
+            ) : (editModalItem.vitalType || editValueNum) ? (
+              /* If other numeric vital (water, urine, sugar, dvt) */
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  مقدار عددی ثبت‌شده (
+                  {editModalItem.vitalType === "water_intake" || editModalItem.vitalType === "urine_output"
+                    ? "سی‌سی cc"
+                    : editModalItem.vitalType === "blood_sugar"
+                    ? "mg/dL"
+                    : "واحد"}
+                  ):
+                </label>
+                <input
+                  type="number"
+                  value={editValueNum}
+                  onChange={(e) => setEditValueNum(e.target.value)}
+                  placeholder="مثلاً ۲۵۰"
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-black text-base text-center"
+                />
+              </div>
+            ) : null}
+
+            {/* Note text field */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                توضیحات و گزارش:
+              </label>
+              <textarea
+                rows={3}
+                value={editNoteText}
+                onChange={(e) => setEditNoteText(e.target.value)}
+                placeholder="توضیحات تکمیلی یا اصلاحی..."
+                className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none leading-relaxed transition"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={savingEdit}
+                onClick={handleSaveEdit}
+                className="flex-1 py-3.5 rounded-2xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-amber-600/20 active:scale-95 transition flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{savingEdit ? "در حال ذخیره..." : "ذخیره تغییرات"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditModalItem(null)}
+                className="py-3.5 px-4 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black text-xs active:scale-95 transition"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Note Requirement Modal */}
       {noteModalItem && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-2xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center">
@@ -644,13 +922,12 @@ export default function NurseTimelinePage() {
               <button
                 type="button"
                 onClick={() => setNoteModalItem(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-xl"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Task Info Banner */}
             <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700 mb-4 flex items-center justify-between">
               <div className="font-black text-xs text-slate-800 dark:text-slate-200 truncate">
                 {noteModalItem.title}
@@ -660,7 +937,6 @@ export default function NurseTimelinePage() {
               </div>
             </div>
 
-            {/* Clean Description Textarea */}
             <div className="mb-4">
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 توضیحات و گزارش انجام کار:
@@ -675,7 +951,6 @@ export default function NurseTimelinePage() {
               />
             </div>
 
-            {/* Action Buttons */}
             <div className="flex items-center gap-2">
               <button
                 type="button"

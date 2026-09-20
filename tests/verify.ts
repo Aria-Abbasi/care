@@ -66,7 +66,21 @@ async function runTests() {
 
   const adminReq = new NextRequest("http://localhost:3000/login", { headers: { cookie: `care_token=${adminToken}` } });
   const adminRes = await middleware(adminReq);
-  assert(adminRes.headers.get("location") === "http://localhost:3000/admin/dashboard", "Logged in admin visiting /login is redirected to /admin/dashboard");
+  assert(adminRes.headers.get("location") === "http://localhost:3000/dashboard", "Logged in admin visiting /login is redirected to /dashboard");
+
+  // Legacy /admin/* redirect test
+  const legacyAdminReq = new NextRequest("http://localhost:3000/admin/schedules", { headers: { cookie: `care_token=${adminToken}` } });
+  const legacyAdminRes = await middleware(legacyAdminReq);
+  assert(legacyAdminRes.headers.get("location") === "http://localhost:3000/schedules", "Legacy /admin/schedules redirects to /schedules");
+
+  // Nurse RBAC tests
+  const nurseDashboardReq = new NextRequest("http://localhost:3000/dashboard", { headers: { cookie: `care_token=${token}` } });
+  const nurseDashboardRes = await middleware(nurseDashboardReq);
+  assert(nurseDashboardRes.headers.get("location") === null, "Nurse can access /dashboard without redirect");
+
+  const nurseUsersReq = new NextRequest("http://localhost:3000/users", { headers: { cookie: `care_token=${token}` } });
+  const nurseUsersRes = await middleware(nurseUsersReq);
+  assert(nurseUsersRes.headers.get("location") === "http://localhost:3000/dashboard", "Nurse accessing /users is redirected to /dashboard");
 
   console.log("\n================ 3. DATABASE INTEGRITY TESTS ================");
   const adminUser = await prisma.user.findUnique({ where: { username: "admin" } });
@@ -184,6 +198,84 @@ async function runTests() {
   await prisma.taskLog.delete({ where: { id: testTaskLog.id } });
   await prisma.schedule.delete({ where: { id: testSchedule.id } });
   assert(true, "Vital reminder schedule cleanup test");
+
+  // 8. Test Medication discontinuation and order notes
+  const oldMed = await prisma.medication.create({
+    data: {
+      nameFa: "داروی تست قدیمی",
+      stockCount: 50,
+      isActive: true,
+    },
+  });
+
+  const newMed = await prisma.medication.create({
+    data: {
+      nameFa: "داروی تست جدید جایگزین",
+      doctorName: "دکتر تستی",
+      doctorOrderNotes: "جایگزینی داروی قدیمی به دلیل آلرژی",
+      stockCount: 100,
+      isActive: true,
+    },
+  });
+
+  // Discontinue old medication
+  await prisma.medication.update({
+    where: { id: oldMed.id },
+    data: {
+      isActive: false,
+      discontinuedAt: new Date(),
+      discontinuedReason: "جایگزینی با داروی جدید",
+      discontinuedBy: "دکتر تستی",
+      replacedById: newMed.id,
+    },
+  });
+
+  const checkOldMed = await prisma.medication.findUnique({ where: { id: oldMed.id } });
+  assert(checkOldMed !== null && !checkOldMed.isActive && checkOldMed.replacedById === newMed.id, "Medication discontinuation and replacement linking test");
+  assert(checkOldMed?.discontinuedReason === "جایگزینی با داروی جدید", "Medication discontinuedReason test");
+
+  // 9. Test Task Undo logic (Medication stock restoration and TaskLog deletion)
+  const medToUndo = await prisma.medication.create({
+    data: { nameFa: "داروی تست لغو", stockCount: 10, isActive: true },
+  });
+  const schedToUndo = await prisma.schedule.create({
+    data: {
+      title: "مصرف داروی تست لغو",
+      targetTime: "10:00",
+      category: "medication",
+      itemType: "medication",
+      medicationId: medToUndo.id,
+    },
+  });
+  // Nurse logs done (decrementing stock)
+  await prisma.medication.update({ where: { id: medToUndo.id }, data: { stockCount: { decrement: 1 } } });
+  const logToUndo = await prisma.taskLog.create({
+    data: {
+      scheduleId: schedToUndo.id,
+      taskTitle: schedToUndo.title,
+      nurseId: nurseUser!.id,
+      status: "DONE",
+    },
+  });
+
+  const medBeforeUndo = await prisma.medication.findUnique({ where: { id: medToUndo.id } });
+  assert(medBeforeUndo?.stockCount === 9, "Stock decremented before undo (10 -> 9)");
+
+  // Simulate Undo: restore stock and delete log
+  await prisma.medication.update({ where: { id: medToUndo.id }, data: { stockCount: { increment: 1 } } });
+  await prisma.taskLog.delete({ where: { id: logToUndo.id } });
+
+  const medAfterUndo = await prisma.medication.findUnique({ where: { id: medToUndo.id } });
+  const logAfterUndo = await prisma.taskLog.findUnique({ where: { id: logToUndo.id } });
+  assert(medAfterUndo?.stockCount === 10, "Stock restored after undo (9 -> 10)");
+  assert(logAfterUndo === null, "TaskLog successfully deleted on undo");
+
+  // Cleanup test records
+  await prisma.schedule.delete({ where: { id: schedToUndo.id } });
+  await prisma.medication.delete({ where: { id: medToUndo.id } });
+  await prisma.medication.delete({ where: { id: oldMed.id } });
+  await prisma.medication.delete({ where: { id: newMed.id } });
+  assert(true, "Discontinuation and undo test records cleanup");
 
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);

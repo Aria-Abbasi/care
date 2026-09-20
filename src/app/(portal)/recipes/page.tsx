@@ -24,6 +24,7 @@ export default function AdminRecipesPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"diet" | "smoothie">("diet");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string>("ADMIN");
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -46,6 +47,13 @@ export default function AdminRecipesPage() {
   }, []);
 
   useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user?.role) setUserRole(data.user.role);
+      })
+      .catch(() => {});
+
     fetchRecipes();
   }, [fetchRecipes]);
 
@@ -101,13 +109,15 @@ export default function AdminRecipesPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2.5 rounded-2xl bg-care-600 hover:bg-care-700 text-white font-bold text-xs shadow-md shadow-care-600/30 flex items-center gap-1.5 transition active:scale-95"
-        >
-          <Plus className="w-4 h-4" />
-          <span>افزودن دستور جدید</span>
-        </button>
+        {userRole === "ADMIN" && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-4 py-2.5 rounded-2xl bg-care-600 hover:bg-care-700 text-white font-bold text-xs shadow-md shadow-care-600/30 flex items-center gap-1.5 transition active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>افزودن دستور جدید</span>
+          </button>
+        )}
       </div>
 
       {/* Tabs */}

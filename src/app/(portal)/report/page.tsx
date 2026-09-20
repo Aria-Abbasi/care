@@ -23,11 +23,19 @@ interface ReportData {
     dailyAvgOutput: number;
     dvtAvgDailyMinutes: number;
   };
-  medications: Array<{
+  activeMedications: Array<{
     boxNumber?: string | null;
     nameFa: string;
     instructions?: string | null;
     doctorName?: string | null;
+    doctorOrderNotes?: string | null;
+  }>;
+  discontinuedMedications: Array<{
+    boxNumber?: string | null;
+    nameFa: string;
+    discontinuedAt?: string | null;
+    discontinuedBy?: string | null;
+    discontinuedReason?: string | null;
   }>;
   recentIncidents: Array<{
     date: string;
@@ -53,6 +61,10 @@ export default function DoctorReportPage() {
           const minG = sugars.length > 0 ? Math.min(...sugars) : 0;
           const maxG = sugars.length > 0 ? Math.max(...sugars) : 0;
 
+          const allMeds = medsJson.medications || [];
+          const activeMeds = allMeds.filter((m: any) => m.isActive);
+          const discontinuedMeds = allMeds.filter((m: any) => !m.isActive || m.discontinuedAt);
+
           setData({
             patient: {
               fullName: "آقای جواد یزدانی",
@@ -72,7 +84,8 @@ export default function DoctorReportPage() {
               dailyAvgOutput: analytics.kpi.todayOutput || 1450,
               dvtAvgDailyMinutes: Math.round(analytics.kpi.totalDvtMinutes / 14) || 90,
             },
-            medications: medsJson.medications.slice(0, 18),
+            activeMedications: activeMeds,
+            discontinuedMedications: discontinuedMeds,
             recentIncidents: analytics.clinicalPhotos.map((p: any) => ({
               date: p.createdAt,
               category: p.category,
@@ -227,10 +240,11 @@ export default function DoctorReportPage() {
                   <th className="p-2.5">نام دارو</th>
                   <th className="p-2.5">دستور مصرف</th>
                   <th className="p-2.5">پزشک معالج</th>
+                  <th className="p-2.5">توضیحات نسخه</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {data.medications.map((m, idx) => (
+                {data.activeMedications.map((m, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="p-2.5 font-bold font-mono">
                       {m.boxNumber ? `جعبه ${toPersianDigits(m.boxNumber)}` : "---"}
@@ -238,12 +252,54 @@ export default function DoctorReportPage() {
                     <td className="p-2.5 font-black text-slate-900 dark:text-slate-100">{m.nameFa}</td>
                     <td className="p-2.5 text-slate-700 dark:text-slate-300">{m.instructions || "طبق دستور"}</td>
                     <td className="p-2.5 text-slate-600 dark:text-slate-400">{m.doctorName || "---"}</td>
+                    <td className="p-2.5 text-slate-500 dark:text-slate-400 text-[11px]">{m.doctorOrderNotes || "---"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+
+        {/* Discontinued Medication History Table */}
+        {data.discontinuedMedications.length > 0 && (
+          <div className="my-6">
+            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-600" />
+              <span>تاریخچه تغییرات و توقف دستورات دارویی</span>
+            </h3>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs border border-rose-200 dark:border-rose-900/60 bg-rose-50/20 dark:bg-rose-950/10">
+                <thead className="bg-rose-100/70 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/60 font-black text-rose-950 dark:text-rose-200">
+                  <tr>
+                    <th className="p-2.5">نام داروی متوقف‌شده</th>
+                    <th className="p-2.5">جعبه سابق</th>
+                    <th className="p-2.5">تاریخ قطع</th>
+                    <th className="p-2.5">دستوردهنده / پزشک</th>
+                    <th className="p-2.5">علت بالینی توقف / جایگزینی</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rose-200/60 dark:divide-rose-900/40">
+                  {data.discontinuedMedications.map((m, idx) => (
+                    <tr key={idx} className="hover:bg-rose-50/50 dark:hover:bg-rose-950/20">
+                      <td className="p-2.5 font-black text-slate-900 dark:text-slate-100">{m.nameFa}</td>
+                      <td className="p-2.5 font-bold font-mono text-slate-600 dark:text-slate-400">
+                        {m.boxNumber ? `جعبه ${toPersianDigits(m.boxNumber)}` : "---"}
+                      </td>
+                      <td className="p-2.5 font-mono text-slate-700 dark:text-slate-300">
+                        {m.discontinuedAt ? formatJalaliDate(m.discontinuedAt) : "---"}
+                      </td>
+                      <td className="p-2.5 text-slate-700 dark:text-slate-300">{m.discontinuedBy || "پزشک معالج"}</td>
+                      <td className="p-2.5 text-rose-900 dark:text-rose-300 font-medium leading-relaxed">
+                        {m.discontinuedReason || "طبق دستور پزشک قطع شد"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Clinical Observations & Incidents */}
         <div className="my-6">
