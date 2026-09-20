@@ -464,22 +464,22 @@ export default function QuickActionFAB({
 
       {/* Main Quick Action Menu Sheet */}
       {activeModal === "MENU" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden max-h-[90vh] flex flex-col transition-colors">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/80">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-slate-900">ثبت سریع پای تخت بیمار</h2>
-                  <p className="text-[11px] text-slate-500">انتخاب اقدام جهت ثبت فوری</p>
+                  <h2 className="text-base font-black text-slate-900 dark:text-slate-100">ثبت سریع پای تخت بیمار</h2>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">انتخاب اقدام جهت ثبت فوری</p>
                 </div>
               </div>
               <button
                 onClick={() => setActiveModal(null)}
-                className="w-9 h-9 rounded-xl bg-slate-200/70 hover:bg-slate-300 flex items-center justify-center text-slate-600 transition active:scale-90"
+                className="w-9 h-9 rounded-xl bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition active:scale-90"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -490,17 +490,17 @@ export default function QuickActionFAB({
               {/* NEW: Ad-Hoc Task Button */}
               <button
                 onClick={() => setActiveModal("ADHOC")}
-                className="col-span-2 flex items-center gap-3 p-3.5 rounded-2xl border-2 border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-right transition active:scale-95 shadow-sm"
+                className="col-span-2 flex items-center gap-3 p-3.5 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/80 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-right transition active:scale-95 shadow-sm"
               >
                 <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-600/20">
                   <ClipboardPlus className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-black text-indigo-950 flex items-center gap-1.5">
+                  <div className="text-sm font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
                     <span>ثبت اقدام پیش‌بینی‌نشده / موردی</span>
-                    <span className="px-1.5 py-0.5 rounded bg-indigo-200 text-indigo-900 text-[10px] font-bold">فوری</span>
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-200 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-200 text-[10px] font-bold">فوری</span>
                   </div>
-                  <div className="text-[11px] text-indigo-800 font-medium">
+                  <div className="text-[11px] text-indigo-800 dark:text-indigo-300 font-medium">
                     کاری خارج از روتین زمان‌بندی‌شده که هم‌اکنون انجام شد
                   </div>
                 </div>
@@ -509,70 +509,70 @@ export default function QuickActionFAB({
               {/* 1. Water Intake */}
               <button
                 onClick={() => setActiveModal("WATER")}
-                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-sky-100 bg-sky-50/50 hover:bg-sky-100 text-right transition active:scale-95"
+                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-sky-100 dark:border-sky-900/50 bg-sky-50/50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-right transition active:scale-95"
               >
                 <div className="w-11 h-11 rounded-xl bg-sky-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-sky-500/20">
                   <Droplets className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-black text-slate-900">آب و مایعات</div>
-                  <div className="text-[11px] text-sky-700 font-medium">استکان / لیوان / ماگ</div>
+                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">آب و مایعات</div>
+                  <div className="text-[11px] text-sky-700 dark:text-sky-300 font-medium">استکان / لیوان / ماگ</div>
                 </div>
               </button>
 
               {/* 2. Urine Output */}
               <button
                 onClick={() => setActiveModal("URINE")}
-                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-amber-100 bg-amber-50/50 hover:bg-amber-100 text-right transition active:scale-95"
+                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-amber-100 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-right transition active:scale-95"
               >
                 <div className="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-amber-500/20">
                   <Activity className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-black text-slate-900">تخلیه ادرار سوند</div>
-                  <div className="text-[11px] text-amber-700 font-medium">سی سی + رنگ</div>
+                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">تخلیه ادرار سوند</div>
+                  <div className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">سی سی + رنگ</div>
                 </div>
               </button>
 
               {/* 3. Blood Glucose */}
               <button
                 onClick={() => setActiveModal("GLUCOSE")}
-                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-rose-100 bg-rose-50/50 hover:bg-rose-100 text-right transition active:scale-95"
+                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-rose-100 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-right transition active:scale-95"
               >
                 <div className="w-11 h-11 rounded-xl bg-rose-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-rose-500/20">
                   <Heart className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-black text-slate-900">قند خون</div>
-                  <div className="text-[11px] text-rose-700 font-medium">ناشتا / ۲ ساعته / کیپد</div>
+                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">قند خون</div>
+                  <div className="text-[11px] text-rose-700 dark:text-rose-300 font-medium">ناشتا / ۲ ساعته / کیپد</div>
                 </div>
               </button>
 
               {/* 4. Blood Pressure */}
               <button
                 onClick={() => setActiveModal("BP")}
-                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-violet-100 bg-violet-50/50 hover:bg-violet-100 text-right transition active:scale-95"
+                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-violet-100 dark:border-violet-900/50 bg-violet-50/50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-900/50 text-right transition active:scale-95"
               >
                 <div className="w-11 h-11 rounded-xl bg-violet-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-violet-500/20">
                   <Stethoscope className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-black text-slate-900">فشار خون</div>
-                  <div className="text-[11px] text-violet-700 font-medium">سیستول / دیاستول</div>
+                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">فشار خون</div>
+                  <div className="text-[11px] text-violet-700 dark:text-violet-300 font-medium">سیستول / دیاستول</div>
                 </div>
               </button>
 
               {/* 5. Bowel Movement */}
               <button
                 onClick={() => setActiveModal("BOWEL")}
-                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-orange-100 bg-orange-50/50 hover:bg-orange-100 text-right transition active:scale-95"
+                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-orange-100 dark:border-orange-900/50 bg-orange-50/50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-900/50 text-right transition active:scale-95"
               >
                 <div className="w-11 h-11 rounded-xl bg-orange-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-orange-500/20">
                   <Smile className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-black text-slate-900">کارکرد روده و ملین</div>
-                  <div className="text-[11px] text-orange-700 font-medium">۱+ / ۲+ / شیاف / ساشه</div>
+                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">کارکرد روده و ملین</div>
+                  <div className="text-[11px] text-orange-700 dark:text-orange-300 font-medium">۱+ / ۲+ / شیاف / ساشه</div>
                 </div>
               </button>
 
@@ -584,8 +584,8 @@ export default function QuickActionFAB({
                 }}
                 className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 text-right transition active:scale-95 ${
                   dvtActive
-                    ? "border-amber-500 bg-amber-100"
-                    : "border-teal-100 bg-teal-50/50 hover:bg-teal-100"
+                    ? "border-amber-500 bg-amber-100 dark:bg-amber-950/60"
+                    : "border-teal-100 dark:border-teal-900/50 bg-teal-50/50 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-900/50"
                 }`}
               >
                 <div
@@ -596,10 +596,10 @@ export default function QuickActionFAB({
                   <Timer className={`w-6 h-6 ${dvtActive ? "animate-spin" : ""}`} />
                 </div>
                 <div>
-                  <div className="text-sm font-black text-slate-900">
+                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">
                     {dvtActive ? "پایین آوردن پا" : "DVT پای راست"}
                   </div>
-                  <div className="text-[11px] font-bold text-teal-700">
+                  <div className="text-[11px] font-bold text-teal-700 dark:text-teal-300">
                     {dvtActive ? "در حال ثبت زمان..." : "تایمر بالا بردن پا"}
                   </div>
                 </div>
@@ -608,14 +608,14 @@ export default function QuickActionFAB({
               {/* 7. Clinical Photo & Incident Note */}
               <button
                 onClick={() => setActiveModal("NOTE")}
-                className="col-span-2 flex items-center gap-3 p-3.5 rounded-2xl border-2 border-emerald-100 bg-emerald-50/60 hover:bg-emerald-100 text-right transition active:scale-95"
+                className="col-span-2 flex items-center gap-3 p-3.5 rounded-2xl border-2 border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-right transition active:scale-95"
               >
                 <div className="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-600/20">
                   <Camera className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-black text-slate-900">ثبت تصویر یا یادداشت بالینی</div>
-                  <div className="text-[11px] text-emerald-800 font-medium">
+                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">ثبت تصویر یا یادداشت بالینی</div>
+                  <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium">
                     عکس پا/DVT، قرمزی پوست، ناخن‌ها، رویداد یا درد
                   </div>
                 </div>
@@ -627,23 +627,23 @@ export default function QuickActionFAB({
 
       {/* Modal: Ad-Hoc Task */}
       {activeModal === "ADHOC" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto transition-colors">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div className="flex items-center gap-2">
-                <ClipboardPlus className="w-6 h-6 text-indigo-600" />
+                <ClipboardPlus className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                 <div>
-                  <h3 className="font-black text-base text-slate-900">ثبت اقدام پیش‌بینی‌نشده / موردی</h3>
-                  <p className="text-[11px] text-slate-500">اقدامی که در برنامه روتین نبود و انجام شد</p>
+                  <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت اقدام پیش‌بینی‌نشده / موردی</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">اقدامی که در برنامه روتین نبود و انجام شد</p>
                 </div>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Fast chip presets */}
-            <p className="text-xs font-bold text-slate-600 mb-2">انتخاب سریع عنوان اقدام:</p>
+            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">انتخاب سریع عنوان اقدام:</p>
             <div className="flex flex-wrap gap-1.5 mb-4 max-h-36 overflow-y-auto p-0.5">
               {adhocSuggestions.map((suggestion) => (
                 <button
@@ -656,7 +656,7 @@ export default function QuickActionFAB({
                   className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition ${
                     adhocTitle === suggestion.title
                       ? "bg-indigo-600 text-white shadow-sm"
-                      : "bg-indigo-50/70 text-indigo-900 hover:bg-indigo-100"
+                      : "bg-indigo-50/70 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
                   }`}
                 >
                   {suggestion.title}
@@ -666,7 +666,7 @@ export default function QuickActionFAB({
 
             {/* Custom Title Input */}
             <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 یا عنوان دلخواه اقدام انجام‌شده:
               </label>
               <input
@@ -674,13 +674,13 @@ export default function QuickActionFAB({
                 value={adhocTitle}
                 onChange={(e) => setAdhocTitle(e.target.value)}
                 placeholder="مثلاً تعویض سوند، چک نبض، یا..."
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition"
               />
             </div>
 
             {/* Category Chips */}
             <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-700 mb-1">دسته‌بندی:</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">دسته‌بندی:</label>
               <div className="flex flex-wrap gap-1.5">
                 {["مراقبتی", "بهداشتی", "دارویی", "پایش علائم", "فوریت"].map((cat) => (
                   <button
@@ -689,8 +689,8 @@ export default function QuickActionFAB({
                     onClick={() => setAdhocCategory(cat)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                       adhocCategory === cat
-                        ? "bg-slate-900 text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        ? "bg-slate-900 dark:bg-indigo-600 text-white"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                   >
                     {cat}
@@ -701,7 +701,7 @@ export default function QuickActionFAB({
 
             {/* Notes / Reason */}
             <div className="mb-5">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 توضیحات یا علت انجام اقدام (اختیاری):
               </label>
               <textarea
@@ -709,7 +709,7 @@ export default function QuickActionFAB({
                 value={adhocNotes}
                 onChange={(e) => setAdhocNotes(e.target.value)}
                 placeholder="علت نیاز به این اقدام، واکنش بیمار یا شرایط خاص..."
-                className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition"
               />
             </div>
 
@@ -726,19 +726,19 @@ export default function QuickActionFAB({
 
       {/* Modal: Water Intake */}
       {activeModal === "WATER" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 transition-colors">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div className="flex items-center gap-2">
-                <Droplets className="w-6 h-6 text-sky-500" />
-                <h3 className="font-black text-base text-slate-900">ثبت مصرف آب و مایعات</h3>
+                <Droplets className="w-6 h-6 text-sky-500 dark:text-sky-400" />
+                <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت مصرف آب و مایعات</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs font-bold text-slate-500 mb-3">یک لمس سریع (مقادیر استاندارد):</p>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3">یک لمس سریع (مقادیر استاندارد):</p>
             <div className="grid grid-cols-2 gap-2.5 mb-5">
               {[
                 { label: "استکان", cc: 150 },
@@ -750,19 +750,19 @@ export default function QuickActionFAB({
                   key={item.cc}
                   onClick={() => submitWater(item.cc)}
                   disabled={submitting}
-                  className="p-3 rounded-2xl bg-sky-50 border-2 border-sky-200 hover:bg-sky-100 active:scale-95 transition flex flex-col items-center justify-center"
+                  className="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border-2 border-sky-200 dark:border-sky-900/50 hover:bg-sky-100 dark:hover:bg-sky-900/50 active:scale-95 transition flex flex-col items-center justify-center"
                 >
-                  <span className="text-xs font-semibold text-slate-700">{item.label}</span>
-                  <span className="text-base font-black text-sky-700">{toPersianDigits(item.cc)} cc</span>
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{item.label}</span>
+                  <span className="text-base font-black text-sky-700 dark:text-sky-300">{toPersianDigits(item.cc)} cc</span>
                 </button>
               ))}
             </div>
 
             {/* Custom keypad */}
-            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-700">
               <div className="flex justify-between items-center mb-2 px-1">
-                <span className="text-xs font-bold text-slate-500">یا مقدار دلخواه:</span>
-                <span className="text-lg font-black text-sky-900 font-mono">
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">یا مقدار دلخواه:</span>
+                <span className="text-lg font-black text-sky-900 dark:text-sky-300 font-mono">
                   {keypadValue ? `${toPersianDigits(keypadValue)} cc` : "۰ cc"}
                 </span>
               </div>
@@ -772,7 +772,7 @@ export default function QuickActionFAB({
                     key={k}
                     type="button"
                     onClick={() => handleKeypadTap(k)}
-                    className="py-2.5 bg-white border border-slate-200 rounded-xl font-black text-slate-800 active:bg-slate-100 shadow-sm"
+                    className="py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-black text-slate-800 dark:text-slate-100 active:bg-slate-100 dark:active:bg-slate-700 shadow-sm"
                   >
                     {k === "BACK" ? "←" : toPersianDigits(k)}
                   </button>
@@ -792,19 +792,19 @@ export default function QuickActionFAB({
 
       {/* Modal: Urine Output */}
       {activeModal === "URINE" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 transition-colors">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div className="flex items-center gap-2">
-                <Activity className="w-6 h-6 text-amber-500" />
-                <h3 className="font-black text-base text-slate-900">تخلیه ادرار سوند</h3>
+                <Activity className="w-6 h-6 text-amber-500 dark:text-amber-400" />
+                <h3 className="font-black text-base text-slate-900 dark:text-slate-100">تخلیه ادرار سوند</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs font-bold text-slate-500 mb-2">انتخاب رنگ ادرار:</p>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">انتخاب رنگ ادرار:</p>
             <div className="grid grid-cols-2 gap-2 mb-4">
               {["شفاف و زرد روشن", "کهربایی / غلیظ", "کدر", "تیره / متمایل به خون"].map((color) => (
                 <button
@@ -813,8 +813,8 @@ export default function QuickActionFAB({
                   onClick={() => setUrineColor(color)}
                   className={`p-2 text-xs font-bold rounded-xl border transition ${
                     urineColor === color
-                      ? "border-amber-500 bg-amber-50 text-amber-900"
-                      : "border-slate-200 bg-white text-slate-600"
+                      ? "border-amber-500 bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200"
+                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                   }`}
                 >
                   {color}
@@ -822,14 +822,14 @@ export default function QuickActionFAB({
               ))}
             </div>
 
-            <p className="text-xs font-bold text-slate-500 mb-2">مقادیر پرکاربرد:</p>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">مقادیر پرکاربرد:</p>
             <div className="grid grid-cols-4 gap-2 mb-4">
               {[200, 300, 400, 500].map((cc) => (
                 <button
                   key={cc}
                   onClick={() => submitUrine(cc)}
                   disabled={submitting}
-                  className="py-2.5 rounded-xl bg-amber-50 border-2 border-amber-200 font-black text-amber-900 text-sm hover:bg-amber-100 active:scale-95 transition"
+                  className="py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-200 dark:border-amber-900/50 font-black text-amber-900 dark:text-amber-300 text-sm hover:bg-amber-100 dark:hover:bg-amber-900/50 active:scale-95 transition"
                 >
                   {toPersianDigits(cc)}
                 </button>
@@ -837,10 +837,10 @@ export default function QuickActionFAB({
             </div>
 
             {/* Keypad */}
-            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-700">
               <div className="flex justify-between items-center mb-2 px-1">
-                <span className="text-xs font-bold text-slate-500">مقدار دقیق:</span>
-                <span className="text-lg font-black text-amber-900 font-mono">
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">مقدار دقیق:</span>
+                <span className="text-lg font-black text-amber-900 dark:text-amber-300 font-mono">
                   {keypadValue ? `${toPersianDigits(keypadValue)} cc` : "۰ cc"}
                 </span>
               </div>
@@ -850,7 +850,7 @@ export default function QuickActionFAB({
                     key={k}
                     type="button"
                     onClick={() => handleKeypadTap(k)}
-                    className="py-2 bg-white border border-slate-200 rounded-xl font-black text-slate-800 active:bg-slate-100 shadow-sm"
+                    className="py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-black text-slate-800 dark:text-slate-100 active:bg-slate-100 dark:active:bg-slate-700 shadow-sm"
                   >
                     {k === "BACK" ? "←" : toPersianDigits(k)}
                   </button>
@@ -870,14 +870,14 @@ export default function QuickActionFAB({
 
       {/* Modal: Blood Glucose */}
       {activeModal === "GLUCOSE" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 transition-colors">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
               <div className="flex items-center gap-2">
-                <Heart className="w-6 h-6 text-rose-500" />
-                <h3 className="font-black text-base text-slate-900">ثبت قند خون</h3>
+                <Heart className="w-6 h-6 text-rose-500 dark:text-rose-400" />
+                <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت قند خون</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -900,7 +900,7 @@ export default function QuickActionFAB({
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                     selectedTag === tag.id
                       ? "bg-rose-600 text-white shadow-sm shadow-rose-600/30"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                   }`}
                 >
                   {tag.label}
@@ -912,14 +912,14 @@ export default function QuickActionFAB({
             <div
               className={`p-4 rounded-2xl mb-4 text-center border-2 transition ${
                 !keypadValue
-                  ? "bg-slate-50 border-slate-200"
+                  ? "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700"
                   : parseInt(keypadValue, 10) < 70
-                  ? "bg-purple-50 border-purple-400 text-purple-900"
+                  ? "bg-purple-50 dark:bg-purple-950/50 border-purple-400 dark:border-purple-600 text-purple-900 dark:text-purple-200"
                   : parseInt(keypadValue, 10) <= 140
-                  ? "bg-emerald-50 border-emerald-400 text-emerald-900"
+                  ? "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-400 dark:border-emerald-600 text-emerald-900 dark:text-emerald-200"
                   : parseInt(keypadValue, 10) <= 180
-                  ? "bg-amber-50 border-amber-400 text-amber-900"
-                  : "bg-rose-50 border-rose-500 text-rose-900"
+                  ? "bg-amber-50 dark:bg-amber-950/50 border-amber-400 dark:border-amber-600 text-amber-900 dark:text-amber-200"
+                  : "bg-rose-50 dark:bg-rose-950/50 border-rose-500 dark:border-rose-600 text-rose-900 dark:text-rose-200"
               }`}
             >
               <div className="text-3xl font-black font-mono">
@@ -946,7 +946,7 @@ export default function QuickActionFAB({
                   key={k}
                   type="button"
                   onClick={() => handleKeypadTap(k)}
-                  className="py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl font-black text-slate-800 active:scale-95 shadow-sm text-base"
+                  className="py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl font-black text-slate-800 dark:text-slate-100 active:scale-95 shadow-sm text-base"
                 >
                   {k === "BACK" ? "←" : toPersianDigits(k)}
                 </button>
@@ -966,39 +966,39 @@ export default function QuickActionFAB({
 
       {/* Modal: Blood Pressure */}
       {activeModal === "BP" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 transition-colors">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div className="flex items-center gap-2">
-                <Stethoscope className="w-6 h-6 text-violet-500" />
-                <h3 className="font-black text-base text-slate-900">ثبت فشار خون</h3>
+                <Stethoscope className="w-6 h-6 text-violet-500 dark:text-violet-400" />
+                <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت فشار خون</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">سیستول (بالا)</label>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">سیستول (بالا)</label>
                 <input
                   type="number"
                   inputMode="numeric"
                   value={bpSys}
                   onChange={(e) => setBpSys(e.target.value)}
                   placeholder="مثلاً 120 یا 12"
-                  className="w-full py-3 px-4 rounded-xl border border-slate-200 text-center font-black text-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-violet-500 outline-none"
+                  className="w-full py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center font-black text-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-violet-500 outline-none transition"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">دیاستول (پایین)</label>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">دیاستول (پایین)</label>
                 <input
                   type="number"
                   inputMode="numeric"
                   value={bpDia}
                   onChange={(e) => setBpDia(e.target.value)}
                   placeholder="مثلاً 80 یا 8"
-                  className="w-full py-3 px-4 rounded-xl border border-slate-200 text-center font-black text-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-violet-500 outline-none"
+                  className="w-full py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center font-black text-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-violet-500 outline-none transition"
                 />
               </div>
             </div>
@@ -1017,18 +1017,18 @@ export default function QuickActionFAB({
       {/* Modal: Bowel Movement */}
       {activeModal === "BOWEL" && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div className="flex items-center gap-2">
                 <Smile className="w-6 h-6 text-orange-500" />
-                <h3 className="font-black text-base text-slate-900">ثبت کارکرد روده و ملین</h3>
+                <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت کارکرد روده و ملین</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs font-bold text-slate-600 mb-2">میزان کارکرد شکم:</p>
+            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">میزان کارکرد شکم:</p>
             <div className="grid grid-cols-2 gap-2.5 mb-5">
               {[
                 { id: "partial", label: "جزئی", desc: "کم یا تکه‌ای", stars: "•" },
@@ -1042,20 +1042,20 @@ export default function QuickActionFAB({
                   onClick={() => setBowelGrade(b.id)}
                   className={`p-3 rounded-2xl border-2 text-right transition active:scale-95 ${
                     bowelGrade === b.id
-                      ? "border-orange-500 bg-orange-50 text-orange-950 shadow-sm"
-                      : "border-slate-200 bg-white text-slate-700"
+                      ? "border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-950 dark:text-orange-200 shadow-sm"
+                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                   }`}
                 >
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-black text-sm">{b.label}</span>
                     <span className="text-xs font-mono font-bold text-orange-600">{b.stars}</span>
                   </div>
-                  <div className="text-[11px] text-slate-500">{b.desc}</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">{b.desc}</div>
                 </button>
               ))}
             </div>
 
-            <p className="text-xs font-bold text-slate-600 mb-2">ملین مصرف‌شده در این وعده (اختیاری):</p>
+            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">ملین مصرف‌شده در این وعده (اختیاری):</p>
             <div className="grid grid-cols-2 gap-2 mb-5">
               {[
                 "شیاف بیزاکودیل",
@@ -1079,8 +1079,8 @@ export default function QuickActionFAB({
                     }}
                     className={`p-2.5 rounded-xl border text-xs font-bold transition text-right ${
                       isSelected
-                        ? "border-orange-500 bg-orange-100/70 text-orange-900"
-                        : "border-slate-200 bg-slate-50 text-slate-700"
+                        ? "border-orange-500 bg-orange-100/70 dark:bg-orange-900/40 text-orange-900 dark:text-orange-200"
+                        : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                     }`}
                   >
                     {item}
@@ -1103,18 +1103,18 @@ export default function QuickActionFAB({
       {/* Modal: Clinical Note & Photo */}
       {activeModal === "NOTE" && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div className="flex items-center gap-2">
                 <Camera className="w-6 h-6 text-emerald-600" />
-                <h3 className="font-black text-base text-slate-900">ثبت تصویر یا یادداشت بالینی</h3>
+                <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت تصویر یا یادداشت بالینی</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs font-bold text-slate-600 mb-2">دسته‌بندی:</p>
+            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">دسته‌بندی:</p>
             <div className="grid grid-cols-2 gap-2 mb-4">
               {[
                 { id: "dvt_leg", label: "عکس پا / DVT" },
@@ -1128,8 +1128,8 @@ export default function QuickActionFAB({
                   onClick={() => setNoteCategory(cat.id)}
                   className={`p-2.5 rounded-xl border text-xs font-bold transition text-center ${
                     noteCategory === cat.id
-                      ? "border-emerald-600 bg-emerald-50 text-emerald-950 font-black"
-                      : "border-slate-200 bg-white text-slate-600"
+                      ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-200 font-black"
+                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                   }`}
                 >
                   {cat.label}
@@ -1172,7 +1172,7 @@ export default function QuickActionFAB({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-6 border-2 border-dashed border-emerald-300 bg-emerald-50/40 rounded-2xl flex flex-col items-center justify-center text-emerald-800 hover:bg-emerald-100 transition active:scale-98"
+                  className="w-full py-6 border-2 border-dashed border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/40 dark:bg-emerald-950/30 rounded-2xl flex flex-col items-center justify-center text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition active:scale-98"
                 >
                   <Camera className="w-8 h-8 mb-1" />
                   <span className="text-xs font-black">گرفتن عکس با دوربین گوشی / انتخاب تصویر</span>
@@ -1181,7 +1181,7 @@ export default function QuickActionFAB({
             </div>
 
             <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 توضیحات یا شرح وضعیت بیمار (اختیاری):
               </label>
               <textarea
@@ -1189,7 +1189,7 @@ export default function QuickActionFAB({
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
                 placeholder="مثلاً قرمزی خفیف در ساق پای راست نسبت به دیروز کمتر شده..."
-                className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
 

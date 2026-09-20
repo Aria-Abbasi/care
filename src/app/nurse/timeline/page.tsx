@@ -69,9 +69,9 @@ const VITAL_META: Record<string, {
   blood_sugar: {
     label: "قند خون",
     icon: Heart,
-    border: "border-rose-200",
-    badgeBg: "bg-rose-50 border-rose-200",
-    badgeText: "text-rose-800",
+    border: "border-rose-200 dark:border-rose-900/50",
+    badgeBg: "bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-900/50",
+    badgeText: "text-rose-800 dark:text-rose-300",
     btnBg: "bg-rose-600 hover:bg-rose-700 shadow-rose-600/30",
     btnText: "text-white",
     actionLabel: "ثبت قند خون",
@@ -80,9 +80,9 @@ const VITAL_META: Record<string, {
   blood_pressure: {
     label: "فشار خون",
     icon: Stethoscope,
-    border: "border-purple-200",
-    badgeBg: "bg-purple-50 border-purple-200",
-    badgeText: "text-purple-800",
+    border: "border-purple-200 dark:border-purple-900/50",
+    badgeBg: "bg-purple-50 dark:bg-purple-950/60 border-purple-200 dark:border-purple-900/50",
+    badgeText: "text-purple-800 dark:text-purple-300",
     btnBg: "bg-purple-600 hover:bg-purple-700 shadow-purple-600/30",
     btnText: "text-white",
     actionLabel: "ثبت فشار خون",
@@ -91,9 +91,9 @@ const VITAL_META: Record<string, {
   urine_output: {
     label: "تخلیه ادرار",
     icon: Activity,
-    border: "border-amber-200",
-    badgeBg: "bg-amber-50 border-amber-200",
-    badgeText: "text-amber-900",
+    border: "border-amber-200 dark:border-amber-900/50",
+    badgeBg: "bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-900/50",
+    badgeText: "text-amber-900 dark:text-amber-300",
     btnBg: "bg-amber-600 hover:bg-amber-700 shadow-amber-600/30",
     btnText: "text-white",
     actionLabel: "ثبت ادرار سوند",
@@ -102,9 +102,9 @@ const VITAL_META: Record<string, {
   water_intake: {
     label: "آب و مایعات",
     icon: Droplets,
-    border: "border-sky-200",
-    badgeBg: "bg-sky-50 border-sky-200",
-    badgeText: "text-sky-800",
+    border: "border-sky-200 dark:border-sky-900/50",
+    badgeBg: "bg-sky-50 dark:bg-sky-950/60 border-sky-200 dark:border-sky-900/50",
+    badgeText: "text-sky-800 dark:text-sky-300",
     btnBg: "bg-sky-600 hover:bg-sky-700 shadow-sky-600/30",
     btnText: "text-white",
     actionLabel: "ثبت آب",
@@ -113,9 +113,9 @@ const VITAL_META: Record<string, {
   dvt_care: {
     label: "مراقبت DVT",
     icon: Timer,
-    border: "border-teal-200",
-    badgeBg: "bg-teal-50 border-teal-200",
-    badgeText: "text-teal-900",
+    border: "border-teal-200 dark:border-teal-900/50",
+    badgeBg: "bg-teal-50 dark:bg-teal-950/60 border-teal-200 dark:border-teal-900/50",
+    badgeText: "text-teal-900 dark:text-teal-300",
     btnBg: "bg-teal-600 hover:bg-teal-700 shadow-teal-600/30",
     btnText: "text-white",
     actionLabel: "تایمر DVT",
@@ -124,9 +124,9 @@ const VITAL_META: Record<string, {
   bowel_movement: {
     label: "کارکرد روده",
     icon: Smile,
-    border: "border-orange-200",
-    badgeBg: "bg-orange-50 border-orange-200",
-    badgeText: "text-orange-900",
+    border: "border-orange-200 dark:border-orange-900/50",
+    badgeBg: "bg-orange-50 dark:bg-orange-950/60 border-orange-200 dark:border-orange-900/50",
+    badgeText: "text-orange-900 dark:text-orange-300",
     btnBg: "bg-orange-600 hover:bg-orange-700 shadow-orange-600/30",
     btnText: "text-white",
     actionLabel: "ثبت روده",
@@ -135,9 +135,9 @@ const VITAL_META: Record<string, {
   clinical_photo: {
     label: "تصویر بالینی",
     icon: Camera,
-    border: "border-emerald-200",
-    badgeBg: "bg-emerald-50 border-emerald-200",
-    badgeText: "text-emerald-900",
+    border: "border-emerald-200 dark:border-emerald-900/50",
+    badgeBg: "bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-900/50",
+    badgeText: "text-emerald-900 dark:text-emerald-300",
     btnBg: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30",
     btnText: "text-white",
     actionLabel: "ثبت تصویر",
@@ -275,12 +275,12 @@ export default function NurseTimelinePage() {
   return (
     <div className="p-4 space-y-4">
       {/* Shift Quick Status Bar */}
-      <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-slate-200/80 dark:border-slate-800 transition-colors">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-black text-slate-700">خلاصه شیفت امروز</span>
+          <span className="text-xs font-black text-slate-700 dark:text-slate-300">خلاصه شیفت امروز</span>
           <button
             onClick={fetchTimeline}
-            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+            className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 flex items-center gap-1 transition"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             <span>بروزرسانی</span>
@@ -289,50 +289,50 @@ export default function NurseTimelinePage() {
 
         <div className="grid grid-cols-3 gap-2.5">
           {/* Water Balance */}
-          <div className="p-2.5 rounded-2xl bg-sky-50/70 border border-sky-100 flex flex-col">
-            <span className="text-[11px] font-bold text-sky-800 flex items-center gap-1">
-              <Droplets className="w-3.5 h-3.5 text-sky-600" />
+          <div className="p-2.5 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/50 flex flex-col">
+            <span className="text-[11px] font-bold text-sky-800 dark:text-sky-300 flex items-center gap-1">
+              <Droplets className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
               مایعات
             </span>
-            <div className="mt-1 text-sm font-black text-slate-900">
-              {toPersianDigits(stats.waterToday)} <span className="text-[10px] font-normal">ورودی</span>
+            <div className="mt-1 text-sm font-black text-slate-900 dark:text-slate-100">
+              {toPersianDigits(stats.waterToday)} <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">ورودی</span>
             </div>
-            <div className="text-[11px] font-semibold text-amber-700">
-              {toPersianDigits(stats.urineToday)} <span className="text-[10px] font-normal">ادرار</span>
+            <div className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+              {toPersianDigits(stats.urineToday)} <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">ادرار</span>
             </div>
           </div>
 
           {/* Last Sugar */}
-          <div className="p-2.5 rounded-2xl bg-rose-50/70 border border-rose-100 flex flex-col">
-            <span className="text-[11px] font-bold text-rose-800 flex items-center gap-1">
-              <Heart className="w-3.5 h-3.5 text-rose-600" />
+          <div className="p-2.5 rounded-2xl bg-rose-50/70 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 flex flex-col">
+            <span className="text-[11px] font-bold text-rose-800 dark:text-rose-300 flex items-center gap-1">
+              <Heart className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
               آخرین قند
             </span>
-            <div className="mt-1 text-sm font-black text-slate-900">
+            <div className="mt-1 text-sm font-black text-slate-900 dark:text-slate-100">
               {stats.lastSugar ? (
                 <>
                   {toPersianDigits(stats.lastSugar.valueNum)}{" "}
-                  <span className="text-[10px] font-normal text-slate-500">mg/dL</span>
+                  <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">mg/dL</span>
                 </>
               ) : (
                 "---"
               )}
             </div>
-            <div className="text-[10px] text-slate-500 truncate">
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
               {stats.lastSugar?.mealTag ? "ناشتا/۲س" : "هنوز ثبت نشده"}
             </div>
           </div>
 
           {/* Routine Progress */}
-          <div className="p-2.5 rounded-2xl bg-emerald-50/70 border border-emerald-100 flex flex-col">
-            <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+          <div className="p-2.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 flex flex-col">
+            <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               تسک‌های روتین
             </span>
-            <div className="mt-1 text-sm font-black text-slate-900">
+            <div className="mt-1 text-sm font-black text-slate-900 dark:text-slate-100">
               {toPersianDigits(completedCount)} از {toPersianDigits(totalCount)}
             </div>
-            <div className="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+            <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
               <div
                 className="bg-emerald-500 h-full rounded-full transition-all duration-500"
                 style={{
@@ -361,11 +361,11 @@ export default function NurseTimelinePage() {
               onClick={() => setActiveFilter(tab.id as any)}
               className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-black whitespace-nowrap transition active:scale-95 ${
                 isActive
-                  ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                  ? "bg-slate-900 dark:bg-emerald-600 text-white shadow-md shadow-slate-900/20"
+                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400" : "text-slate-500"}`} />
+              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400 dark:text-white" : "text-slate-500 dark:text-slate-400"}`} />
               <span>{tab.label}</span>
             </button>
           );
@@ -374,13 +374,13 @@ export default function NurseTimelinePage() {
 
       {/* Ad-Hoc Actions Section (if any logged today) */}
       {adhocTasks.length > 0 && (
-        <div className="bg-indigo-50/80 border border-indigo-200/90 rounded-3xl p-4 shadow-sm space-y-2.5">
+        <div className="bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200/90 dark:border-indigo-900/50 rounded-3xl p-4 shadow-sm space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
+            <span className="text-xs font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               اقدامات موردی و پیش‌بینی‌نشده امروز ({toPersianDigits(adhocTasks.length)})
             </span>
-            <span className="text-[10px] bg-indigo-200/70 text-indigo-900 font-bold px-2 py-0.5 rounded-full">
+            <span className="text-[10px] bg-indigo-200/70 dark:bg-indigo-900/70 text-indigo-900 dark:text-indigo-200 font-bold px-2 py-0.5 rounded-full">
               ثبت‌شده
             </span>
           </div>
@@ -389,22 +389,22 @@ export default function NurseTimelinePage() {
             {adhocTasks.map((adhoc) => (
               <div
                 key={adhoc.id}
-                className="bg-white p-3.5 rounded-2xl border border-indigo-100 shadow-xs flex items-start justify-between gap-2.5"
+                className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-indigo-100 dark:border-indigo-950 shadow-xs flex items-start justify-between gap-2.5"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-black text-xs text-slate-900">{adhoc.title}</span>
-                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                    <span className="font-black text-xs text-slate-900 dark:text-slate-100">{adhoc.title}</span>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">
                       {adhoc.completedBy}
                     </span>
                   </div>
                   {adhoc.notes && (
-                    <p className="mt-1.5 text-xs text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-200/60 leading-relaxed">
+                    <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/70 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60 leading-relaxed">
                       {adhoc.notes}
                     </p>
                   )}
                 </div>
-                <div className="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 font-mono text-[11px] font-black flex-shrink-0">
+                <div className="px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-mono text-[11px] font-black flex-shrink-0">
                   {formatJalaliTime(adhoc.completedAt)}
                 </div>
               </div>
@@ -416,8 +416,8 @@ export default function NurseTimelinePage() {
       {/* Chronological Timeline List */}
       <div className="space-y-3">
         {filteredItems.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center border border-slate-200 text-slate-500">
-            <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 text-center border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+            <Clock className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
             <p className="font-bold text-sm">تسکی در این دسته‌بندی یافت نشد</p>
           </div>
         ) : (
@@ -453,12 +453,12 @@ export default function NurseTimelinePage() {
                 key={item.id}
                 className={`p-4 rounded-3xl border-2 transition-all duration-200 ${
                   isCompleted
-                    ? "bg-emerald-50/70 border-emerald-200/80 opacity-90"
+                    ? "bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-800/40 opacity-90"
                     : vitalMeta
-                    ? `bg-white ${vitalMeta.border} shadow-sm hover:border-slate-400`
+                    ? `bg-white dark:bg-slate-900 ${vitalMeta.border} shadow-sm hover:border-slate-400 dark:hover:border-slate-600`
                     : isOverdue
-                    ? "bg-amber-50/30 border-amber-300 shadow-sm"
-                    : "bg-white border-slate-200/80 shadow-sm hover:border-slate-300"
+                    ? "bg-amber-50/30 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700/60 shadow-sm"
+                    : "bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-slate-300 dark:hover:border-slate-700"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -468,10 +468,10 @@ export default function NurseTimelinePage() {
                     <div
                       className={`px-2.5 py-1.5 rounded-2xl font-mono text-xs font-black flex items-center justify-center flex-shrink-0 ${
                         isCompleted
-                          ? "bg-emerald-200 text-emerald-900"
+                          ? "bg-emerald-200 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200"
                           : isOverdue
                           ? "bg-amber-500 text-white animate-pulse"
-                          : "bg-slate-100 text-slate-900"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200"
                       }`}
                     >
                       {toPersianDigits(item.targetTime)}
@@ -481,7 +481,7 @@ export default function NurseTimelinePage() {
                       {/* Title */}
                       <h2
                         className={`text-sm font-black leading-snug ${
-                          isCompleted ? "text-emerald-950 line-through decoration-emerald-600/40" : "text-slate-900"
+                          isCompleted ? "text-emerald-950 dark:text-emerald-300 line-through decoration-emerald-600/40" : "text-slate-900 dark:text-slate-100"
                         }`}
                       >
                         {item.title}
@@ -497,31 +497,31 @@ export default function NurseTimelinePage() {
                         )}
 
                         {isOverdue && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-bold text-[10px] border border-amber-300">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-bold text-[10px] border border-amber-300 dark:border-amber-700/60">
                             ⚠️ موعد گذشته
                           </span>
                         )}
 
                         {item.medication?.boxNumber && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-bold text-[11px] border border-amber-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-bold text-[11px] border border-amber-200 dark:border-amber-800/60">
                             جعبه {toPersianDigits(item.medication.boxNumber)}
                           </span>
                         )}
 
                         {item.medication?.timeConstraints && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-rose-50 text-rose-800 font-bold text-[10px] border border-rose-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 font-bold text-[10px] border border-rose-200 dark:border-rose-900/60">
                             ⚠️ {item.medication.timeConstraints}
                           </span>
                         )}
 
                         {item.medication?.instructions && !item.medication?.timeConstraints && (
-                          <span className="text-[11px] text-slate-500 line-clamp-1">
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
                             {item.medication.instructions}
                           </span>
                         )}
 
                         {!isCompleted && item.requiresNote && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-[10px] border border-indigo-200 dark:border-indigo-900/60">
                             📝 نیاز به ثبت گزارش
                           </span>
                         )}
@@ -530,7 +530,7 @@ export default function NurseTimelinePage() {
                       {/* Completed note */}
                       {isCompleted && (
                         <div className="mt-2 space-y-1.5">
-                          <div className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                          <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                             <Check className="w-3.5 h-3.5" />
                             <span>
                               انجام شد {item.completedAt ? `(ساعت ${formatJalaliTime(item.completedAt)})` : ""}
@@ -538,8 +538,8 @@ export default function NurseTimelinePage() {
                             </span>
                           </div>
                           {item.notes && (
-                            <p className="text-xs text-slate-700 bg-emerald-50/80 p-2.5 rounded-2xl border border-emerald-200/70 leading-relaxed font-medium">
-                              <span className="font-bold text-emerald-900 block mb-0.5">مقدار / گزارش ثبت‌شده:</span>
+                            <p className="text-xs text-slate-700 dark:text-slate-200 bg-emerald-50/80 dark:bg-emerald-950/40 p-2.5 rounded-2xl border border-emerald-200/70 dark:border-emerald-800/50 leading-relaxed font-medium">
+                              <span className="font-bold text-emerald-900 dark:text-emerald-300 block mb-0.5">مقدار / گزارش ثبت‌شده:</span>
                               {item.notes}
                             </p>
                           )}
@@ -586,43 +586,43 @@ export default function NurseTimelinePage() {
         )}
       </div>
 
-      {/* Note Requirement Modal - No quick chips per user request */}
+      {/* Note Requirement Modal */}
       {noteModalItem && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-sm text-slate-900">ثبت گزارش انجام تسک</h3>
-                  <p className="text-[11px] text-slate-500">این اقدام نیاز به ثبت توضیحات توسط پرستار دارد</p>
+                  <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">ثبت گزارش انجام تسک</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">این اقدام نیاز به ثبت توضیحات توسط پرستار دارد</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setNoteModalItem(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition"
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Task Info Banner */}
-            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200/80 mb-4 flex items-center justify-between">
-              <div className="font-black text-xs text-slate-800 truncate">
+            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700 mb-4 flex items-center justify-between">
+              <div className="font-black text-xs text-slate-800 dark:text-slate-200 truncate">
                 {noteModalItem.title}
               </div>
-              <div className="text-[11px] font-mono font-black text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+              <div className="text-[11px] font-mono font-black text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
                 ساعت {toPersianDigits(noteModalItem.targetTime)}
               </div>
             </div>
 
             {/* Clean Description Textarea */}
             <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 توضیحات و گزارش انجام کار:
               </label>
               <textarea
@@ -631,7 +631,7 @@ export default function NurseTimelinePage() {
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
                 placeholder="توضیحات مربوط به انجام این اقدام، مقدار مصرف، وضعیت یا واکنش بیمار را بنویسید..."
-                className="w-full p-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed"
+                className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed transition"
               />
             </div>
 
@@ -649,7 +649,7 @@ export default function NurseTimelinePage() {
               <button
                 type="button"
                 onClick={() => setNoteModalItem(null)}
-                className="py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs active:scale-95 transition"
+                className="py-3.5 px-4 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black text-xs active:scale-95 transition"
               >
                 انصراف
               </button>

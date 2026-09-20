@@ -143,13 +143,13 @@ export default function AdminMedicationsPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
-            <Pill className="w-6 h-6 text-emerald-600" />
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Pill className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             <span>پروتکل داروها، جعبه‌ها و موجودی انبار</span>
           </h1>
-          <p className="text-xs sm:text-sm font-semibold text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">
             مدیریت شماره جعبه در منزل، شروط زمانی و هشدار اتمام موجودی قرص‌ها
           </p>
         </div>
@@ -165,9 +165,9 @@ export default function AdminMedicationsPage() {
 
       {/* Low Stock Warning Banner */}
       {lowStockCount > 0 && (
-        <div className="p-4 rounded-3xl bg-amber-50 border border-amber-300 text-amber-900 flex items-center justify-between">
+        <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <span className="text-xs font-black">
               توجه: {toPersianDigits(lowStockCount)} قلم دارو به حداقل موجودی رسیده‌اند و نیاز به تهیه دارند.
             </span>
@@ -177,13 +177,13 @@ export default function AdminMedicationsPage() {
 
       {/* Search Input */}
       <div className="relative">
-        <Search className="w-5 h-5 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2" />
+        <Search className="w-5 h-5 text-slate-400 dark:text-slate-500 absolute right-4 top-1/2 -translate-y-1/2" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="جستجوی نام دارو، شماره جعبه (مثلاً ۱ یا ۸) یا نام پزشک..."
-          className="w-full pr-12 pl-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
+          className="w-full pr-12 pl-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
         />
       </div>
 
@@ -195,8 +195,10 @@ export default function AdminMedicationsPage() {
           return (
             <div
               key={med.id}
-              className={`p-5 rounded-3xl bg-white border-2 transition shadow-sm flex flex-col justify-between ${
-                isLowStock ? "border-amber-300 bg-amber-50/20" : "border-slate-200 hover:border-slate-300"
+              className={`p-5 rounded-3xl bg-white dark:bg-slate-900 border-2 transition shadow-sm flex flex-col justify-between ${
+                isLowStock
+                  ? "border-amber-300 dark:border-amber-800 bg-amber-50/20 dark:bg-amber-950/20"
+                  : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
               }`}
             >
               <div>
@@ -204,16 +206,16 @@ export default function AdminMedicationsPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
                     {med.boxNumber && (
-                      <span className="px-2.5 py-1 rounded-xl bg-slate-900 text-white font-black text-xs">
+                      <span className="px-2.5 py-1 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-black text-xs">
                         جعبه {toPersianDigits(med.boxNumber)}
                       </span>
                     )}
-                    <h2 className="text-sm font-black text-slate-900">{med.nameFa}</h2>
+                    <h2 className="text-sm font-black text-slate-900 dark:text-slate-100">{med.nameFa}</h2>
                   </div>
 
                   <button
                     onClick={() => openEditModal(med)}
-                    className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition"
+                    className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition"
                     title="ویرایش"
                   >
                     <Edit3 className="w-4 h-4" />
@@ -222,41 +224,41 @@ export default function AdminMedicationsPage() {
 
                 {/* Instructions */}
                 {med.instructions && (
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-700">
                     {med.instructions}
                   </p>
                 )}
 
                 {/* Constraints Badge */}
                 {med.timeConstraints && (
-                  <div className="mt-2.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-bold">
-                    <Clock className="w-3 h-3 text-rose-600 flex-shrink-0" />
+                  <div className="mt-2.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-[11px] font-bold">
+                    <Clock className="w-3 h-3 text-rose-600 dark:text-rose-400 flex-shrink-0" />
                     <span>شرط زمانی: {med.timeConstraints}</span>
                   </div>
                 )}
 
                 {med.doctorName && (
-                  <div className="mt-2 flex items-center gap-1 text-[11px] text-slate-500 font-semibold">
-                    <User className="w-3.5 h-3.5 text-emerald-600" />
+                  <div className="mt-2 flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                    <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>پزشک تجویزکننده: {med.doctorName}</span>
                   </div>
                 )}
               </div>
 
               {/* Card Footer: Stock Inventory Controls */}
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Package className="w-4 h-4 text-slate-400" />
-                  <span className="text-xs font-bold text-slate-600">موجودی در منزل:</span>
+                  <Package className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-400">موجودی در منزل:</span>
                   <span
                     className={`font-mono text-sm font-black ${
-                      isLowStock ? "text-amber-700 font-bold" : "text-slate-900"
+                      isLowStock ? "text-amber-700 dark:text-amber-400 font-bold" : "text-slate-900 dark:text-slate-100"
                     }`}
                   >
                     {toPersianDigits(med.stockCount)} عدد
                   </span>
                   {isLowStock && (
-                    <span className="px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 text-[10px] font-bold">
+                    <span className="px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[10px] font-bold">
                       رو به اتمام
                     </span>
                   )}
@@ -266,21 +268,21 @@ export default function AdminMedicationsPage() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => updateStockDelta(med.id, -1)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-rose-600 active:scale-90 transition"
+                    className="p-1 rounded-lg text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 active:scale-90 transition"
                     title="کاهش ۱ عدد"
                   >
                     <MinusCircle className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => updateStockDelta(med.id, 10)}
-                    className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-[11px] font-bold transition active:scale-95"
+                    className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-[11px] font-bold transition active:scale-95"
                     title="خرید یک بسته (۱۰ تایی)"
                   >
                     +۱۰
                   </button>
                   <button
                     onClick={() => updateStockDelta(med.id, 1)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 active:scale-90 transition"
+                    className="p-1 rounded-lg text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 active:scale-90 transition"
                     title="افزایش ۱ عدد"
                   >
                     <PlusCircle className="w-5 h-5" />
@@ -295,75 +297,75 @@ export default function AdminMedicationsPage() {
       {/* Add / Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 border border-slate-100 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <h2 className="text-base font-black text-slate-900">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+              <h2 className="text-base font-black text-slate-900 dark:text-slate-100">
                 {editingMed ? "ویرایش دارو" : "افزودن داروی جدید"}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">نام کامل دارو (فارسی / انگلیسی)</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">نام کامل دارو (فارسی / انگلیسی)</label>
                 <input
                   type="text"
                   value={formNameFa}
                   onChange={(e) => setFormNameFa(e.target.value)}
                   placeholder="مثلاً پنتوپرازول 40"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">شماره جعبه در منزل</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">شماره جعبه در منزل</label>
                   <input
                     type="text"
                     value={formBoxNumber}
                     onChange={(e) => setFormBoxNumber(e.target.value)}
                     placeholder="مثلاً 8"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">موجودی فعلی (عدد)</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">موجودی فعلی (عدد)</label>
                   <input
                     type="number"
                     value={formStockCount}
                     onChange={(e) => setFormStockCount(e.target.value)}
                     placeholder="100"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">نام پزشک معالج</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">نام پزشک معالج</label>
                 <input
                   type="text"
                   value={formDoctorName}
                   onChange={(e) => setFormDoctorName(e.target.value)}
                   placeholder="مثلاً دکتر علایی"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">دستور مصرف بالینی</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">دستور مصرف بالینی</label>
                 <textarea
                   rows={2}
                   value={formInstructions}
                   onChange={(e) => setFormInstructions(e.target.value)}
                   placeholder="یک بار در روز - نیم ساعت قبل ناهار..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   شروط زمانی خاص یا تداخل دارویی (اختیاری)
                 </label>
                 <input
@@ -371,21 +373,21 @@ export default function AdminMedicationsPage() {
                   value={formTimeConstraints}
                   onChange={(e) => setFormTimeConstraints(e.target.value)}
                   placeholder="رأس ۳۰ دقیقه قبل ناهار / ۲ ساعت فاصله با منیزیم"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
             </div>
 
-            <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+            <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2.5 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-100"
+                className="px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
                 انصراف
               </button>
               <button
                 onClick={handleSaveMed}
-                className="px-5 py-2.5 rounded-xl bg-care-600 hover:bg-care-700 text-white font-bold text-xs shadow-md shadow-care-600/30"
+                className="px-5 py-2.5 rounded-xl bg-care-600 hover:bg-care-700 text-white font-bold text-xs shadow-md shadow-care-600/30 transition active:scale-95"
               >
                 ذخیره دارو
               </button>

@@ -102,21 +102,21 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Top Header & Range Filters */}
-      <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
         {/* Top row: Title on right, Refresh button on top-left (like /nurse/timeline) */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">
               داشبورد تحلیلی و پایش بالینی
             </h1>
-            <p className="text-xs sm:text-sm font-semibold text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">
               وضعیت بیمار: آقای جواد یزدانی • سابقه DVT و دیابت
             </p>
           </div>
 
           <button
             onClick={fetchAnalytics}
-            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 flex-shrink-0 pt-1 transition active:scale-95"
+            className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 flex items-center gap-1 flex-shrink-0 pt-1 transition active:scale-95"
             title="بروزرسانی داده‌ها"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -125,7 +125,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Timeframe Chips */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl w-fit">
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-fit">
           {[
             { id: "today", label: "امروز" },
             { id: "7d", label: "۷ روز گذشته" },
@@ -137,8 +137,8 @@ export default function AdminDashboardPage() {
               onClick={() => setRange(t.id as any)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                 range === t.id
-                  ? "bg-white text-slate-900 shadow-sm font-black"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm font-black"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
               }`}
             >
               {t.label}
@@ -149,13 +149,13 @@ export default function AdminDashboardPage() {
 
       {/* Critical Alert Banners (if any) */}
       {data?.kpi?.bowelAlert && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-rose-50 border-2 border-rose-300 text-rose-950 flex items-start gap-3 shadow-md shadow-rose-100">
+        <div className="p-4 sm:p-5 rounded-3xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 text-rose-950 dark:text-rose-200 flex items-start gap-3 shadow-md shadow-rose-100 dark:shadow-none">
           <ShieldAlert className="w-7 h-7 text-rose-600 flex-shrink-0 mt-0.5 animate-pulse" />
           <div className="flex-1">
-            <h2 className="font-black text-sm sm:text-base text-rose-900">
+            <h2 className="font-black text-sm sm:text-base text-rose-900 dark:text-rose-200">
               هشدار بالینی: تأخیر کارکرد روده (بیش از ۳۶ ساعت)!
             </h2>
-            <p className="text-xs text-rose-800 mt-1 leading-relaxed">
+            <p className="text-xs text-rose-800 dark:text-rose-300 mt-1 leading-relaxed">
               از آخرین کارکرد روده بیمار بیش از {toPersianDigits(data.kpi.hoursSinceLastBowel)} ساعت گذشته است.
               بررسی نیاز به ملین (پیدرولاکس، شیاف بیزاکودیل یا شربت منیزیم) و مصرف مایعات توصیه می‌شود.
             </p>
@@ -164,13 +164,13 @@ export default function AdminDashboardPage() {
       )}
 
       {data?.kpi?.retentionRisk && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-amber-50 border-2 border-amber-300 text-amber-950 flex items-start gap-3 shadow-md shadow-amber-100">
+        <div className="p-4 sm:p-5 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-200 flex items-start gap-3 shadow-md shadow-amber-100 dark:shadow-none">
           <AlertTriangle className="w-7 h-7 text-amber-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h2 className="font-black text-sm sm:text-base text-amber-900">
+            <h2 className="font-black text-sm sm:text-base text-amber-900 dark:text-amber-200">
               هشدار احتباس مایعات (خطر کاهش برون‌ده ادرار)
             </h2>
-            <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+            <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
               تخلیه ادرار ({toPersianDigits(data.kpi.todayOutput)} cc) نسبت به آب مصرفی ({toPersianDigits(data.kpi.todayIntake)} cc) به طور چشمگیری کمتر است.
               احتمال احتباس آب، ورم و تشدید DVT پای راست نیازمند پایش است.
             </p>
@@ -181,106 +181,106 @@ export default function AdminDashboardPage() {
       {/* Real-time KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1: Bowel Movement Status */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500">فاصله از آخرین دفع مثبت</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">فاصله از آخرین دفع مثبت</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className={`text-3xl font-black font-mono ${data?.kpi?.bowelAlert ? "text-rose-600" : "text-emerald-700"}`}>
+              <span className={`text-3xl font-black font-mono ${data?.kpi?.bowelAlert ? "text-rose-600 dark:text-rose-400" : "text-emerald-700 dark:text-emerald-400"}`}>
                 {data ? toPersianDigits(data.kpi.hoursSinceLastBowel) : "..."}
               </span>
-              <span className="text-xs font-bold text-slate-600">ساعت پیش</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-400">ساعت پیش</span>
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">وضعیت دفع:</span>
-            <span className={`font-bold ${data?.kpi?.bowelAlert ? "text-rose-700" : "text-emerald-700"}`}>
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 dark:text-slate-400">وضعیت دفع:</span>
+            <span className={`font-bold ${data?.kpi?.bowelAlert ? "text-rose-700 dark:text-rose-400" : "text-emerald-700 dark:text-emerald-400"}`}>
               {data?.kpi?.bowelAlert ? "⚠️ هشدار یبوست" : "✓ وضعیت طبیعی"}
             </span>
           </div>
         </div>
 
         {/* KPI 2: Fluid Balance */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
               بالانس مایعات ({range === "today" ? "امروز" : range === "7d" ? "۷ روزه" : range === "30d" ? "۳۰ روزه" : "کل سوابق"})
             </span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-black text-sky-700 font-mono">
+              <span className="text-2xl font-black text-sky-700 dark:text-sky-400 font-mono">
                 {data ? toPersianDigits(data.kpi.todayIntake) : "..."}
               </span>
               <span className="text-xs text-slate-400">/</span>
-              <span className="text-2xl font-black text-amber-700 font-mono">
+              <span className="text-2xl font-black text-amber-700 dark:text-amber-400 font-mono">
                 {data ? toPersianDigits(data.kpi.todayOutput) : "..."}
               </span>
-              <span className="text-xs font-bold text-slate-500">cc</span>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">cc</span>
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">اختلاف در این دوره:</span>
-            <span className="font-bold text-slate-800">
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 dark:text-slate-400">اختلاف در این دوره:</span>
+            <span className="font-bold text-slate-800 dark:text-slate-200">
               {data ? toPersianDigits(data.kpi.todayIntake - data.kpi.todayOutput) : "..."} cc
             </span>
           </div>
         </div>
 
         {/* KPI 3: Blood Glucose Trends */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
               میانگین قند خون ({range === "today" ? "امروز" : range === "7d" ? "۷ روزه" : range === "30d" ? "۳۰ روزه" : "کل سوابق"})
             </span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900 font-mono">
+              <span className="text-3xl font-black text-slate-900 dark:text-slate-100 font-mono">
                 {data ? toPersianDigits(data.kpi.glucoseAvg) : "..."}
               </span>
-              <span className="text-xs font-bold text-slate-500">mg/dL</span>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">mg/dL</span>
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">اسپایک بالای ۱۸۰:</span>
-            <span className="font-bold text-rose-600">
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 dark:text-slate-400">اسپایک بالای ۱۸۰:</span>
+            <span className="font-bold text-rose-600 dark:text-rose-400">
               {data ? toPersianDigits(data.kpi.glucoseSpikesCount) : "۰"} مورد
             </span>
           </div>
         </div>
 
         {/* KPI 4: DVT Leg Elevation */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
               مجموع بالا بردن پای راست ({range === "today" ? "امروز" : range === "7d" ? "۷ روزه" : range === "30d" ? "۳۰ روزه" : "کل سوابق"})
             </span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-black text-teal-700 font-mono">
+              <span className="text-3xl font-black text-teal-700 dark:text-teal-400 font-mono">
                 {data ? toPersianDigits(Math.round(data.kpi.totalDvtMinutes / 60)) : "..."}
               </span>
-              <span className="text-xs font-bold text-slate-600">ساعت در این دوره</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-400">ساعت در این دوره</span>
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">هدف توصیه شده:</span>
-            <span className="font-bold text-teal-800">حداقل ۲ ساعت در روز</span>
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 dark:text-slate-400">هدف توصیه شده:</span>
+            <span className="font-bold text-teal-800 dark:text-teal-300">حداقل ۲ ساعت در روز</span>
           </div>
         </div>
       </div>
 
       {/* Chart 1: Fluid Balance (Intake vs Urine) */}
-      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-2">
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800 gap-2">
           <div>
-            <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-              <Droplets className="w-5 h-5 text-sky-600" />
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Droplets className="w-5 h-5 text-sky-600 dark:text-sky-400" />
               <span>نمودار بالانس مایعات روزانه (آب مصرفی در برابر تخلیه ادرار)</span>
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">مقادیر بر حسب سی‌سی (ml / cc)</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">مقادیر بر حسب سی‌سی (ml / cc)</p>
           </div>
           <div className="flex items-center gap-4 text-xs font-bold">
-            <span className="flex items-center gap-1.5 text-sky-700">
+            <span className="flex items-center gap-1.5 text-sky-700 dark:text-sky-400">
               <span className="w-3 h-3 rounded-md bg-sky-500 inline-block" />
               آب مصرفی
             </span>
-            <span className="flex items-center gap-1.5 text-amber-700">
+            <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
               <span className="w-3 h-3 rounded-md bg-amber-500 inline-block" />
               تخلیه ادرار
             </span>
@@ -291,7 +291,7 @@ export default function AdminDashboardPage() {
           {isMounted && data?.fluidBalanceChart && data.fluidBalanceChart.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.fluidBalanceChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" strokeOpacity={0.4} />
                 <XAxis dataKey="jalaliDate" stroke="#94a3b8" fontSize={11} tickLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
                 <Tooltip
@@ -314,25 +314,25 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Chart 2: Blood Glucose Multi-Line Trend Chart */}
-      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-2">
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800 gap-2">
           <div>
-            <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-              <Heart className="w-5 h-5 text-rose-600" />
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Heart className="w-5 h-5 text-rose-600 dark:text-rose-400" />
               <span>روند نوسانات قند خون و محدوده هدف ایمن (۸۰ تا ۱۴۰)</span>
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">پایش قند ناشتا، ۲ ساعته صبحانه، ناهار و شام</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">پایش قند ناشتا، ۲ ساعته صبحانه، ناهار و شام</p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
-            <span className="flex items-center gap-1 text-emerald-700">
-              <span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-400 inline-block" />
+            <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+              <span className="w-3 h-3 rounded bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-400 dark:border-emerald-600 inline-block" />
               محدوده ایمن (۸۰-۱۴۰)
             </span>
-            <span className="flex items-center gap-1 text-rose-700">
+            <span className="flex items-center gap-1 text-rose-700 dark:text-rose-400">
               <span className="w-3 h-1 bg-rose-500 inline-block" />
               هشدار بالا (&gt;۱۸۰)
             </span>
-            <span className="flex items-center gap-1 text-purple-700">
+            <span className="flex items-center gap-1 text-purple-700 dark:text-purple-400">
               <span className="w-3 h-1 bg-purple-500 inline-block" />
               افت شدید (&lt;۷۰)
             </span>
@@ -343,7 +343,7 @@ export default function AdminDashboardPage() {
           {isMounted && data?.glucoseChart && data.glucoseChart.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data.glucoseChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" strokeOpacity={0.4} />
                 <XAxis dataKey="jalaliTime" stroke="#94a3b8" fontSize={10} tickLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={11} domain={[50, 260]} tickLine={false} />
                 <ReferenceArea y1={80} y2={140} fill="#22c55e" fillOpacity={0.12} />
@@ -374,8 +374,8 @@ export default function AdminDashboardPage() {
       {/* Grid: Bowel & Laxatives Timeline + DVT Elevation Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Bowel & Laxative Monitoring */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-          <h2 className="text-base font-black text-slate-900 flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+        <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
+          <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
             <Activity className="w-5 h-5 text-orange-500" />
             <span>پایش کارکرد روده و ملین‌های مصرف‌شده</span>
           </h2>
@@ -387,21 +387,21 @@ export default function AdminDashboardPage() {
                   key={item.id}
                   className={`p-3 rounded-2xl border text-xs flex items-start justify-between gap-3 ${
                     item.type === "laxative"
-                      ? "bg-amber-50/60 border-amber-200"
-                      : "bg-emerald-50/60 border-emerald-200"
+                      ? "bg-amber-50/60 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50"
+                      : "bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50"
                   }`}
                 >
                   <div>
-                    <div className="font-black text-slate-900">{item.text}</div>
-                    <div className="text-[11px] text-slate-500 mt-1">
+                    <div className="font-black text-slate-900 dark:text-slate-100">{item.text}</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                       {item.jalaliDateTime}
                     </div>
                   </div>
                   <span
                     className={`px-2.5 py-1 rounded-xl text-[10px] font-black flex-shrink-0 ${
                       item.type === "laxative"
-                        ? "bg-amber-200 text-amber-900"
-                        : "bg-emerald-200 text-emerald-900"
+                        ? "bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200"
+                        : "bg-emerald-200 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200"
                     }`}
                   >
                     {item.type === "laxative" ? "ملین مصرفی" : "کارکرد شکم"}
@@ -415,9 +415,9 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* DVT Leg Elevation Minutes per Day */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-          <h2 className="text-base font-black text-slate-900 flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-            <Clock className="w-5 h-5 text-teal-600" />
+        <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
+          <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <Clock className="w-5 h-5 text-teal-600 dark:text-teal-400" />
             <span>پایش ساعات بالا بردن پای راست (DVT)</span>
           </h2>
 
@@ -425,7 +425,7 @@ export default function AdminDashboardPage() {
             {isMounted && data?.dvtChart && data.dvtChart.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.dvtChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" strokeOpacity={0.4} />
                   <XAxis dataKey="jalaliDate" stroke="#94a3b8" fontSize={11} tickLine={false} />
                   <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
                   <Tooltip
@@ -445,13 +445,13 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Comparative Clinical Photo Gallery (for DVT / skin / wounds) */}
-      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
-          <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-emerald-600" />
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             <span>گالری مقایسه‌ای وضعیت پا، ناخن‌ها و پوست (DVT Assessment)</span>
           </h2>
-          <span className="text-xs text-slate-500 font-bold">جهت ارزیابی پیشرفت درمان و قرمزی</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">جهت ارزیابی پیشرفت درمان و قرمزی</span>
         </div>
 
         {data?.clinicalPhotos && data.clinicalPhotos.length > 0 ? (
@@ -460,15 +460,15 @@ export default function AdminDashboardPage() {
               <div
                 key={photo.id}
                 onClick={() => setSelectedPhoto(photo.photoUrl)}
-                className="group relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 cursor-pointer hover:shadow-lg transition"
+                className="group relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-pointer hover:shadow-lg transition"
               >
                 <img
                   src={photo.photoUrl}
                   alt={photo.noteText || "عکس بالینی"}
                   className="w-full h-36 object-cover group-hover:scale-105 transition duration-300"
                 />
-                <div className="p-2.5 bg-white">
-                  <div className="text-[11px] font-black text-slate-900 truncate">
+                <div className="p-2.5 bg-white dark:bg-slate-800">
+                  <div className="text-[11px] font-black text-slate-900 dark:text-slate-100 truncate">
                     {photo.category === "dvt_leg"
                       ? "عکس پای راست / DVT"
                       : photo.category === "skin_wound"
@@ -477,7 +477,7 @@ export default function AdminDashboardPage() {
                       ? "ناخن‌ها"
                       : "رویداد / درد"}
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
                     {formatJalaliDateTime(photo.createdAt)}
                   </div>
                 </div>
@@ -497,12 +497,12 @@ export default function AdminDashboardPage() {
           onClick={() => setSelectedPhoto(null)}
           className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4"
         >
-          <div className="max-w-2xl w-full bg-white rounded-3xl overflow-hidden p-2">
+          <div className="max-w-2xl w-full bg-white dark:bg-slate-900 rounded-3xl overflow-hidden p-2 border border-slate-200 dark:border-slate-800">
             <img src={selectedPhoto} alt="بزرگنمایی تصویر" className="w-full h-auto max-h-[80vh] object-contain rounded-2xl" />
             <div className="p-3 text-center">
               <button
                 onClick={() => setSelectedPhoto(null)}
-                className="px-6 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
+                className="px-6 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition"
               >
                 بستن
               </button>

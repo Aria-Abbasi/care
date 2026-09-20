@@ -461,16 +461,16 @@ export default function AdminSchedulesPage() {
       )}
 
       {/* Header & Main Action */}
-      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
         {/* Top row: Title on right, Refresh button on top-left (like /nurse/timeline) */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="p-2.5 rounded-2xl bg-care-50 text-care-700">
+            <div className="p-2.5 rounded-2xl bg-care-50 dark:bg-emerald-950/40 text-care-700 dark:text-emerald-400">
               <CalendarClock className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900">برنامه مراقبت و زمان‌بندی تسک‌ها</h1>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <h1 className="text-xl font-black text-slate-900 dark:text-slate-100">برنامه مراقبت و زمان‌بندی تسک‌ها</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 تعریف اقدامات روتین، دوره‌ای و دارویی بیمار با فواصل دلخواه و تاریخ پایان
               </p>
             </div>
@@ -478,7 +478,7 @@ export default function AdminSchedulesPage() {
 
           <button
             onClick={fetchSchedules}
-            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 flex-shrink-0 pt-1 transition active:scale-95"
+            className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 flex items-center gap-1 flex-shrink-0 pt-1 transition active:scale-95"
             title="بروزرسانی تسک‌ها"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -487,7 +487,7 @@ export default function AdminSchedulesPage() {
         </div>
 
         {/* Action buttons row */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
           <button
             onClick={openCreateModal}
             className="px-5 py-2.5 rounded-2xl bg-care-600 hover:bg-care-700 text-white font-black text-xs shadow-lg shadow-care-600/30 flex items-center gap-2 transition active:scale-95"
@@ -501,10 +501,10 @@ export default function AdminSchedulesPage() {
               fetchAdhocSuggestions();
               setIsAdhocModalOpen(true);
             }}
-            className="px-4 py-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"
+            className="px-4 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-950 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"
             title="مدیریت عناوین پیشنهادی اقدام موردی پرستار"
           >
-            <ClipboardPlus className="w-4 h-4 text-indigo-600" />
+            <ClipboardPlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             <span className="hidden sm:inline">پیشنهادات اقدامات موردی</span>
             <span className="sm:hidden">اقدامات موردی</span>
           </button>
@@ -513,30 +513,30 @@ export default function AdminSchedulesPage() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs">
-          <span className="text-xs font-bold text-slate-500">کل تسک‌های سیستم</span>
-          <div className="mt-1 text-2xl font-black text-slate-900 font-mono">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400">کل تسک‌های سیستم</span>
+          <div className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
             {toPersianDigits(totalCount)}
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-3xl border border-emerald-100 shadow-xs">
-          <span className="text-xs font-bold text-emerald-700">فعال در کارتابل پرستار</span>
-          <div className="mt-1 text-2xl font-black text-emerald-700 font-mono">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-emerald-100 dark:border-emerald-900/40 shadow-xs">
+          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">فعال در کارتابل پرستار</span>
+          <div className="mt-1 text-2xl font-black text-emerald-700 dark:text-emerald-400 font-mono">
             {toPersianDigits(activeCount)}
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-3xl border border-amber-100 shadow-xs">
-          <span className="text-xs font-bold text-amber-700">پایان دوره درمانی</span>
-          <div className="mt-1 text-2xl font-black text-amber-700 font-mono">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-amber-100 dark:border-amber-900/40 shadow-xs">
+          <span className="text-xs font-bold text-amber-700 dark:text-amber-400">پایان دوره درمانی</span>
+          <div className="mt-1 text-2xl font-black text-amber-700 dark:text-amber-400 font-mono">
             {toPersianDigits(expiredCount)}
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs">
-          <span className="text-xs font-bold text-slate-400">غیرفعال موقت</span>
-          <div className="mt-1 text-2xl font-black text-slate-500 font-mono">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <span className="text-xs font-bold text-slate-400 dark:text-slate-500">غیرفعال موقت</span>
+          <div className="mt-1 text-2xl font-black text-slate-500 dark:text-slate-400 font-mono">
             {toPersianDigits(inactiveCount)}
           </div>
         </div>
@@ -546,18 +546,18 @@ export default function AdminSchedulesPage() {
       <div className="flex flex-col sm:flex-row items-center gap-3">
         {/* Search */}
         <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="جستجو در عنوان، نام دارو یا توضیحات تسک..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-4 pr-10 py-3 rounded-2xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-care-500 shadow-xs"
+            className="w-full pl-4 pr-10 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-care-500 shadow-xs placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
         </div>
 
         {/* Status Tabs */}
-        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 w-full sm:w-auto overflow-x-auto">
+        <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 w-full sm:w-auto overflow-x-auto">
           {[
             { id: "all", label: "همه" },
             { id: "ACTIVE", label: "فعال" },
@@ -569,8 +569,8 @@ export default function AdminSchedulesPage() {
               onClick={() => setStatusFilter(tab.id as any)}
               className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${
                 statusFilter === tab.id
-                  ? "bg-slate-900 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  ? "bg-slate-900 dark:bg-slate-700 text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
               {tab.label}
@@ -598,7 +598,7 @@ export default function AdminSchedulesPage() {
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                 isActive
                   ? "bg-care-700 text-white shadow-sm"
-                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
               }`}
             >
               {Icon && <Icon className="w-3.5 h-3.5" />}
@@ -611,12 +611,12 @@ export default function AdminSchedulesPage() {
       {/* Schedules List */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 text-slate-500">
-            <CalendarClock className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="font-bold text-sm text-slate-700">هیچ تسکی با این مشخصات یافت نشد.</p>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+            <CalendarClock className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+            <p className="font-bold text-sm text-slate-700 dark:text-slate-300">هیچ تسکی با این مشخصات یافت نشد.</p>
             <button
               onClick={openCreateModal}
-              className="mt-4 px-4 py-2 rounded-xl bg-care-50 text-care-800 font-bold text-xs hover:bg-care-100 transition inline-flex items-center gap-1.5"
+              className="mt-4 px-4 py-2 rounded-xl bg-care-50 dark:bg-emerald-950/40 text-care-800 dark:text-emerald-300 font-bold text-xs hover:bg-care-100 dark:hover:bg-emerald-900/50 transition inline-flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
               <span>ایجاد تسک جدید</span>
@@ -631,12 +631,12 @@ export default function AdminSchedulesPage() {
             return (
               <div
                 key={s.id}
-                className={`bg-white p-4 sm:p-5 rounded-3xl border-2 transition shadow-xs hover:shadow-md ${
+                className={`bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border-2 transition shadow-xs hover:shadow-md ${
                   s.status === "ACTIVE"
-                    ? "border-slate-200/90"
+                    ? "border-slate-200/90 dark:border-slate-800"
                     : s.status === "EXPIRED"
-                    ? "border-amber-200 bg-amber-50/30 opacity-80"
-                    : "border-slate-200 bg-slate-50/70 opacity-60"
+                    ? "border-amber-200 dark:border-amber-900/50 bg-amber-50/30 dark:bg-amber-950/20 opacity-80"
+                    : "border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 opacity-60"
                 }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -646,8 +646,8 @@ export default function AdminSchedulesPage() {
                     <div
                       className={`px-3 py-2 rounded-2xl font-mono text-sm font-black flex items-center justify-center flex-shrink-0 ${
                         s.status === "ACTIVE"
-                          ? "bg-slate-900 text-white"
-                          : "bg-slate-200 text-slate-700"
+                          ? "bg-slate-900 dark:bg-slate-800 text-white"
+                          : "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                       }`}
                     >
                       {toPersianDigits(s.targetTime)}
@@ -655,30 +655,30 @@ export default function AdminSchedulesPage() {
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="text-sm font-black text-slate-900 leading-snug">
+                        <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 leading-snug">
                           {s.title}
                         </h2>
 
                         {/* Status Badge */}
                         {s.status === "ACTIVE" && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold text-[10px]">
                             فعال در برنامه
                           </span>
                         )}
                         {s.status === "EXPIRED" && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-bold text-[10px]">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 font-bold text-[10px]">
                             پایان دوره
                           </span>
                         )}
                         {s.status === "INACTIVE" && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-200 text-slate-700 font-bold text-[10px]">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px]">
                             غیرفعال
                           </span>
                         )}
 
                         {/* Category tag */}
                         {s.vitalType ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold text-[10px] bg-slate-100 text-slate-800 border border-slate-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                             {s.vitalType === "blood_sugar" && "🩸 قند خون"}
                             {s.vitalType === "blood_pressure" && "🩺 فشار خون"}
                             {s.vitalType === "urine_output" && "⚡ ادرار سوند"}
@@ -688,29 +688,29 @@ export default function AdminSchedulesPage() {
                             {s.vitalType === "clinical_photo" && "📷 تصویر بالینی"}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold text-[10px]">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold text-[10px]">
                             {isMed ? "دارو" : isDvt ? "مراقبت/DVT" : isMeal ? "غذا/اسموتی" : "روتین"}
                           </span>
                         )}
 
                         {/* Requires Note badge */}
                         {s.requiresNote && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-100 text-sky-900 border border-sky-200 font-bold text-[10px]">
-                            <FileText className="w-3 h-3 text-sky-700" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-100 dark:bg-sky-950/60 text-sky-900 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-bold text-[10px]">
+                            <FileText className="w-3 h-3 text-sky-700 dark:text-sky-400" />
                             نیاز به ثبت گزارش
                           </span>
                         )}
                       </div>
 
                       {/* Recurrence sentence */}
-                      <div className="mt-1 flex items-center gap-2 text-xs font-bold text-care-800 flex-wrap">
+                      <div className="mt-1 flex items-center gap-2 text-xs font-bold text-care-800 dark:text-emerald-400 flex-wrap">
                         <span className="flex items-center gap-1">
-                          <RefreshCw className="w-3 h-3 text-care-600" />
+                          <RefreshCw className="w-3 h-3 text-care-600 dark:text-emerald-400" />
                           {s.recurrenceText}
                         </span>
 
                         {s.isCompletedToday && (
-                          <span className="text-emerald-700 flex items-center gap-1 text-[11px]">
+                          <span className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1 text-[11px]">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             امروز انجام شده ({toPersianDigits(s.completedTodayCount)} بار)
                           </span>
@@ -720,11 +720,11 @@ export default function AdminSchedulesPage() {
                       {/* Medication metadata if any */}
                       {s.medication?.boxNumber && (
                         <div className="mt-1.5 flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-bold">
+                          <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[11px] font-bold">
                             جعبه {toPersianDigits(s.medication.boxNumber)}
                           </span>
                           {s.medication.stockCount !== undefined && (
-                            <span className="text-[11px] text-slate-500">
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
                               موجودی: {toPersianDigits(s.medication.stockCount)} عدد
                             </span>
                           )}
@@ -740,8 +740,8 @@ export default function AdminSchedulesPage() {
                       onClick={() => toggleActive(s)}
                       className={`p-2.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition ${
                         s.isActive
-                          ? "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
-                          : "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"
+                          ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                          : "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
                       }`}
                       title={s.isActive ? "غیرفعال کردن موقت" : "فعال‌سازی مجدد"}
                     >
@@ -752,7 +752,7 @@ export default function AdminSchedulesPage() {
                     {/* Edit Button */}
                     <button
                       onClick={() => openEditModal(s)}
-                      className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                      className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
                       title="ویرایش زمان‌بندی"
                     >
                       <Edit3 className="w-4 h-4" />
@@ -761,7 +761,7 @@ export default function AdminSchedulesPage() {
                     {/* Delete Button */}
                     <button
                       onClick={() => handleDelete(s)}
-                      className="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition"
+                      className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition"
                       title="حذف کامل تسک"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -777,18 +777,18 @@ export default function AdminSchedulesPage() {
       {/* Modern Task Modal (Add / Edit) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header (Fixed at top) */}
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 flex-shrink-0">
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-care-100 text-care-800">
+                <div className="p-2 rounded-xl bg-care-100 dark:bg-emerald-950/60 text-care-800 dark:text-emerald-300">
                   <CalendarClock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-sm sm:text-base text-slate-900">
+                  <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-slate-100">
                     {editingSchedule ? "ویرایش زمان‌بندی تسک" : "تعریف تسک مراقبتی جدید"}
                   </h3>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     تنظیم ساعت، دوره تکرار و تاریخ پایان اقدام
                   </p>
                 </div>
@@ -796,7 +796,7 @@ export default function AdminSchedulesPage() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -808,7 +808,7 @@ export default function AdminSchedulesPage() {
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5">
                 {/* Category selector */}
                 <div>
-                  <label className="block text-xs font-black text-slate-700 mb-1.5">
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
                     دسته‌بندی اقدام:
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -838,11 +838,11 @@ export default function AdminSchedulesPage() {
                           }}
                           className={`p-2.5 rounded-2xl border-2 font-bold text-xs flex items-center justify-center gap-1.5 transition ${
                             isSelected
-                              ? "bg-care-50 border-care-600 text-care-900 shadow-xs"
-                              : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                              ? "bg-care-50 dark:bg-emerald-950/40 border-care-600 dark:border-emerald-500 text-care-900 dark:text-emerald-200 shadow-xs"
+                              : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                           }`}
                         >
-                          <Icon className={`w-4 h-4 ${isSelected ? "text-care-600" : "text-slate-400"}`} />
+                          <Icon className={`w-4 h-4 ${isSelected ? "text-care-600 dark:text-emerald-400" : "text-slate-400"}`} />
                           <span>{cat.label}</span>
                         </button>
                       );
@@ -852,8 +852,8 @@ export default function AdminSchedulesPage() {
 
                 {/* Clinical Parameter Selector (matching QuickActionFAB cards from screenshot) */}
                 {(formCategory === "vital" || formCategory === "dvt_care") && (
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2">
-                    <label className="block text-xs font-black text-slate-800">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-700 space-y-2">
+                    <label className="block text-xs font-black text-slate-800 dark:text-slate-200">
                       انتخاب پارامتر بالینی (نوع ثبت مستقیم در تایم‌لاین پرستار):
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -865,7 +865,7 @@ export default function AdminSchedulesPage() {
                           defaultTitle: "سنجش قند خون",
                           defaultMeal: "FASTING",
                           icon: Heart,
-                          color: "border-rose-300 bg-rose-50 text-rose-950",
+                          color: "border-rose-300 bg-rose-50 text-rose-950 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800",
                           iconBg: "bg-rose-500 text-white",
                         },
                         {
@@ -875,7 +875,7 @@ export default function AdminSchedulesPage() {
                           defaultTitle: "سنجش فشار خون",
                           defaultMeal: "NONE",
                           icon: Stethoscope,
-                          color: "border-purple-300 bg-purple-50 text-purple-950",
+                          color: "border-purple-300 bg-purple-50 text-purple-950 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-800",
                           iconBg: "bg-purple-500 text-white",
                         },
                         {
@@ -885,7 +885,7 @@ export default function AdminSchedulesPage() {
                           defaultTitle: "تخلیه ادرار سوند",
                           defaultMeal: "NONE",
                           icon: Activity,
-                          color: "border-amber-300 bg-amber-50 text-amber-950",
+                          color: "border-amber-300 bg-amber-50 text-amber-950 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800",
                           iconBg: "bg-amber-500 text-white",
                         },
                         {
@@ -895,7 +895,7 @@ export default function AdminSchedulesPage() {
                           defaultTitle: "ثبت مصرف آب و مایعات",
                           defaultMeal: "NONE",
                           icon: Droplets,
-                          color: "border-sky-300 bg-sky-50 text-sky-950",
+                          color: "border-sky-300 bg-sky-50 text-sky-950 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-800",
                           iconBg: "bg-sky-500 text-white",
                         },
                         {
@@ -905,7 +905,7 @@ export default function AdminSchedulesPage() {
                           defaultTitle: "مراقبت DVT و بالا بردن پای راست",
                           defaultMeal: "NONE",
                           icon: Timer,
-                          color: "border-teal-300 bg-teal-50 text-teal-950",
+                          color: "border-teal-300 bg-teal-50 text-teal-950 dark:bg-teal-950/40 dark:text-teal-200 dark:border-teal-800",
                           iconBg: "bg-teal-600 text-white",
                         },
                         {
@@ -915,7 +915,7 @@ export default function AdminSchedulesPage() {
                           defaultTitle: "بررسی کارکرد روده و ملین",
                           defaultMeal: "NONE",
                           icon: Smile,
-                          color: "border-orange-300 bg-orange-50 text-orange-950",
+                          color: "border-orange-300 bg-orange-50 text-orange-950 dark:bg-orange-950/40 dark:text-orange-200 dark:border-orange-800",
                           iconBg: "bg-orange-500 text-white",
                         },
                         {
@@ -925,7 +925,7 @@ export default function AdminSchedulesPage() {
                           defaultTitle: "بررسی بالینی و ثبت عکس",
                           defaultMeal: "NONE",
                           icon: Camera,
-                          color: "border-emerald-300 bg-emerald-50 text-emerald-950",
+                          color: "border-emerald-300 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800",
                           iconBg: "bg-emerald-600 text-white",
                         },
                       ].map((item) => {
@@ -951,13 +951,13 @@ export default function AdminSchedulesPage() {
                             }}
                             className={`p-2.5 rounded-2xl border-2 text-right flex items-center justify-between transition ${
                               isSelected
-                                ? `${item.color} ring-2 ring-slate-800 shadow-xs font-black`
-                                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                                ? `${item.color} ring-2 ring-slate-800 dark:ring-emerald-400 shadow-xs font-black`
+                                : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
                             }`}
                           >
                             <div className="min-w-0 flex-1">
                               <div className="text-xs font-black">{item.title}</div>
-                              <div className="text-[10px] text-slate-500 font-medium truncate">{item.desc}</div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">{item.desc}</div>
                             </div>
                             <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mr-2 ${item.iconBg}`}>
                               <Icon className="w-4 h-4" />
@@ -972,13 +972,13 @@ export default function AdminSchedulesPage() {
               {/* Medication Selector if category is medication */}
               {formCategory === "medication" && (
                 <div>
-                  <label className="block text-xs font-black text-slate-700 mb-1.5">
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
                     انتخاب از لیست داروهای بیمار (اختیاری):
                   </label>
                   <select
                     value={formMedicationId}
                     onChange={(e) => handleMedicationSelect(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-care-500 shadow-xs"
+                    className="w-full px-3.5 py-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-care-500 shadow-xs"
                   >
                     <option value="">-- انتخاب دارو یا ورود آزاد عنوان در زیر --</option>
                     {medications.map((m) => (
@@ -992,7 +992,7 @@ export default function AdminSchedulesPage() {
 
               {/* Title Input */}
               <div>
-                <label className="block text-xs font-black text-slate-700 mb-1.5">
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
                   عنوان کامل تسک: <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -1001,15 +1001,15 @@ export default function AdminSchedulesPage() {
                   placeholder="مثلاً: قرص لوتیروکسین، تعویض پانسمان ساعد، بالا بردن پای راست..."
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-care-500 shadow-xs"
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-care-500 shadow-xs"
                 />
               </div>
 
               {/* Step 1: Target Time & First Run */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                 {/* Target Time */}
                 <div>
-                  <label className="block text-xs font-black text-slate-700 mb-1.5">
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
                     ساعت اجرای تسک: <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -1017,7 +1017,7 @@ export default function AdminSchedulesPage() {
                     required
                     value={formTargetTime}
                     onChange={(e) => setFormTargetTime(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm font-black font-mono text-slate-900 focus:outline-none focus:border-care-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-black font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:border-care-500"
                   />
                   {/* Quick time chips */}
                   <div className="flex flex-wrap gap-1 mt-2">
@@ -1028,8 +1028,8 @@ export default function AdminSchedulesPage() {
                         onClick={() => setFormTargetTime(t)}
                         className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition ${
                           formTargetTime === t
-                            ? "bg-slate-900 text-white"
-                            : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                            ? "bg-slate-900 dark:bg-slate-700 text-white"
+                            : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                         }`}
                       >
                         {toPersianDigits(t)}
@@ -1040,7 +1040,7 @@ export default function AdminSchedulesPage() {
 
                 {/* First Run Date */}
                 <div>
-                  <label className="block text-xs font-black text-slate-700 mb-1.5">
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
                     تاریخ اولین اجرا:
                   </label>
                   <div className="flex items-center gap-1.5">
@@ -1055,15 +1055,15 @@ export default function AdminSchedulesPage() {
                         onClick={() => setFormStartDateOffset(d.offset)}
                         className={`flex-1 py-2 rounded-xl text-xs font-bold border transition ${
                           formStartDateOffset === d.offset
-                            ? "bg-care-700 text-white border-care-700 shadow-xs"
-                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                            ? "bg-care-700 dark:bg-emerald-600 text-white border-care-700 dark:border-emerald-600 shadow-xs"
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                         }`}
                       >
                         {d.label}
                       </button>
                     ))}
                   </div>
-                  <div className="text-[11px] font-bold text-slate-500 mt-2">
+                  <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-2">
                     موعد: {formatJalaliDate(computedStartDate)}
                   </div>
                 </div>
@@ -1071,7 +1071,7 @@ export default function AdminSchedulesPage() {
 
               {/* Step 2: Repetition / Interval Selection */}
               <div>
-                <label className="block text-xs font-black text-slate-700 mb-1.5">
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
                   فاصله تکرار (اینتروال):
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
@@ -1093,8 +1093,8 @@ export default function AdminSchedulesPage() {
                         onClick={() => setFormIntervalPreset(p.id)}
                         className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition text-center ${
                           isSelected
-                            ? "bg-slate-900 text-white border-slate-900 shadow-xs"
-                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                            ? "bg-slate-900 dark:bg-slate-700 text-white border-slate-900 dark:border-slate-700 shadow-xs"
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                         }`}
                       >
                         {p.label}
@@ -1105,20 +1105,20 @@ export default function AdminSchedulesPage() {
 
                 {/* Custom Interval inputs if selected */}
                 {formIntervalPreset === "CUSTOM" && (
-                  <div className="mt-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-600">هر</span>
+                  <div className="mt-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-400">هر</span>
                     <input
                       type="number"
                       min="1"
                       max="100"
                       value={formCustomValue}
                       onChange={(e) => setFormCustomValue(parseInt(e.target.value, 10) || 1)}
-                      className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 text-center font-bold text-xs"
+                      className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-center font-bold text-xs"
                     />
                     <select
                       value={formCustomUnit}
                       onChange={(e) => setFormCustomUnit(e.target.value as any)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold bg-white"
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     >
                       <option value="HOURS">ساعت یک‌بار</option>
                       <option value="DAYS">روز یک‌بار</option>
@@ -1129,7 +1129,7 @@ export default function AdminSchedulesPage() {
               </div>
 
               {/* Step 3: Optional End Date / Treatment Duration */}
-              <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-2.5">
+              <div className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -1138,17 +1138,17 @@ export default function AdminSchedulesPage() {
                       onChange={(e) => setFormHasEndDate(e.target.checked)}
                       className="w-4 h-4 rounded text-care-600 focus:ring-care-500"
                     />
-                    <span className="text-xs font-black text-amber-950">
+                    <span className="text-xs font-black text-amber-950 dark:text-amber-200">
                       این تسک دوره درمانی / تاریخ پایان دارد
                     </span>
                   </label>
-                  <span className="text-[10px] font-bold text-amber-800">
+                  <span className="text-[10px] font-bold text-amber-800 dark:text-amber-400">
                     {formHasEndDate ? "محدود" : "دائمی و پیوسته"}
                   </span>
                 </div>
 
                 {formHasEndDate && (
-                  <div className="pt-2 border-t border-amber-200/60">
+                  <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/60">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {[
                         { days: 3, label: "۳ روزه" },
@@ -1164,7 +1164,7 @@ export default function AdminSchedulesPage() {
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
                             formDurationDays === dur.days
                               ? "bg-amber-600 text-white border-amber-600"
-                              : "bg-white border-amber-200 text-amber-900 hover:bg-amber-100"
+                              : "bg-white dark:bg-slate-800 border-amber-200 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40"
                           }`}
                         >
                           {dur.label}
@@ -1172,7 +1172,7 @@ export default function AdminSchedulesPage() {
                       ))}
                     </div>
                     {computedEndDate && (
-                      <div className="mt-2 text-xs font-bold text-amber-900">
+                      <div className="mt-2 text-xs font-bold text-amber-900 dark:text-amber-300">
                         پایان دوره: {formatJalaliDate(computedEndDate)} (به مدت {toPersianDigits(formDurationDays)} روز)
                       </div>
                     )}
@@ -1181,7 +1181,7 @@ export default function AdminSchedulesPage() {
               </div>
 
               {/* Step 4: Requires Note on Completion */}
-              <div className="p-3.5 rounded-2xl bg-sky-50/80 border border-sky-200 flex items-center justify-between">
+              <div className="p-3.5 rounded-2xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/50 flex items-center justify-between">
                 <label className="flex items-center gap-2.5 cursor-pointer flex-1">
                   <input
                     type="checkbox"
@@ -1190,22 +1190,22 @@ export default function AdminSchedulesPage() {
                     className="w-4 h-4 rounded text-care-600 focus:ring-care-500"
                   />
                   <div>
-                    <span className="text-xs font-black text-sky-950">
+                    <span className="text-xs font-black text-sky-950 dark:text-sky-200">
                       نیاز به ثبت گزارش / توضیحات پرستار هنگام انجام دارد
                     </span>
-                    <p className="text-[10px] text-sky-800 mt-0.5 leading-relaxed">
+                    <p className="text-[10px] text-sky-800 dark:text-sky-400 mt-0.5 leading-relaxed">
                       با تایید «انجام شد» توسط پرستار، پاپ‌آپ باز می‌شود تا گزارش بالینی ثبت شود (مانند مقدار مصرف صبحانه یا وضعیت موضع)
                     </p>
                   </div>
                 </label>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-200/80 text-sky-950 flex-shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-200/80 dark:bg-sky-900/60 text-sky-950 dark:text-sky-200 flex-shrink-0">
                   {formRequiresNote ? "الزامی" : "اختیاری"}
                 </span>
               </div>
 
               {/* Live Preview Box */}
-              <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-950 flex items-start gap-2.5">
-                <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/50 text-indigo-950 dark:text-indigo-200 flex items-start gap-2.5">
+                <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" />
                 <div className="text-xs leading-relaxed">
                   <span className="font-black">پیش‌نمایش برنامه: </span>
                   <span className="font-bold">{livePreviewSentence}</span>
@@ -1215,11 +1215,11 @@ export default function AdminSchedulesPage() {
               </div>
 
               {/* Modal Buttons (Fixed at bottom) */}
-              <div className="p-3.5 sm:p-4 bg-slate-50/90 border-t border-slate-100 flex items-center justify-end gap-2 flex-shrink-0">
+              <div className="p-3.5 sm:p-4 bg-slate-50/90 dark:bg-slate-800/90 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
                 >
                   انصراف
                 </button>
@@ -1241,18 +1241,18 @@ export default function AdminSchedulesPage() {
       {/* Ad-Hoc Suggestions Management Modal */}
       {isAdhocModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-indigo-50/70 flex-shrink-0">
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-indigo-50/70 dark:bg-indigo-950/40 flex-shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-indigo-100 text-indigo-800">
+                <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300">
                   <ClipboardPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-sm sm:text-base text-slate-900">
+                  <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-slate-100">
                     مدیریت عناوین پیشنهادی اقدامات موردی
                   </h3>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     این عناوین در منوی «اقدام پیش‌بینی‌نشده» پرستار جهت انتخاب سریع نمایش داده می‌شوند
                   </p>
                 </div>
@@ -1260,7 +1260,7 @@ export default function AdminSchedulesPage() {
               <button
                 type="button"
                 onClick={() => setIsAdhocModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1268,8 +1268,8 @@ export default function AdminSchedulesPage() {
 
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-5">
               {/* Add New Suggestion Form */}
-              <form onSubmit={handleAddSuggestion} className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-2xs">
-                <span className="text-xs font-black text-slate-800">افزودن عنوان جدید به پیشنهادات:</span>
+              <form onSubmit={handleAddSuggestion} className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 shadow-2xs">
+                <span className="text-xs font-black text-slate-800 dark:text-slate-200">افزودن عنوان جدید به پیشنهادات:</span>
                 <div className="flex flex-col sm:flex-row gap-2.5">
                   <input
                     type="text"
@@ -1277,13 +1277,13 @@ export default function AdminSchedulesPage() {
                     placeholder="عنوان اقدام (مثلاً: ماساژ گردن و شانه، پانسمان آرنج...)"
                     value={newSuggestionTitle}
                     onChange={(e) => setNewSuggestionTitle(e.target.value)}
-                    className="w-full sm:flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs"
+                    className="w-full sm:flex-1 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 shadow-2xs"
                   />
                   <div className="flex items-center gap-2">
                     <select
                       value={newSuggestionCategory}
                       onChange={(e) => setNewSuggestionCategory(e.target.value)}
-                      className="flex-1 sm:w-32 px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500 shadow-2xs"
+                      className="flex-1 sm:w-32 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs"
                     >
                       <option value="مراقبتی">مراقبتی</option>
                       <option value="بهداشتی">بهداشتی</option>
@@ -1304,19 +1304,19 @@ export default function AdminSchedulesPage() {
               {/* Current Suggestions List */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-black text-slate-700">عناوین فعال فعلی:</span>
-                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                  <span className="text-xs font-black text-slate-700 dark:text-slate-300">عناوین فعال فعلی:</span>
+                  <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900/50">
                     {toPersianDigits(adhocSuggestions.length)} مورد
                   </span>
                 </div>
 
                 {loadingSuggestions ? (
-                  <div className="p-8 text-center text-slate-400">
-                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                  <div className="p-8 text-center text-slate-400 dark:text-slate-500">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600 dark:text-indigo-400" />
                     <span className="text-xs font-bold">در حال بارگذاری...</span>
                   </div>
                 ) : adhocSuggestions.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400 text-xs font-bold bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-xs font-bold bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
                     هیچ عنوان پیشنهادی ثبت نشده است.
                   </div>
                 ) : (
@@ -1324,12 +1324,12 @@ export default function AdminSchedulesPage() {
                     {adhocSuggestions.map((sug) => (
                       <div
                         key={sug.id}
-                        className="flex items-center justify-between gap-2 p-2.5 px-3.5 rounded-2xl bg-slate-50/90 hover:bg-indigo-50/70 text-slate-800 border border-slate-200/90 text-xs font-bold transition shadow-2xs group"
+                        className="flex items-center justify-between gap-2 p-2.5 px-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/80 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/50 text-slate-800 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700 text-xs font-bold transition shadow-2xs group"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="truncate">{sug.title}</span>
                           {sug.category && (
-                            <span className="text-[10px] text-indigo-700 bg-indigo-100/70 px-1.5 py-0.5 rounded-md font-medium flex-shrink-0">
+                            <span className="text-[10px] text-indigo-700 dark:text-indigo-300 bg-indigo-100/70 dark:bg-indigo-950/70 px-1.5 py-0.5 rounded-md font-medium flex-shrink-0">
                               {sug.category}
                             </span>
                           )}
@@ -1337,7 +1337,7 @@ export default function AdminSchedulesPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteSuggestion(sug.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-100/70 rounded-lg transition flex-shrink-0"
+                          className="p-1 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-100/70 dark:hover:bg-rose-950/60 rounded-lg transition flex-shrink-0"
                           title="حذف این پیشنهاد"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -1350,11 +1350,11 @@ export default function AdminSchedulesPage() {
             </div>
 
             {/* Close button (Fixed at bottom) */}
-            <div className="p-3.5 sm:p-4 bg-slate-50/90 border-t border-slate-100 flex justify-end flex-shrink-0">
+            <div className="p-3.5 sm:p-4 bg-slate-50/90 dark:bg-slate-800/90 border-t border-slate-100 dark:border-slate-800 flex justify-end flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setIsAdhocModalOpen(false)}
-                className="px-6 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition active:scale-95"
+                className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition active:scale-95"
               >
                 بستن
               </button>

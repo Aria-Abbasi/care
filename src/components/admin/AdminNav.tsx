@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard, Pill, UtensilsCrossed, Users,
+  LayoutDashboard, Pill, Users, UtensilsCrossed,
   FileText, Stethoscope, LogOut, HeartPulse, CalendarClock
 } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AdminNav() {
   const pathname = usePathname();
@@ -26,7 +27,7 @@ export default function AdminNav() {
   ];
 
   return (
-    <nav className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <nav className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 shadow-sm transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo & Title */}
@@ -35,10 +36,10 @@ export default function AdminNav() {
               <HeartPulse className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-sm font-black text-slate-900 leading-tight">
+              <div className="text-sm font-black text-slate-900 dark:text-slate-100 leading-tight">
                 سامانه مراقبت در منزل
               </div>
-              <div className="text-[11px] font-bold text-emerald-700">
+              <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
                 پرونده آقای جواد یزدانی (سرپرستی)
               </div>
             </div>
@@ -55,11 +56,11 @@ export default function AdminNav() {
                   href={item.href}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition ${
                     isActive
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                      ? "bg-slate-900 dark:bg-emerald-600 text-white shadow-sm"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? "text-emerald-400" : "text-slate-500"}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? "text-emerald-400 dark:text-white" : "text-slate-500 dark:text-slate-400"}`} />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -68,9 +69,11 @@ export default function AdminNav() {
 
           {/* Right quick actions */}
           <div className="flex items-center gap-2">
+            <ThemeToggle />
+
             <Link
               href="/nurse/timeline"
-              className="p-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-200 transition"
+              className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800/60 transition"
               title="نمای پای تخت بیمار (تایم‌لاین پرستار)"
             >
               <Stethoscope className="w-4 h-4" />
@@ -78,7 +81,7 @@ export default function AdminNav() {
 
             <button
               onClick={handleLogout}
-              className="p-2 rounded-xl text-rose-600 hover:bg-rose-50 transition"
+              className="p-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition"
               title="خروج از حساب"
             >
               <LogOut className="w-4 h-4" />
@@ -88,7 +91,7 @@ export default function AdminNav() {
       </div>
 
       {/* Mobile Nav Scroller */}
-      <div className="md:hidden flex items-center gap-1 px-4 py-2 overflow-x-auto border-t border-slate-100 bg-slate-50/50 scrollbar-none">
+      <div className="md:hidden flex items-center gap-1 px-4 py-2 overflow-x-auto border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 scrollbar-none">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -98,11 +101,11 @@ export default function AdminNav() {
               href={item.href}
               className={`flex items-center gap-1 px-3 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap transition ${
                 isActive
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white bg-white/70 border border-slate-200/60"
+                  ? "bg-slate-900 dark:bg-emerald-600 text-white shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-800 bg-white/70 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700/60"
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400" : "text-slate-500"}`} />
+              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400 dark:text-white" : "text-slate-500 dark:text-slate-400"}`} />
               <span>{item.label}</span>
             </Link>
           );

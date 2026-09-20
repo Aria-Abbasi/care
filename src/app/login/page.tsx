@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { HeartPulse, AlertCircle, ArrowLeft, Lock, User } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -69,22 +70,22 @@ function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-100 p-6 sm:p-8">
+    <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-xl dark:shadow-2xl border border-slate-100 dark:border-slate-800 p-6 sm:p-8 transition-colors">
       {/* Medical Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-care-600 text-white shadow-lg shadow-care-600/30 mb-3">
           <HeartPulse className="w-9 h-9" />
         </div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+        <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
           سامانه مراقبت در منزل
         </h1>
-        <p className="text-sm font-semibold text-emerald-700 mt-1">
+        <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mt-1">
           پرونده مراقبتی آقای جواد یزدانی
         </p>
       </div>
 
       {error && (
-        <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2">
+        <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -93,7 +94,7 @@ function LoginForm() {
       {/* Unified Single Login Form */}
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
             نام کاربری
           </label>
           <div className="relative">
@@ -102,16 +103,16 @@ function LoginForm() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="نام کاربری خود را وارد کنید"
-              className="w-full px-4 py-3.5 pr-11 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-care-500 text-sm font-medium bg-slate-50 focus:bg-white transition"
+              className="w-full px-4 py-3.5 pr-11 rounded-2xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-care-500 text-sm font-medium bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 transition"
               required
               autoFocus
             />
-            <User className="w-5 h-5 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+            <User className="w-5 h-5 text-slate-400 dark:text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2" />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
             رمز عبور
           </label>
           <div className="relative">
@@ -120,11 +121,11 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-4 py-3.5 pr-11 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-care-500 text-sm font-medium bg-slate-50 focus:bg-white transition text-left font-mono"
+              className="w-full px-4 py-3.5 pr-11 rounded-2xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-care-500 text-sm font-medium bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 transition text-left font-mono"
               dir="ltr"
               required
             />
-            <Lock className="w-5 h-5 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+            <Lock className="w-5 h-5 text-slate-400 dark:text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2" />
           </div>
         </div>
 
@@ -149,8 +150,11 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen flex flex-col justify-center items-center p-4 bg-gradient-to-br from-emerald-50 via-slate-50 to-teal-50">
-      <Suspense fallback={<div className="p-8 text-center text-slate-500">در حال بارگذاری...</div>}>
+    <main className="min-h-screen relative flex flex-col justify-center items-center p-4 bg-gradient-to-br from-emerald-50 via-slate-50 to-teal-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 transition-colors">
+      <div className="absolute top-4 left-4 z-10">
+        <ThemeToggle showLabel />
+      </div>
+      <Suspense fallback={<div className="p-8 text-center text-slate-500 dark:text-slate-400">در حال بارگذاری...</div>}>
         <LoginForm />
       </Suspense>
     </main>
