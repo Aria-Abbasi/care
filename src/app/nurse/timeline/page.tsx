@@ -133,6 +133,17 @@ const VITAL_META: Record<string, {
     actionLabel: "ثبت روده",
     modal: "BOWEL",
   },
+  laxative: {
+    label: "داروی ملین",
+    icon: Pill,
+    border: "border-purple-200 dark:border-purple-900/50",
+    badgeBg: "bg-purple-50 dark:bg-purple-950/60 border-purple-200 dark:border-purple-900/50",
+    badgeText: "text-purple-900 dark:text-purple-300",
+    btnBg: "bg-purple-600 hover:bg-purple-700 shadow-purple-600/30",
+    btnText: "text-white",
+    actionLabel: "ثبت ملین",
+    modal: "BOWEL",
+  },
   clinical_photo: {
     label: "تصویر بالینی",
     icon: Camera,
@@ -601,6 +612,9 @@ export default function NurseTimelinePage() {
                   break;
                 case "bowel_movement":
                   stripColor = "border-r-orange-500";
+                  break;
+                case "laxative":
+                  stripColor = "border-r-purple-500";
                   break;
                 case "clinical_photo":
                   stripColor = "border-r-emerald-500";

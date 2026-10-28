@@ -50,6 +50,11 @@ export default function QuickActionFAB({
       } else if (activeAction.mealRelation === "AFTER_MEAL") {
         setSelectedTag("2h_breakfast");
       }
+      if (activeAction.taskTitle?.includes("ملین") || activeAction.taskTitle?.includes("شیاف") || activeAction.taskTitle?.includes("پیدرولاکس")) {
+        setBowelMode("LAXATIVE");
+      } else if (activeAction.modal === "BOWEL") {
+        setBowelMode("BOWEL");
+      }
     }
   }, [activeAction]);
 

@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       valueSummary = `مراقبت DVT: ${durationStr} بالا بردن پا`;
     }
     else if (type === "bowel_movement") valueSummary = `کارکرد روده: ${bowelGrade || "طبیعی"}${laxativeGiven ? ` (ملین: ${laxativeGiven})` : ""}`;
+    else if (type === "laxative") valueSummary = `مصرف ملین: ${laxativeGiven || "داروی ملین"}`;
 
     const defaultTitles: Record<string, string> = {
       blood_sugar: "ثبت قند خون",
@@ -64,7 +65,8 @@ export async function POST(request: NextRequest) {
       water_intake: "مصرف آب و مایعات",
       urine_output: "تخلیه ادرار",
       dvt_timer: "مراقبت DVT و بالا بردن پا",
-      bowel_movement: "کارکرد روده و ملین",
+      bowel_movement: "کنترل اجابت مزاج (کارکرد روده)",
+      laxative: "مصرف داروی ملین",
     };
     const finalTaskTitle = body.taskTitle || defaultTitles[type] || "ثبت بالینی پای تخت";
 

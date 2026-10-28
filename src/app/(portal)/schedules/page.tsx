@@ -1001,6 +1001,7 @@ export default function AdminSchedulesPage() {
                             {s.vitalType === "water_intake" && "💧 آب و مایعات"}
                             {s.vitalType === "dvt_care" && "⏱️ مراقبت DVT"}
                             {s.vitalType === "bowel_movement" && "😊 کارکرد روده"}
+                            {s.vitalType === "laxative" && "💊 داروی ملین"}
                             {s.vitalType === "clinical_photo" && "📷 تصویر بالینی"}
                           </span>
                         ) : (
@@ -1235,13 +1236,23 @@ export default function AdminSchedulesPage() {
                         },
                         {
                           id: "bowel_movement",
-                          title: "کارکرد روده و ملین",
-                          desc: "+۱ / +۲ / شیاف / ساشه",
-                          defaultTitle: "بررسی کارکرد روده و ملین",
+                          title: "کارکرد روده (اجابت مزاج)",
+                          desc: "+۱ / +۲ / نرمال",
+                          defaultTitle: "کنترل اجابت مزاج / کارکرد روده",
                           defaultMeal: "NONE",
                           icon: Smile,
                           color: "border-orange-300 bg-orange-50 text-orange-950 dark:bg-orange-950/40 dark:text-orange-200 dark:border-orange-800",
                           iconBg: "bg-orange-500 text-white",
+                        },
+                        {
+                          id: "laxative",
+                          title: "مصرف داروی ملین",
+                          desc: "شیاف / شربت / پیدرولاکس",
+                          defaultTitle: "تجویز و مصرف داروی ملین",
+                          defaultMeal: "NONE",
+                          icon: Pill,
+                          color: "border-purple-300 bg-purple-50 text-purple-950 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-800",
+                          iconBg: "bg-purple-600 text-white",
                         },
                         {
                           id: "clinical_photo",
