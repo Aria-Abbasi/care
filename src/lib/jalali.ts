@@ -95,6 +95,26 @@ export function getJalaliToday(): string {
   return tehranMoment().locale("fa").format("jYYYY/jMM/jDD");
 }
 
+// Check if schedule daysOfWeek matches a target date
+export function isScheduleActiveOnDay(daysOfWeek: string | null | undefined, date?: Date | string | null): boolean {
+  if (!daysOfWeek || daysOfWeek === "ALL" || daysOfWeek.trim() === "") {
+    return true;
+  }
+  const m = tehranMoment(date);
+  const persianDay = m.locale("fa").format("dddd").trim(); // e.g. "دوشنبه"
+  const dayIndex = String(m.day()); // 0-6
+  const englishDay = m.locale("en").format("dddd").toUpperCase(); // e.g. "MONDAY"
+
+  const allowed = daysOfWeek.split(",").map((d) => d.trim());
+  return allowed.some(
+    (item) =>
+      item === dayIndex ||
+      item === persianDay ||
+      item.toUpperCase() === englishDay ||
+      item === "ALL"
+  );
+}
+
 // Get current Date in Tehran timezone
 export function getTehranNow(): Date {
   return new Date();

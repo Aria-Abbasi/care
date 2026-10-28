@@ -176,3 +176,15 @@ model AdhocSuggestion {
   createdAt DateTime @default(now())
 }
 
+model MealTimeSlot {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  labelFa     String
+  defaultTime String
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+

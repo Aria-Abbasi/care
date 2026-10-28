@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { getTehranTodayStart, getTehranTodayEnd, tehranMoment } from "@/lib/jalali";
+import { getTehranTodayStart, getTehranTodayEnd, tehranMoment, isScheduleActiveOnDay } from "@/lib/jalali";
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,6 +29,21 @@ export async function GET(request: NextRequest) {
       orderBy: { targetTime: "asc" },
     });
 
+    // Fetch meal reference slots for dynamic meal-relative timings
+    const mealSlots = await prisma.mealTimeSlot.findMany({
+      where: { isActive: true },
+    });
+    const mealSlotsMap = new Map<string, string>();
+    mealSlots.forEach((slot) => mealSlotsMap.set(slot.name, slot.defaultTime));
+    const defaultMealTimes: Record<string, string> = {
+      BREAKFAST: "07:00",
+      MORNING_SNACK: "10:00",
+      LUNCH: "12:30",
+      AFTERNOON_SNACK: "16:00",
+      DINNER: "19:00",
+      BEDTIME: "20:00",
+    };
+
     // Fetch today's task logs (both scheduled and ad-hoc)
     const taskLogs = await prisma.taskLog.findMany({
       where: {
@@ -50,6 +65,11 @@ export async function GET(request: NextRequest) {
     const usedLogIds = new Set<string>();
 
     for (const s of schedules) {
+      // 0. Check days of week
+      if (!isScheduleActiveOnDay(s.daysOfWeek)) {
+        continue; // Not active today
+      }
+
       // 1. Check end date
       if (s.endDate && new Date(s.endDate).getTime() < startOfDay.getTime()) {
         continue; // Expired
@@ -63,7 +83,33 @@ export async function GET(request: NextRequest) {
 
       const unit = s.intervalUnit || "DAYS";
       const val = s.intervalValue || 1;
-      const targetTime = s.targetTime || "08:00";
+      let targetTime = s.targetTime || "08:00";
+      let mealRelativeLabel: string | null = null;
+
+      // Handle meal-relative scheduling from rulesJson
+      if (s.rulesJson) {
+        try {
+          const rules = JSON.parse(s.rulesJson);
+          if (rules.timingMode === "MEAL_RELATIVE" && rules.mealSlot) {
+            const baseTime = mealSlotsMap.get(rules.mealSlot) || defaultMealTimes[rules.mealSlot] || "12:30";
+            const [bH, bM] = baseTime.split(":").map(Number);
+            const offset = Number(rules.offsetMinutes) || 0;
+            let totalM = (bH * 60 + (bM || 0));
+            if (rules.relation === "AFTER") {
+              totalM += offset;
+            } else if (rules.relation === "BEFORE") {
+              totalM -= offset;
+            }
+            totalM = ((totalM % 1440) + 1440) % 1440;
+            const finalH = Math.floor(totalM / 60);
+            const finalM = totalM % 60;
+            targetTime = `${String(finalH).padStart(2, "0")}:${String(finalM).padStart(2, "0")}`;
+            mealRelativeLabel = rules.label || null;
+          }
+        } catch {
+          // ignore parsing error
+        }
+      }
 
       let occurrencesToday: string[] = [];
 
@@ -135,6 +181,8 @@ export async function GET(request: NextRequest) {
           medication: s.medication,
           requiresNote: s.requiresNote || false,
           vitalType: s.vitalType || null,
+          rulesJson: s.rulesJson || null,
+          mealRelativeLabel: mealRelativeLabel || null,
           isCompleted: !!matchedLog,
           completedAt: matchedLog?.completedAt || null,
           completedBy: matchedLog?.nurse?.fullName || null,
