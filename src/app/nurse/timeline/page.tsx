@@ -579,9 +579,9 @@ export default function NurseTimelinePage() {
             // Calculate right accent strip color
             let stripColor = "border-r-slate-400 dark:border-r-slate-600";
             if (isCompleted) {
-              stripColor = "border-r-emerald-500 dark:border-r-emerald-400";
+              stripColor = "border-r-slate-400 dark:border-r-slate-600";
             } else if (isOverdue) {
-              stripColor = "border-r-amber-500 animate-pulse";
+              stripColor = "border-r-amber-500";
             } else if (item.vitalType) {
               switch (item.vitalType) {
                 case "blood_sugar":
@@ -617,172 +617,152 @@ export default function NurseTimelinePage() {
             return (
               <div
                 key={item.id}
-                className={`p-4 rounded-3xl border border-r-[5px] transition-all duration-200 ${
+                className={`p-3.5 sm:p-4 rounded-3xl border border-r-[5px] transition-all duration-200 ${
                   isCompleted
-                    ? "bg-emerald-50/90 dark:bg-[#06241a]/90 border-emerald-300/80 dark:border-emerald-800/60 border-r-emerald-500 dark:border-r-emerald-400 opacity-80 hover:opacity-100"
-                    : vitalMeta
-                    ? `bg-white dark:bg-slate-900 ${vitalMeta.border} ${stripColor} shadow-md hover:shadow-lg dark:shadow-black/20 hover:border-slate-400 dark:hover:border-slate-600`
+                    ? "bg-slate-100/90 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 border-r-slate-500 text-slate-800 dark:text-slate-200 shadow-xs"
                     : isOverdue
-                    ? `bg-amber-50/50 dark:bg-slate-900 border-amber-300 dark:border-amber-600/60 ${stripColor} shadow-md dark:shadow-black/20`
-                    : `bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 ${stripColor} shadow-md hover:shadow-lg dark:shadow-black/20 hover:border-slate-300 dark:hover:border-slate-700`
+                    ? `bg-amber-50/70 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800/80 ${stripColor} shadow-sm`
+                    : `bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/90 dark:border-emerald-800/60 ${stripColor} shadow-sm hover:shadow-md`
                 }`}
               >
-                {/* Last Done Task Indicator Banner (Requirement 2) */}
+                {/* Last Done Task Indicator Banner */}
                 {isCompleted && isLastDone && activeFilter !== "done" && (
-                  <div className="mb-2 flex items-center justify-between pb-2 border-b border-emerald-200/60 dark:border-emerald-800/40">
-                    <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+                  <div className="mb-2 flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+                    <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                       آخرین تسک انجام‌شده شیفت (قابلیت بازگردانی یا ویرایش)
                     </span>
                   </div>
                 )}
 
-                <div className="flex items-start justify-between gap-3">
-                  {/* Left: Time and Badges */}
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    {/* Time Badge */}
-                    <div
-                      className={`px-2.5 py-1.5 rounded-2xl font-mono text-xs font-black flex items-center justify-center flex-shrink-0 ${
-                        isCompleted
-                          ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/80"
-                          : isOverdue
-                          ? "bg-amber-500 text-white animate-pulse"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
-                      }`}
-                    >
-                      {toPersianDigits(item.targetTime)}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      {/* Title */}
-                      <h2
-                        className={`text-sm font-black leading-snug ${
-                          isCompleted
-                            ? "text-slate-700 dark:text-slate-300 line-through decoration-emerald-500/50"
-                            : "text-slate-900 dark:text-slate-100"
-                        }`}
-                      >
-                        {item.title}
-                      </h2>
-
-                      {/* Medication / Task Metadata */}
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        {vitalMeta && (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold text-[10px] border ${vitalMeta.badgeBg} ${vitalMeta.badgeText}`}>
-                            <VitalIcon className="w-3 h-3" />
-                            {vitalMeta.label}
-                          </span>
-                        )}
-
-                        {isOverdue && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-bold text-[10px] border border-amber-300 dark:border-amber-700/60">
-                            ⚠️ موعد گذشته
-                          </span>
-                        )}
-
-                        {item.medication?.boxNumber && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 font-bold text-[11px] border border-amber-200 dark:border-amber-800/60">
-                            جعبه {toPersianDigits(item.medication.boxNumber)}
-                          </span>
-                        )}
-
-                        {item.medication?.timeConstraints && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 font-bold text-[10px] border border-rose-200 dark:border-rose-900/60">
-                            ⚠️ {item.medication.timeConstraints}
-                          </span>
-                        )}
-
-                        {item.medication?.instructions && !item.medication?.timeConstraints && (
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                            {item.medication.instructions}
-                          </span>
-                        )}
-
-                        {!isCompleted && item.requiresNote && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-[10px] border border-indigo-200 dark:border-indigo-900/60">
-                            📝 نیاز به ثبت گزارش
-                          </span>
-                        )}
+                {isCompleted ? (
+                  /* Completed Task Card (Page 17 specification) */
+                  <div className="space-y-1.5">
+                    {/* Header: ساعت انجام | نام پرستار | ساعت مقرر */}
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 dark:border-slate-700/60 pb-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 flex-wrap">
+                        <span className="font-mono text-emerald-800 dark:text-emerald-300 font-black">
+                          {item.completedAt ? formatJalaliTime(item.completedAt) : "انجام شد"}
+                        </span>
+                        <span>•</span>
+                        <span>{item.completedBy || "پرستار"}</span>
+                        <span>•</span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                          مقرر: {toPersianDigits(item.targetTime)}
+                        </span>
                       </div>
 
-                      {/* Completed note */}
-                      {isCompleted && (
-                        <div className="mt-2 space-y-1.5">
-                          <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" />
-                            <span>
-                              انجام شد {item.completedAt ? `(ساعت ${formatJalaliTime(item.completedAt)})` : ""}
-                              {item.completedBy ? ` توسط ${item.completedBy}` : ""}
-                            </span>
-                          </div>
-                          {item.notes && (
-                            <p className="text-xs text-slate-700 dark:text-slate-200 bg-emerald-50/80 dark:bg-slate-950/70 p-2.5 rounded-2xl border border-emerald-200/70 dark:border-emerald-800/50 leading-relaxed font-medium">
-                              <span className="font-bold text-emerald-900 dark:text-emerald-300 block mb-0.5">مقدار / گزارش ثبت‌شده:</span>
-                              {item.notes}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right: Big Action Button / Undo & Edit controls */}
-                  <div className="flex-shrink-0 flex items-center gap-1.5">
-                    {isCompleted ? (
+                      {/* Undo and Edit buttons */}
                       <div className="flex items-center gap-1.5">
-                        {/* Undo button */}
                         <button
                           type="button"
                           onClick={() => handleUndoTask(item)}
-                          className="p-2.5 rounded-2xl bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-600 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-300 border border-slate-200 dark:border-slate-700 transition active:scale-95 flex items-center gap-1 text-[11px] font-bold"
+                          className="px-2.5 py-1 rounded-xl bg-white hover:bg-rose-50 dark:bg-slate-900 dark:hover:bg-rose-950/50 text-slate-600 hover:text-rose-600 dark:text-slate-300 dark:hover:text-rose-300 border border-slate-300 dark:border-slate-700 transition active:scale-95 flex items-center gap-1 text-[11px] font-bold"
                           title="لغو انجام و بازگردانی به لیست کارهای امروز"
                         >
-                          <RotateCcw className="w-4 h-4" />
-                          <span className="hidden sm:inline">لغو</span>
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>لغو</span>
                         </button>
-
-                        {/* Edit button */}
                         <button
                           type="button"
                           onClick={() => handleOpenEditModal(item)}
-                          className="p-2.5 rounded-2xl bg-slate-100 hover:bg-amber-50 dark:bg-slate-800 dark:hover:bg-amber-950/50 text-slate-600 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-300 border border-slate-200 dark:border-slate-700 transition active:scale-95 flex items-center gap-1 text-[11px] font-bold"
+                          className="px-2.5 py-1 rounded-xl bg-white hover:bg-amber-50 dark:bg-slate-900 dark:hover:bg-amber-950/50 text-slate-600 hover:text-amber-600 dark:text-slate-300 dark:hover:text-amber-300 border border-slate-300 dark:border-slate-700 transition active:scale-95 flex items-center gap-1 text-[11px] font-bold"
                           title="ویرایش عدد یا گزارش ثبت‌شده"
                         >
-                          <Edit3 className="w-4 h-4" />
-                          <span className="hidden sm:inline">ویرایش</span>
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>ویرایش</span>
                         </button>
-
-                        {/* Checkmark Status Box */}
-                        <div className="w-11 h-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 border border-emerald-400/40 flex-shrink-0">
-                          <Check className="w-5 h-5 stroke-[3]" />
-                        </div>
                       </div>
-                    ) : (
+                    </div>
+
+                    {/* Title */}
+                    <div className="font-black text-sm text-slate-900 dark:text-slate-100">
+                      {item.title}
+                    </div>
+
+                    {/* Conditional: ثبت مقدار یا یادداشت پرستار */}
+                    {item.notes && (
+                      <div className="text-xs text-slate-700 dark:text-slate-300 bg-white/70 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">ثبت: </span>
+                        <span>{item.notes}</span>
+                      </div>
+                    )}
+
+                    {/* Conditional: دستور فعالیت */}
+                    {item.medication?.instructions && (
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        <span className="font-bold">دستور: </span>
+                        <span>{item.medication.instructions}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Active Task Card: 2 Lines (Page 18 specification) */
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {/* Big Time Badge acting as tap button to complete */}
                       <button
                         type="button"
                         onClick={() => handleTaskClick(item)}
                         disabled={completingId === item.id}
-                        className={`px-4 py-3 rounded-2xl active:scale-95 font-black text-xs shadow-lg flex items-center gap-1.5 transition ${
-                          vitalMeta
-                            ? `${vitalMeta.btnBg} ${vitalMeta.btnText}`
-                            : "bg-care-600 hover:bg-care-700 text-white shadow-care-600/30"
+                        className={`px-3.5 py-2.5 rounded-2xl font-mono text-sm font-black flex items-center justify-center flex-shrink-0 shadow-sm transition active:scale-90 ${
+                          isOverdue
+                            ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/30"
+                            : "bg-slate-900 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white shadow-slate-900/20"
                         }`}
+                        title="لمس برای ثبت و تایید انجام"
                       >
-                        {vitalMeta ? (
-                          <>
-                            <VitalIcon className="w-4 h-4 stroke-[2.5]" />
-                            <span>{vitalMeta.actionLabel}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Check className="w-4 h-4 stroke-[3]" />
-                            <span>انجام شد</span>
-                          </>
-                        )}
+                        {toPersianDigits(item.targetTime)}
                       </button>
-                    )}
+
+                      <div className="min-w-0 flex-1">
+                        {/* Line 1: [کد دارو] نام دارو یا عنوان فعالیت */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 leading-snug">
+                            {item.medication?.boxNumber && (
+                              <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/70 px-1.5 py-0.5 rounded-md ml-1.5">
+                                کد {toPersianDigits(item.medication.boxNumber)}
+                              </span>
+                            )}
+                            {item.title}
+                          </h2>
+
+                          {isOverdue && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border border-amber-300">
+                              موعد گذشته
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Line 2: دستور انجام فعالیت */}
+                        {(item.medication?.instructions || item.medication?.timeConstraints || (item.requiresNote && !item.isCompleted)) && (
+                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 truncate">
+                            {item.medication?.timeConstraints ? (
+                              <span className="text-rose-700 dark:text-rose-400 font-bold">
+                                ⚠️ {item.medication.timeConstraints}
+                              </span>
+                            ) : item.medication?.instructions ? (
+                              <span>{item.medication.instructions}</span>
+                            ) : item.requiresNote ? (
+                              <span className="text-indigo-700 dark:text-indigo-400 font-medium">📝 نیاز به ثبت گزارش</span>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick tap icon indicator on right */}
+                    <button
+                      type="button"
+                      onClick={() => handleTaskClick(item)}
+                      disabled={completingId === item.id}
+                      className="p-2 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition active:scale-90"
+                      title="ثبت انجام"
+                    >
+                      <Check className="w-5 h-5 stroke-[2.5]" />
+                    </button>
                   </div>
-                </div>
+                )}
               </div>
             );
           })
