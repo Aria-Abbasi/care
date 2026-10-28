@@ -16,6 +16,7 @@ import {
 import { hashPassword, comparePassword, signToken, verifyToken } from "../src/lib/auth";
 import { middleware } from "../src/middleware";
 import { NextRequest } from "next/server";
+import { GET as getMeds, POST as postMeds, PUT as putMeds } from "../src/app/api/admin/medications/route";
 
 let passed = 0;
 let failed = 0;
@@ -555,6 +556,182 @@ async function runTests() {
   await prisma.vitalLog.delete({ where: { id: vitalCreated.id } });
   await prisma.taskLog.delete({ where: { id: taskLogCreated.id } });
   assert(true, "DVT test logs cleanup successful");
+
+  // Section 6d: Unified Medication Multi-Schedule, Meal-Relative Timing & Bi-directional Task Sync Tests
+  console.log("\n================ 6d. MEDICATION MULTI-SCHEDULE & TASK SYNC TESTS ================");
+  
+  // 1. Create a medication with multiple schedules (fixed time + meal-relative with rulesJson)
+  const createMedReq = new NextRequest("http://localhost:3000/api/admin/medications", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: `care_token=${adminToken}`,
+    },
+    body: JSON.stringify({
+      nameFa: "آسپرین ۸۰ تست نوبت‌ها",
+      boxNumber: "88",
+      dosage: "80mg",
+      stockCount: 60,
+      schedules: [
+        {
+          title: "آسپرین ۸۰ تست نوبت‌ها (صبح ناشتا)",
+          targetTime: "07:30",
+          mealRelation: "FASTING",
+          daysOfWeek: "شنبه,دوشنبه,چهارشنبه",
+          intervalUnit: "DAYS",
+          intervalValue: 1,
+          requiresNote: true,
+        },
+        {
+          title: "آسپرین ۸۰ تست نوبت‌ها (بعد ناهار)",
+          targetTime: "14:00",
+          timingMode: "MEAL_RELATIVE",
+          mealSlot: "LUNCH",
+          mealOffsetRelation: "AFTER",
+          mealOffsetHours: 1,
+          mealOffsetMinutes: 0,
+          daysOfWeek: "ALL",
+          rulesJson: JSON.stringify({
+            timingMode: "MEAL_RELATIVE",
+            mealSlot: "LUNCH",
+            relation: "AFTER",
+            offsetMinutes: 60,
+            label: "۱ ساعت بعد از ناهار",
+          }),
+          intervalUnit: "DAYS",
+          intervalValue: 1,
+          requiresNote: false,
+        },
+      ],
+    }),
+  });
+
+  const postRes = await postMeds(createMedReq);
+  assert(postRes.status === 200, "POST /api/admin/medications with multiple schedules returns 200");
+  const postData = await postRes.json();
+  const createdMedId = postData.medication.id;
+  assert(Boolean(createdMedId), "Medication created with valid ID");
+
+  // 2. Fetch via GET /api/admin/medications and verify both schedules exist with rulesJson and daysOfWeek
+  const getReq1 = new NextRequest("http://localhost:3000/api/admin/medications", {
+    headers: { cookie: `care_token=${adminToken}` },
+  });
+  const getRes1 = await getMeds(getReq1);
+  assert(getRes1.status === 200, "GET /api/admin/medications returns 200");
+  const getData1 = await getRes1.json();
+  const foundMed1 = (getData1.medications as any[]).find((m) => m.id === createdMedId);
+  assert(Boolean(foundMed1), "Created medication found in GET /api/admin/medications list");
+  assert(foundMed1.schedules && foundMed1.schedules.length === 2, "Medication has exactly 2 schedules in GET response");
+
+  const fixedSched = foundMed1.schedules.find((s: any) => s.mealRelation === "FASTING");
+  assert(
+    Boolean(fixedSched && fixedSched.targetTime === "07:30" && fixedSched.daysOfWeek === "شنبه,دوشنبه,چهارشنبه" && fixedSched.requiresNote === true),
+    "Fixed schedule preserved targetTime (07:30), daysOfWeek, and requiresNote"
+  );
+
+  const mealSched = foundMed1.schedules.find((s: any) => s.rulesJson && s.rulesJson.includes("MEAL_RELATIVE"));
+  assert(
+    Boolean(mealSched && mealSched.rulesJson.includes("LUNCH") && mealSched.daysOfWeek === "ALL"),
+    "Meal-relative schedule preserved rulesJson with LUNCH and timingMode"
+  );
+
+  // 3. Bi-directional sync test: Add a third schedule directly linking to this medication (simulating /schedules creation)
+  const taskCreatedInSchedules = await prisma.schedule.create({
+    data: {
+      title: "آسپرین ۸۰ تست نوبت‌ها (نوبت شب - تسک جداگانه)",
+      category: "medication",
+      itemType: "medication",
+      targetTime: "22:00",
+      intervalUnit: "DAYS",
+      intervalValue: 1,
+      daysOfWeek: "ALL",
+      medicationId: createdMedId,
+      isActive: true,
+    },
+  });
+  assert(Boolean(taskCreatedInSchedules.id), "Third schedule linked to medication created via schedule model");
+
+  // Verify that GET /api/admin/medications now returns all 3 schedules for this medication
+  const getRes2 = await getMeds(getReq1);
+  const getData2 = await getRes2.json();
+  const foundMed2 = (getData2.medications as any[]).find((m) => m.id === createdMedId);
+  assert(
+    Boolean(foundMed2 && foundMed2.schedules && foundMed2.schedules.length === 3),
+    "Bi-directional sync: Task created in schedules is loaded in medication schedules (3 total schedules)"
+  );
+
+  // 4. Update medication schedules via PUT /api/admin/medications (keep 2, omit 3rd to test cascade deactivation)
+  const putReq = new NextRequest("http://localhost:3000/api/admin/medications", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: `care_token=${adminToken}`,
+    },
+    body: JSON.stringify({
+      id: createdMedId,
+      nameFa: "آسپرین ۸۰ تست نوبت‌ها (ویرایش‌شده)",
+      boxNumber: "88",
+      deactivateUnlistedSchedules: true,
+      schedules: [
+        {
+          id: fixedSched.id,
+          title: "آسپرین نوبت صبح ویرایش‌شده",
+          targetTime: "08:15",
+          mealRelation: "AFTER_MEAL",
+          daysOfWeek: "جمعه",
+          intervalUnit: "DAYS",
+          intervalValue: 1,
+          requiresNote: false,
+        },
+        {
+          id: mealSched.id,
+          title: "آسپرین نوبت ناهار ویرایش‌شده",
+          targetTime: "14:30",
+          rulesJson: JSON.stringify({
+            timingMode: "MEAL_RELATIVE",
+            mealSlot: "DINNER",
+            relation: "BEFORE",
+            offsetMinutes: 30,
+            label: "۳۰ دقیقه قبل از شام",
+          }),
+          daysOfWeek: "ALL",
+          intervalUnit: "DAYS",
+          intervalValue: 1,
+          requiresNote: true,
+        },
+      ],
+    }),
+  });
+
+  const putRes = await putMeds(putReq);
+  assert(putRes.status === 200, "PUT /api/admin/medications returns 200");
+
+  // Verify DB state after PUT
+  const getRes3 = await getMeds(getReq1);
+  const getData3 = await getRes3.json();
+  const foundMed3 = (getData3.medications as any[]).find((m) => m.id === createdMedId);
+  assert(
+    Boolean(foundMed3 && foundMed3.schedules && foundMed3.schedules.length === 2),
+    "Unlisted third schedule was cleanly deactivated by PUT deactivateUnlistedSchedules"
+  );
+
+  const updatedFixed = foundMed3.schedules.find((s: any) => s.id === fixedSched.id);
+  assert(
+    Boolean(updatedFixed && updatedFixed.targetTime === "08:15" && updatedFixed.daysOfWeek === "جمعه"),
+    "Updated schedule has targetTime 08:15 and daysOfWeek جمعه"
+  );
+
+  const updatedMeal = foundMed3.schedules.find((s: any) => s.id === mealSched.id);
+  assert(
+    Boolean(updatedMeal && updatedMeal.rulesJson?.includes("DINNER") && updatedMeal.requiresNote === true),
+    "Updated meal-relative schedule has rulesJson with DINNER and requiresNote true"
+  );
+
+  // 5. Cleanup test medication & schedules
+  await prisma.schedule.deleteMany({ where: { medicationId: createdMedId } });
+  await prisma.medicationHistory.deleteMany({ where: { medicationId: createdMedId } });
+  await prisma.medication.delete({ where: { id: createdMedId } });
+  assert(true, "Multi-schedule test data cleaned up successfully");
 
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);
