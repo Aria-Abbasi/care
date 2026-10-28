@@ -5,7 +5,8 @@ import {
   formatJalaliDate,
   formatJalaliTime,
   formatJalaliDateTime,
-  formatJalaliLong
+  formatJalaliLong,
+  isScheduleActiveOnDay,
 } from "../src/lib/jalali";
 import {
   buildMedicationCreatedNarrative,
@@ -366,6 +367,84 @@ async function runTests() {
   await prisma.medicationHistory.delete({ where: { id: histEntry.id } });
   await prisma.medication.delete({ where: { id: testHistMed.id } });
   assert(true, "MedicationHistory test records cleanup");
+
+  console.log("\n================ 6. CLIENT IMPROVEMENTS TESTS ================");
+  // Test isScheduleActiveOnDay
+  const mondayDate = new Date("2024-04-22T10:00:00Z"); // Monday
+  assert(isScheduleActiveOnDay("ALL", mondayDate) === true, "isScheduleActiveOnDay: ALL returns true");
+  assert(isScheduleActiveOnDay("دوشنبه", mondayDate) === true, "isScheduleActiveOnDay: Persian 'دوشنبه' on Monday returns true");
+  assert(isScheduleActiveOnDay("جمعه", mondayDate) === false, "isScheduleActiveOnDay: Persian 'جمعه' on Monday returns false");
+  assert(isScheduleActiveOnDay("1", mondayDate) === true, "isScheduleActiveOnDay: Day index '1' on Monday returns true");
+  assert(isScheduleActiveOnDay("MONDAY", mondayDate) === true, "isScheduleActiveOnDay: English 'MONDAY' on Monday returns true");
+  assert(isScheduleActiveOnDay("شنبه,دوشنبه", mondayDate) === true, "isScheduleActiveOnDay: Comma-separated 'شنبه,دوشنبه' on Monday returns true");
+
+  // Test Meal Time Offset Calculation
+  function calculateMealOffset(baseTime: string, relation: "AFTER" | "BEFORE" | "WITH", offsetMinutes: number): string {
+    const [bH, bM] = baseTime.split(":").map(Number);
+    let totalM = bH * 60 + bM;
+    if (relation === "AFTER") totalM += offsetMinutes;
+    else if (relation === "BEFORE") totalM -= offsetMinutes;
+    totalM = ((totalM % 1440) + 1440) % 1440;
+    const h = Math.floor(totalM / 60);
+    const m = totalM % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }
+
+  assert(calculateMealOffset("12:30", "AFTER", 60) === "13:30", "Meal offset: 1 hour after lunch (12:30 + 60m) = 13:30");
+  assert(calculateMealOffset("12:30", "BEFORE", 30) === "12:00", "Meal offset: 30 minutes before lunch (12:30 - 30m) = 12:00");
+  assert(calculateMealOffset("07:00", "WITH", 0) === "07:00", "Meal offset: with breakfast = 07:00");
+
+  // Test DVT Seconds vs Minutes Formatting
+  function formatDvtDuration(elapsedSeconds: number): string {
+    if (elapsedSeconds < 60) {
+      return `${toPersianDigits(elapsedSeconds)} ثانیه`;
+    }
+    const mins = Math.max(1, Math.round(elapsedSeconds / 60));
+    return `${toPersianDigits(mins)} دقیقه`;
+  }
+  assert(formatDvtDuration(45) === "۴۵ ثانیه", "DVT duration < 60s formats as seconds (45s -> ۴۵ ثانیه)");
+  assert(formatDvtDuration(600) === "۱۰ دقیقه", "DVT duration >= 60s formats as minutes (600s -> ۱۰ دقیقه)");
+
+  // Test MealTimeSlot DB Operations
+  const testSlot = await prisma.mealTimeSlot.upsert({
+    where: { name: "TEST_SLOT" },
+    update: { defaultTime: "15:45" },
+    create: {
+      name: "TEST_SLOT",
+      labelFa: "وعده تست",
+      defaultTime: "15:45",
+      order: 99,
+      isActive: true,
+    },
+  });
+  assert(testSlot.name === "TEST_SLOT" && testSlot.defaultTime === "15:45", "MealTimeSlot DB upsert and read");
+  await prisma.mealTimeSlot.delete({ where: { name: "TEST_SLOT" } });
+  assert(true, "MealTimeSlot test record cleanup");
+
+  // Test Schedule with rulesJson and daysOfWeek
+  const testRulesSchedule = await prisma.schedule.create({
+    data: {
+      title: "تسک تست وعده‌محور",
+      category: "routine",
+      itemType: "routine_task",
+      targetTime: "13:30",
+      daysOfWeek: "شنبه,دوشنبه",
+      rulesJson: JSON.stringify({
+        timingMode: "MEAL_RELATIVE",
+        mealSlot: "LUNCH",
+        relation: "AFTER",
+        offsetMinutes: 60,
+      }),
+      isActive: true,
+    },
+  });
+  assert(
+    testRulesSchedule.daysOfWeek === "شنبه,دوشنبه" &&
+    testRulesSchedule.rulesJson?.includes("MEAL_RELATIVE"),
+    "Schedule rulesJson and daysOfWeek persistence"
+  );
+  await prisma.schedule.delete({ where: { id: testRulesSchedule.id } });
+  assert(true, "Schedule test record cleanup");
 
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);
