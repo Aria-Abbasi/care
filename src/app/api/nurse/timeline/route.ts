@@ -224,13 +224,33 @@ export async function GET(request: NextRequest) {
       const m = timeParts.find((p) => p.type === "minute")?.value || "00";
       const timeStr = `${h}:${m}`;
 
+      // Detect vitalType for adhoc / bedside quick tasks
+      let detectedVitalType: string | null = null;
+      const t = tl.taskTitle;
+      if (t.includes("قند خون") || t.includes("blood_sugar")) {
+        detectedVitalType = "blood_sugar";
+      } else if (t.includes("فشار خون") || t.includes("blood_pressure")) {
+        detectedVitalType = "blood_pressure";
+      } else if (t.includes("مصرف مایعات") || t.includes("آب") || t.includes("water_intake")) {
+        detectedVitalType = "water_intake";
+      } else if (t.includes("تخلیه ادرار") || t.includes("ادرار") || t.includes("urine_output")) {
+        detectedVitalType = "urine_output";
+      } else if (t.includes("DVT") || t.includes("بالا بردن پا") || t.includes("dvt_timer")) {
+        detectedVitalType = "dvt_timer";
+      } else if (t.includes("کارکرد روده") || t.includes("اجابت مزاج")) {
+        detectedVitalType = "bowel_movement";
+      } else if (t.includes("ملین")) {
+        detectedVitalType = "laxative";
+      }
+
       mappedSchedules.push({
         id: `adhoc_${tl.id}`,
         scheduleId: tl.scheduleId || null,
         title: tl.taskTitle.replace("[موردی] ", ""),
         targetTime: timeStr,
-        category: "vital",
+        category: detectedVitalType ? "vital" : "routine",
         itemType: "routine_task",
+        vitalType: detectedVitalType,
         isCompleted: true,
         completedAt: tl.completedAt.toISOString(),
         completedBy: tl.nurse?.fullName || "پرستار",

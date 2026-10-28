@@ -81,6 +81,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Unambiguously link taskLogId inside VitalLog extraData
+    try {
+      let extraObj: Record<string, any> = {};
+      if (extraData) {
+        extraObj = typeof extraData === "object" ? { ...extraData } : JSON.parse(extraData);
+      }
+      extraObj.taskLogId = taskLog.id;
+      if (cleanScheduleId) extraObj.scheduleId = cleanScheduleId;
+
+      await prisma.vitalLog.update({
+        where: { id: vital.id },
+        data: { extraData: JSON.stringify(extraObj) },
+      });
+    } catch {
+      // Ignore serialization error if any
+    }
+
     if (type === "dvt_timer") {
       await prisma.activeTimer.deleteMany({
         where: { timerType: "dvt_care" },

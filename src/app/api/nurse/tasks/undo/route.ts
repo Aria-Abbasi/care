@@ -43,18 +43,39 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2. Check if a VitalLog was recorded around the same time (within 3 minutes)
     const logTime = new Date(taskLog.completedAt).getTime();
-    const minTime = new Date(logTime - 3 * 60 * 1000);
-    const maxTime = new Date(logTime + 3 * 60 * 1000);
+    const minTime = new Date(logTime - 15 * 60 * 1000);
+    const maxTime = new Date(logTime + 15 * 60 * 1000);
 
-    const relatedVital = await prisma.vitalLog.findFirst({
+    // 2. Check if a VitalLog was linked to this taskLog
+    let relatedVital = await prisma.vitalLog.findFirst({
       where: {
-        nurseId: taskLog.nurseId,
-        recordedAt: { gte: minTime, lte: maxTime },
+        extraData: { contains: taskLog.id },
       },
-      orderBy: { recordedAt: "desc" },
     });
+
+    if (!relatedVital) {
+      let detectedVitalType: string | null = taskLog.schedule?.vitalType || null;
+      const taskTitle = taskLog.taskTitle || "";
+      if (!detectedVitalType) {
+        if (taskTitle.includes("قند خون") || taskTitle.includes("blood_sugar")) detectedVitalType = "blood_sugar";
+        else if (taskTitle.includes("فشار خون") || taskTitle.includes("blood_pressure")) detectedVitalType = "blood_pressure";
+        else if (taskTitle.includes("مصرف مایعات") || taskTitle.includes("آب") || taskTitle.includes("water_intake")) detectedVitalType = "water_intake";
+        else if (taskTitle.includes("تخلیه ادرار") || taskTitle.includes("ادرار") || taskTitle.includes("urine_output")) detectedVitalType = "urine_output";
+        else if (taskTitle.includes("DVT") || taskTitle.includes("بالا بردن پا") || taskTitle.includes("dvt_timer")) detectedVitalType = "dvt_timer";
+      }
+
+      if (detectedVitalType) {
+        relatedVital = await prisma.vitalLog.findFirst({
+          where: {
+            nurseId: taskLog.nurseId,
+            type: detectedVitalType,
+            recordedAt: { gte: minTime, lte: maxTime },
+          },
+          orderBy: { recordedAt: "desc" },
+        });
+      }
+    }
 
     if (relatedVital) {
       await prisma.vitalLog.delete({

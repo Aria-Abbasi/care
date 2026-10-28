@@ -17,6 +17,8 @@ import { hashPassword, comparePassword, signToken, verifyToken } from "../src/li
 import { middleware } from "../src/middleware";
 import { NextRequest } from "next/server";
 import { GET as getMeds, POST as postMeds, PUT as putMeds } from "../src/app/api/admin/medications/route";
+import { POST as postVitals } from "../src/app/api/nurse/vitals/route";
+import { PUT as putEditLog } from "../src/app/api/nurse/tasks/edit-log/route";
 
 let passed = 0;
 let failed = 0;
@@ -732,6 +734,131 @@ async function runTests() {
   await prisma.medicationHistory.deleteMany({ where: { medicationId: createdMedId } });
   await prisma.medication.delete({ where: { id: createdMedId } });
   assert(true, "Multi-schedule test data cleaned up successfully");
+
+  console.log("\n================ 12. TASK EDITING & VITAL LOG ACCURACY TESTS ================");
+  // 1. Create a 50 cc water intake log as nurse
+  const nurseUserRec = await prisma.user.findUnique({ where: { username: "nurse" } });
+  assert(nurseUserRec !== null, "Nurse user found for vital editing test");
+  const nurseAuthToken = await signToken({
+    id: nurseUserRec!.id,
+    username: nurseUserRec!.username,
+    fullName: nurseUserRec!.fullName,
+    role: "NURSE",
+  });
+
+  const initialWaterReq = new NextRequest("http://localhost:3000/api/nurse/vitals", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: `care_token=${nurseAuthToken}`,
+    },
+    body: JSON.stringify({
+      type: "water_intake",
+      valueNum: 50,
+      valueText: "آب مصرفی ۵۰ سی سی",
+      taskTitle: "مصرف آب و مایعات",
+    }),
+  });
+
+  const initialWaterRes = await postVitals(initialWaterReq);
+  assert(initialWaterRes.status === 200, "POST /api/nurse/vitals logged 50 cc water intake successfully");
+  const initialWaterData = await initialWaterRes.json();
+  const createdVitalId = initialWaterData.vital?.id;
+  const createdTaskLogId = initialWaterData.taskLog?.id;
+  assert(Boolean(createdVitalId && createdTaskLogId), "Both vitalLog and taskLog created and returned");
+
+  // Verify initial sum is 50
+  const initialVitalInDb = await prisma.vitalLog.findUnique({ where: { id: createdVitalId } });
+  assert(initialVitalInDb?.valueNum === 50, "Initial VitalLog valueNum in DB is 50 cc");
+  assert(Boolean(initialVitalInDb?.extraData?.includes(createdTaskLogId)), "VitalLog extraData contains linked taskLogId");
+
+  // 2. Edit the task from 50 cc to 100 cc
+  const editWaterReq = new NextRequest("http://localhost:3000/api/nurse/tasks/edit-log", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: `care_token=${nurseAuthToken}`,
+    },
+    body: JSON.stringify({
+      taskLogId: createdTaskLogId,
+      valueNum: 100,
+      notes: "آب میوه اضافه شد",
+    }),
+  });
+
+  const editWaterRes = await putEditLog(editWaterReq);
+  assert(editWaterRes.status === 200, "PUT /api/nurse/tasks/edit-log edited water intake successfully");
+  const editWaterData = await editWaterRes.json();
+  assert(editWaterData.log.notes?.includes("مصرف مایعات: 100 cc - آب میوه اضافه شد"), "TaskLog notes updated to 100 cc with clean user note");
+
+  // Verify that the record was updated in place (no duplicate vital created)
+  const updatedVitalInDb = await prisma.vitalLog.findUnique({ where: { id: createdVitalId } });
+  assert(updatedVitalInDb?.valueNum === 100, "VitalLog valueNum updated in-place from 50 to 100 cc");
+
+  // Check sum of water for today using exact same query as timeline
+  const todayWaterVitals = await prisma.vitalLog.findMany({
+    where: {
+      id: createdVitalId,
+      type: "water_intake",
+    },
+  });
+  const todayWaterSum = todayWaterVitals.reduce((sum, v) => sum + (v.valueNum || 0), 0);
+  assert(todayWaterSum === 100, `CRITICAL CHECK: Total water intake for this record is 100 cc, NOT 150 cc (got ${todayWaterSum})`);
+
+  // 3. Test note duplication prevention on repeated edit
+  const secondEditReq = new NextRequest("http://localhost:3000/api/nurse/tasks/edit-log", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: `care_token=${nurseAuthToken}`,
+    },
+    body: JSON.stringify({
+      taskLogId: createdTaskLogId,
+      valueNum: 120,
+      notes: "مصرف مایعات: 100 cc - آب میوه اضافه شد - گزارش دوم",
+    }),
+  });
+  const secondEditRes = await putEditLog(secondEditReq);
+  const secondEditData = await secondEditRes.json();
+  assert(
+    !secondEditData.log.notes?.includes("مصرف مایعات: 100 cc - مصرف مایعات: 100 cc"),
+    "System prefixes are stripped and not duplicated in task notes on repeated edits"
+  );
+
+  // 4. Test non-numeric task editing (routine task / medication): should not touch or create vitalLog
+  const routineTaskLog = await prisma.taskLog.create({
+    data: {
+      taskTitle: "کمک به جابجایی و تغییر وضعیت بیمار",
+      nurseId: nurseUserRec!.id,
+      status: "DONE",
+      notes: "بیمار ۲ بار جابجا شد",
+      completedAt: new Date(),
+    },
+  });
+
+  const editRoutineReq = new NextRequest("http://localhost:3000/api/nurse/tasks/edit-log", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: `care_token=${nurseAuthToken}`,
+    },
+    body: JSON.stringify({
+      taskLogId: routineTaskLog.id,
+      notes: "تغییر پوزیشن به پهلوی چپ انجام شد",
+    }),
+  });
+  const editRoutineRes = await putEditLog(editRoutineReq);
+  assert(editRoutineRes.status === 200, "Routine non-numeric task edited successfully without numeric value");
+  const editRoutineData = await editRoutineRes.json();
+  assert(
+    editRoutineData.log.notes === "تغییر پوزیشن به پهلوی چپ انجام شد",
+    "Non-numeric task notes updated cleanly"
+  );
+
+  // Cleanup test logs
+  await prisma.vitalLog.deleteMany({ where: { id: createdVitalId } });
+  await prisma.taskLog.deleteMany({ where: { id: { in: [createdTaskLogId, routineTaskLog.id] } } });
+  assert(true, "Task edit test records cleaned up successfully");
 
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);

@@ -429,24 +429,58 @@ export default function NurseTimelinePage() {
     }
   }
 
+  // Helper to determine if a completed task is a numeric vital, blood pressure, or non-numeric
+  function getVitalKind(item: ScheduleItem | null): "blood_pressure" | "numeric_vital" | "none" {
+    if (!item) return "none";
+    const vt = item.vitalType;
+    if (vt === "blood_pressure") return "blood_pressure";
+    if (vt === "water_intake" || vt === "urine_output" || vt === "blood_sugar" || vt === "weight" || vt === "dvt_timer") {
+      return "numeric_vital";
+    }
+    const t = item.title || "";
+    if (t.includes("فشار خون")) return "blood_pressure";
+    if (t.includes("آب") || t.includes("مایعات") || t.includes("ادرار") || t.includes("قند خون") || t.includes("وزن")) {
+      return "numeric_vital";
+    }
+    return "none";
+  }
+
+  // Helper to strip automated prefixes from user notes
+  function cleanUserNote(rawNote: string | null | undefined): string {
+    if (!rawNote) return "";
+    let cleaned = rawNote.trim();
+    const prefixRegex = /^(?:مصرف مایعات|تخلیه ادرار|قند خون|فشار خون|مراقبت DVT|کارکرد روده|مصرف ملین)[^:]*:\s*[^-]+(?:-\s*)?/i;
+    while (prefixRegex.test(cleaned)) {
+      cleaned = cleaned.replace(prefixRegex, "").trim();
+    }
+    return cleaned;
+  }
+
   // Open edit modal for completed task
   function handleOpenEditModal(item: ScheduleItem) {
     setEditModalItem(item);
-    setEditNoteText(item.notes || "");
+    const cleanedNote = cleanUserNote(item.notes);
+    setEditNoteText(cleanedNote);
 
-    if (item.notes) {
-      const bpMatch = item.notes.match(/(\d+)\/(\d+)/);
+    const kind = getVitalKind(item);
+
+    if (kind === "blood_pressure") {
+      setEditValueNum("");
+      const bpMatch = (item.notes || "").match(/(\d+)\s*\/\s*(\d+)/);
       if (bpMatch) {
         setEditSys(bpMatch[1]);
         setEditDia(bpMatch[2]);
-        setEditValueNum("");
       } else {
-        const numMatch = item.notes.match(/(\d+(\.\d+)?)/);
-        setEditValueNum(numMatch ? numMatch[1] : "");
         setEditSys("");
         setEditDia("");
       }
+    } else if (kind === "numeric_vital") {
+      setEditSys("");
+      setEditDia("");
+      const numMatch = (item.notes || "").match(/(?:^|:\s*)(\d+(?:\.\d+)?)/);
+      setEditValueNum(numMatch ? numMatch[1] : "");
     } else {
+      // Non-numeric task: routine tasks, medications, positioning, hygiene, etc.
       setEditValueNum("");
       setEditSys("");
       setEditDia("");
@@ -458,6 +492,8 @@ export default function NurseTimelinePage() {
     if (!editModalItem) return;
     setSavingEdit(true);
 
+    const kind = getVitalKind(editModalItem);
+
     try {
       const res = await fetch("/api/nurse/tasks/edit-log", {
         method: "PUT",
@@ -466,9 +502,9 @@ export default function NurseTimelinePage() {
           taskLogId: editModalItem.taskLogId,
           scheduleId: editModalItem.scheduleId || editModalItem.id,
           notes: editNoteText,
-          valueNum: editValueNum ? Number(editValueNum) : undefined,
-          systolic: editSys ? Number(editSys) : undefined,
-          diastolic: editDia ? Number(editDia) : undefined,
+          valueNum: kind === "numeric_vital" && editValueNum ? Number(editValueNum) : undefined,
+          systolic: kind === "blood_pressure" && editSys ? Number(editSys) : undefined,
+          diastolic: kind === "blood_pressure" && editDia ? Number(editDia) : undefined,
         }),
       });
 
@@ -1063,7 +1099,7 @@ export default function NurseTimelinePage() {
             </div>
 
             {/* If Blood Pressure: Systolic & Diastolic */}
-            {(editModalItem.vitalType === "blood_pressure" || editSys || editDia) ? (
+            {getVitalKind(editModalItem) === "blood_pressure" ? (
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">سیستول (بالا):</label>
@@ -1086,15 +1122,21 @@ export default function NurseTimelinePage() {
                   />
                 </div>
               </div>
-            ) : (editModalItem.vitalType || editValueNum) ? (
-              /* If other numeric vital (water, urine, sugar, dvt) */
+            ) : getVitalKind(editModalItem) === "numeric_vital" ? (
+              /* If other numeric vital (water, urine, sugar, dvt, weight) */
               <div className="mb-4">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   مقدار عددی ثبت‌شده (
-                  {editModalItem.vitalType === "water_intake" || editModalItem.vitalType === "urine_output"
+                  {editModalItem.vitalType === "water_intake" || editModalItem.title?.includes("آب") || editModalItem.title?.includes("مایعات")
                     ? "سی‌سی cc"
-                    : editModalItem.vitalType === "blood_sugar"
+                    : editModalItem.vitalType === "urine_output" || editModalItem.title?.includes("ادرار")
+                    ? "سی‌سی cc"
+                    : editModalItem.vitalType === "blood_sugar" || editModalItem.title?.includes("قند")
                     ? "mg/dL"
+                    : editModalItem.vitalType === "dvt_timer" || editModalItem.title?.includes("DVT") || editModalItem.title?.includes("بالا بردن پا")
+                    ? "ثانیه"
+                    : editModalItem.vitalType === "weight" || editModalItem.title?.includes("وزن")
+                    ? "کیلوگرم kg"
                     : "واحد"}
                   ):
                 </label>
