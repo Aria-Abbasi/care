@@ -120,6 +120,8 @@ export async function POST(request: NextRequest) {
       daysOfWeek = "ALL",
       medicationId,
       rulesJson,
+      discontinueMedIds,
+      discontinueReason,
     } = body;
 
     if (!title || !targetTime || !category) {
@@ -166,6 +168,41 @@ export async function POST(request: NextRequest) {
         medication: true,
       },
     });
+
+    // Handle discontinuation of replaced medications
+    if (Array.isArray(discontinueMedIds) && discontinueMedIds.length > 0) {
+      const reasonText = discontinueReason || `توقف و جایگزینی با تسک دارویی ${title.trim()}`;
+      for (const discontinuedId of discontinueMedIds) {
+        const prevMed = await prisma.medication.findUnique({ where: { id: discontinuedId } });
+        if (prevMed) {
+          await prisma.medication.update({
+            where: { id: discontinuedId },
+            data: {
+              isActive: false,
+              discontinuedAt: new Date(),
+              discontinuedReason: reasonText,
+              discontinuedBy: user.fullName || "سرپرست پرونده",
+              replacedById: medicationId || null,
+            },
+          });
+          await prisma.schedule.updateMany({
+            where: { medicationId: discontinuedId, isActive: true },
+            data: { isActive: false },
+          });
+          await prisma.medicationHistory.create({
+            data: {
+              medicationId: discontinuedId,
+              medicationName: prevMed.nameFa,
+              actionType: "STOPPED",
+              description: `داروی ${prevMed.nameFa} به علت ${reasonText} مصرف‌اش متوقف شد.`,
+              reason: reasonText,
+              doctorName: prevMed.doctorName || null,
+              performedBy: user.fullName || "سرپرست پرونده",
+            },
+          });
+        }
+      }
+    }
 
     return NextResponse.json({ success: true, schedule });
   } catch (error) {

@@ -29,11 +29,11 @@ export default function AdminNav() {
   }
 
   const navItems = [
-    { href: "/dashboard", label: "تحلیل و نمودارها", icon: LayoutDashboard },
-    { href: "/schedules", label: "برنامه تسک‌ها", icon: CalendarClock },
-    { href: "/medications", label: "پروتکل داروها و انبار", icon: Pill },
-    { href: "/recipes", label: "رژیم و اسموتی‌ها", icon: UtensilsCrossed },
-    { href: "/report", label: "گزارش پزشک معالج", icon: FileText },
+    { href: "/dashboard", label: "گزارشات", icon: LayoutDashboard },
+    { href: "/schedules", label: "فعالیت‌ها", icon: CalendarClock },
+    { href: "/medications", label: "داروها", icon: Pill },
+    { href: "/recipes", label: "غذا", icon: UtensilsCrossed },
+    { href: "/report", label: "پرونده پزشکی", icon: FileText },
     ...(userRole === "ADMIN" ? [{ href: "/users", label: "کاربران", icon: Users }] : []),
   ];
 
