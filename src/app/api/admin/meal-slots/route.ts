@@ -59,12 +59,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, labelFa, defaultTime, order, isActive } = body;
 
-    if (!name || !labelFa || !defaultTime) {
+    if (!labelFa || !defaultTime) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    const slotName = name || `SLOT_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
     const slot = await prisma.mealTimeSlot.upsert({
-      where: { name },
+      where: { name: slotName },
       update: {
         labelFa,
         defaultTime,
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
         isActive: isActive !== undefined ? isActive : true,
       },
       create: {
-        name,
+        name: slotName,
         labelFa,
         defaultTime,
         order: typeof order === "number" ? order : 0,
@@ -95,17 +97,28 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    // Support bulk update of array of slots
+    // Support bulk update of array of slots (including new ones)
     if (Array.isArray(body.slots)) {
       for (const item of body.slots) {
         if (item.id) {
           await prisma.mealTimeSlot.update({
             where: { id: item.id },
             data: {
-              labelFa: item.labelFa,
-              defaultTime: item.defaultTime,
+              labelFa: item.labelFa ? item.labelFa.trim() : undefined,
+              defaultTime: item.defaultTime ? item.defaultTime.trim() : undefined,
               order: typeof item.order === "number" ? item.order : undefined,
               isActive: typeof item.isActive === "boolean" ? item.isActive : undefined,
+            },
+          });
+        } else if (item.labelFa && item.defaultTime) {
+          const slotName = item.name || `SLOT_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+          await prisma.mealTimeSlot.create({
+            data: {
+              name: slotName,
+              labelFa: item.labelFa.trim(),
+              defaultTime: item.defaultTime.trim(),
+              order: typeof item.order === "number" ? item.order : 0,
+              isActive: true,
             },
           });
         }

@@ -84,6 +84,7 @@ export default function AdminSchedulesPage() {
   const [mealSlots, setMealSlots] = useState<MealSlotItem[]>([]);
   const [isMealSlotsModalOpen, setIsMealSlotsModalOpen] = useState(false);
   const [editingMealSlots, setEditingMealSlots] = useState<MealSlotItem[]>([]);
+  const [deletedMealSlotIds, setDeletedMealSlotIds] = useState<string[]>([]);
   const [savingMealSlots, setSavingMealSlots] = useState(false);
 
   // Form states
@@ -260,15 +261,31 @@ export default function AdminSchedulesPage() {
 
   // Save Meal Slots
   async function handleSaveMealSlots() {
+    for (const slot of editingMealSlots) {
+      if (!slot.labelFa?.trim() || !slot.defaultTime?.trim()) {
+        showToast("لطفاً عنوان و ساعت تمام وعده‌ها را مشخص کنید");
+        return;
+      }
+    }
+
     try {
       setSavingMealSlots(true);
+
+      // 1. Delete removed slots
+      for (const delId of deletedMealSlotIds) {
+        await fetch(`/api/admin/meal-slots?id=${delId}`, { method: "DELETE" });
+      }
+
+      // 2. Save remaining and new slots
       const res = await fetch("/api/admin/meal-slots", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slots: editingMealSlots }),
       });
+
       if (res.ok) {
-        showToast("ساعات مرجع وعده‌ها ذخیره شد");
+        showToast("ساعات مرجع وعده‌ها با موفقیت ذخیره شد");
+        setDeletedMealSlotIds([]);
         setIsMealSlotsModalOpen(false);
         fetchMealSlots();
         fetchSchedules();
@@ -788,6 +805,7 @@ export default function AdminSchedulesPage() {
             <button
               onClick={() => {
                 fetchMealSlots();
+                setDeletedMealSlotIds([]);
                 setIsMealSlotsModalOpen(true);
               }}
               className="px-4 py-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-950 dark:text-amber-200 border border-amber-200 dark:border-amber-800 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"
@@ -2077,35 +2095,83 @@ export default function AdminSchedulesPage() {
 
             {/* Modal Body */}
             <div className="p-4 sm:p-6 space-y-3 overflow-y-auto max-h-[60vh]">
-              {editingMealSlots.map((slot, idx) => (
-                <div
-                  key={slot.id || slot.name}
-                  className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/50"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-black text-slate-900 dark:text-slate-100">
-                      {slot.labelFa}
-                    </div>
-                    <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                      {slot.name}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="time"
-                      value={slot.defaultTime}
-                      onChange={(e) => {
-                        const newTime = e.target.value;
-                        setEditingMealSlots((prev) =>
-                          prev.map((s, i) => (i === idx ? { ...s, defaultTime: newTime } : s))
-                        );
-                      }}
-                      className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs font-mono font-black text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
+              {editingMealSlots.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-xs">
+                  هیچ وعده‌ای تعریف نشده است. می‌توانید با دکمه زیر وعده جدید اضافه کنید.
                 </div>
-              ))}
+              ) : (
+                editingMealSlots.map((slot, idx) => (
+                  <div
+                    key={slot.id || slot.name || `slot-${idx}`}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/50"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={slot.labelFa}
+                        placeholder="نام وعده (مثلاً ناهار، چای عصر...)"
+                        onChange={(e) => {
+                          const newLabel = e.target.value;
+                          setEditingMealSlots((prev) =>
+                            prev.map((s, i) => (i === idx ? { ...s, labelFa: newLabel } : s))
+                          );
+                        }}
+                        className="w-full px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <input
+                        type="time"
+                        value={slot.defaultTime}
+                        onChange={(e) => {
+                          const newTime = e.target.value;
+                          setEditingMealSlots((prev) =>
+                            prev.map((s, i) => (i === idx ? { ...s, defaultTime: newTime } : s))
+                          );
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs font-mono font-black text-slate-900 dark:text-slate-100"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (slot.id) {
+                            setDeletedMealSlotIds((prev) => [...prev, slot.id]);
+                          }
+                          setEditingMealSlots((prev) => prev.filter((_, i) => i !== idx));
+                        }}
+                        className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                        title="حذف این وعده"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  const newOrder = editingMealSlots.length + 1;
+                  setEditingMealSlots((prev) => [
+                    ...prev,
+                    {
+                      id: "",
+                      name: `SLOT_${Date.now()}`,
+                      labelFa: "",
+                      defaultTime: "12:00",
+                      order: newOrder,
+                      isActive: true,
+                    },
+                  ]);
+                }}
+                className="w-full py-2.5 rounded-2xl border border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 text-xs font-bold hover:bg-amber-100/60 transition flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>افزودن وعده یا زمان مرجع جدید</span>
+              </button>
             </div>
 
             {/* Modal Footer */}
