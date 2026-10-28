@@ -45,9 +45,9 @@ export async function POST(request: NextRequest) {
     }
 
     // If this task was linked to a medication, decrement stock by 1
-    if (scheduleId) {
+    if (cleanScheduleId) {
       const schedule = await prisma.schedule.findUnique({
-        where: { id: scheduleId },
+        where: { id: cleanScheduleId },
         select: { medicationId: true },
       });
       if (schedule?.medicationId) {

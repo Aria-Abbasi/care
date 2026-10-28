@@ -145,12 +145,42 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Include unscheduled and bedside quick-action completed logs in mappedSchedules
+    const unusedLogs = taskLogs.filter((tl) => !usedLogIds.has(tl.id));
+    for (const tl of unusedLogs) {
+      const d = new Date(tl.completedAt);
+      const timeParts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Tehran",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(d);
+      const h = timeParts.find((p) => p.type === "hour")?.value || "00";
+      const m = timeParts.find((p) => p.type === "minute")?.value || "00";
+      const timeStr = `${h}:${m}`;
+
+      mappedSchedules.push({
+        id: `adhoc_${tl.id}`,
+        scheduleId: tl.scheduleId || null,
+        title: tl.taskTitle.replace("[موردی] ", ""),
+        targetTime: timeStr,
+        category: "vital",
+        itemType: "routine_task",
+        isCompleted: true,
+        completedAt: tl.completedAt.toISOString(),
+        completedBy: tl.nurse?.fullName || "پرستار",
+        status: tl.status || "DONE",
+        notes: tl.notes || null,
+        taskLogId: tl.id,
+      });
+    }
+
     // Sort all occurrences chronologically
     mappedSchedules.sort((a, b) => a.targetTime.localeCompare(b.targetTime));
 
     // Ad-hoc tasks logged today (tasks registered via ad-hoc quick action)
     const adhocTasks = taskLogs
-      .filter((tl) => tl.taskTitle.startsWith("[موردی]"))
+      .filter((tl) => tl.taskTitle.startsWith("[موردی]") || !tl.scheduleId)
       .map((tl) => ({
         id: tl.id,
         title: tl.taskTitle.replace("[موردی] ", ""),
