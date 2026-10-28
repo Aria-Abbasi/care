@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { HeartPulse, LogOut, Clock, Calendar, ShieldCheck } from "lucide-react";
+import { Plus, LogOut, ShieldCheck } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
-import { formatJalaliLong, toPersianDigits } from "@/lib/jalali";
+import { formatJalaliTime, tehranMoment, toPersianDigits } from "@/lib/jalali";
 
 interface NurseHeaderProps {
   user?: {
@@ -23,21 +23,11 @@ export default function NurseHeader({ user }: NurseHeaderProps) {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      // Explicitly format in Tehran timezone (UTC+3:30)
-      setTimeStr(
-        toPersianDigits(
-          now.toLocaleTimeString("fa-IR", {
-            timeZone: "Asia/Tehran",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          })
-        )
-      );
-      setDateStr(formatJalaliLong(now));
+      setTimeStr(formatJalaliTime(now));
+      setDateStr(toPersianDigits(tehranMoment(now).locale("fa").format("jD jMMMM")));
     };
     updateTime();
-    const interval = setInterval(updateTime, 1000);
+    const interval = setInterval(updateTime, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -46,49 +36,55 @@ export default function NurseHeader({ user }: NurseHeaderProps) {
     window.location.href = "/login";
   }
 
+  function handleOpenQuickActions() {
+    window.dispatchEvent(new CustomEvent("open-quick-action-menu"));
+  }
+
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm px-4 py-2.5 transition-colors">
-      <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
-        {/* Patient Profile Quick Summary */}
+    <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 shadow-xs px-3 sm:px-4 py-2 transition-colors">
+      <div className="max-w-3xl mx-auto flex items-center justify-between gap-2.5">
+        {/* Right side: + Quick Action Button & Title */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-600/30 flex-shrink-0">
-            <HeartPulse className="w-6 h-6" />
-          </div>
+          <button
+            type="button"
+            onClick={handleOpenQuickActions}
+            className="w-10 h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-90 text-white flex items-center justify-center shadow-md shadow-emerald-600/30 transition-all flex-shrink-0 cursor-pointer"
+            title="افزودن اقدام جدید پای تخت (ثبت سریع)"
+            aria-label="افزودن اقدام جدید"
+          >
+            <Plus className="w-6 h-6 stroke-[2.5]" />
+          </button>
+
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-black text-slate-900 dark:text-slate-100 leading-tight">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 leading-tight truncate">
                 لیست فعالیت‌ها
               </h1>
-              <span className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800/60">
+              <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800/60 truncate">
                 آقای جواد یزدانی
               </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                {dateStr || "امروز"}
-              </span>
-              <span className="text-slate-300 dark:text-slate-600">•</span>
-              <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300">
-                <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>{timeStr}</span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">(تهران)</span>
-              </span>
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">
+              <span>ساعت {timeStr}</span>
+              <span>•</span>
+              <span className="truncate">{dateStr}</span>
             </div>
           </div>
         </div>
 
-        {/* Header Actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Left side (Header Actions): Clean, compact and uncrowded */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <ThemeToggle />
 
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-transparent dark:border-slate-700 transition"
-            title={user?.role === "ADMIN" ? "ورود به پنل سرپرست" : "مشاهده داشبورد و گزارشات"}
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-          </button>
+          {user?.role === "ADMIN" && (
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-transparent dark:border-slate-700 transition"
+              title="ورود به پنل سرپرست"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            </button>
+          )}
 
           <button
             onClick={handleLogout}

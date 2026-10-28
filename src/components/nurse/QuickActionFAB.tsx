@@ -124,6 +124,15 @@ export default function QuickActionFAB({
     checkDvtStatus();
   }, [activeModal]);
 
+  // Listen to navbar + button clicks
+  useEffect(() => {
+    function handleOpenFromNavbar() {
+      setActiveModal("MENU");
+    }
+    window.addEventListener("open-quick-action-menu", handleOpenFromNavbar);
+    return () => window.removeEventListener("open-quick-action-menu", handleOpenFromNavbar);
+  }, []);
+
   function showToast(msg: string) {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
@@ -432,16 +441,6 @@ export default function QuickActionFAB({
           <span>{toastMessage}</span>
         </div>
       )}
-
-      {/* Floating Action Button (FAB) */}
-      <button
-        type="button"
-        onClick={() => setActiveModal("MENU")}
-        className="fixed bottom-6 left-6 z-40 w-16 h-16 rounded-3xl bg-care-600 hover:bg-care-700 text-white shadow-2xl shadow-care-600/50 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-90 border-2 border-white dark:border-slate-800"
-        aria-label="ثبت سریع بدون تایپ"
-      >
-        <Plus className="w-8 h-8 stroke-[2.5]" />
-      </button>
 
       {/* Main Quick Action Menu Sheet */}
       {activeModal === "MENU" && (
