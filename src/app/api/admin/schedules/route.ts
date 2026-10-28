@@ -131,6 +131,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify linked medication is active
+    if (medicationId) {
+      const linkedMed = await prisma.medication.findUnique({ where: { id: medicationId } });
+      if (!linkedMed) {
+        return NextResponse.json({ error: "داروی انتخابی یافت نشد." }, { status: 400 });
+      }
+      if (!linkedMed.isActive) {
+        return NextResponse.json(
+          { error: "امکان ثبت یا فعال‌سازی فعالیت برای داروی غیرفعال وجود ندارد. ابتدا وضعیت دارو را به فعال تغییر دهید." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Determine start date
     let parsedStartDate = startDate ? new Date(startDate) : new Date();
     if (isNaN(parsedStartDate.getTime())) {
@@ -224,6 +238,24 @@ export async function PATCH(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: "شناسه تسک الزامی است." }, { status: 400 });
+    }
+
+    const existingSchedule = await prisma.schedule.findUnique({ where: { id } });
+    if (!existingSchedule) {
+      return NextResponse.json({ error: "تسک یافت نشد." }, { status: 404 });
+    }
+
+    const targetMedId = updateData.medicationId !== undefined ? updateData.medicationId : existingSchedule.medicationId;
+    const targetIsActive = updateData.isActive !== undefined ? updateData.isActive : existingSchedule.isActive;
+
+    if (targetMedId && targetIsActive) {
+      const linkedMed = await prisma.medication.findUnique({ where: { id: targetMedId } });
+      if (linkedMed && !linkedMed.isActive) {
+        return NextResponse.json(
+          { error: "فعالیت مربوط به این دارو نمی‌تواند فعال باشد زیرا خود دارو متوقف یا غیرفعال است." },
+          { status: 400 }
+        );
+      }
     }
 
     // If startDate/endDate passed, parse safely

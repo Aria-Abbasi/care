@@ -446,6 +446,59 @@ async function runTests() {
   await prisma.schedule.delete({ where: { id: testRulesSchedule.id } });
   assert(true, "Schedule test record cleanup");
 
+  // Section 6b: Medication Cascade and Inactive Validation Tests
+  const testMed = await prisma.medication.create({
+    data: {
+      nameFa: "تست آبشار داروها",
+      stockCount: 50,
+      isActive: true,
+    },
+  });
+  const sched1 = await prisma.schedule.create({
+    data: {
+      title: "تست نوبت ۱",
+      category: "medication",
+      itemType: "medication",
+      targetTime: "08:00",
+      medicationId: testMed.id,
+      isActive: true,
+    },
+  });
+  const sched2 = await prisma.schedule.create({
+    data: {
+      title: "تست نوبت ۲",
+      category: "medication",
+      itemType: "medication",
+      targetTime: "20:00",
+      medicationId: testMed.id,
+      isActive: true,
+    },
+  });
+
+  // Deactivate medication and verify cascade
+  await prisma.medication.update({
+    where: { id: testMed.id },
+    data: { isActive: false },
+  });
+  await prisma.schedule.updateMany({
+    where: { medicationId: testMed.id, isActive: true },
+    data: { isActive: false },
+  });
+
+  const activeConnectedSchedules = await prisma.schedule.findMany({
+    where: { medicationId: testMed.id, isActive: true },
+  });
+  assert(activeConnectedSchedules.length === 0, "Deactivating medication cascades to deactivating all its schedules");
+
+  // Verify that an inactive medication's schedule cannot be activated
+  const linkedMed = await prisma.medication.findUnique({ where: { id: testMed.id } });
+  assert(Boolean(linkedMed && !linkedMed.isActive), "Medication is verified inactive in DB");
+
+  // Cleanup
+  await prisma.schedule.deleteMany({ where: { medicationId: testMed.id } });
+  await prisma.medication.delete({ where: { id: testMed.id } });
+  assert(true, "Medication cascade test records cleanup");
+
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);
 

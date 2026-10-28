@@ -5,10 +5,10 @@ import {
   Pill, Plus, Search, AlertCircle, Check, X,
   Clock, Package, User, PlusCircle, MinusCircle, Edit3,
   Calendar, FileText, Ban, RotateCcw, Info, Sparkles, Stethoscope,
-  CalendarClock, CheckCircle2, History, AlertTriangle, ShieldCheck
+  CalendarClock, CheckCircle2, History, AlertTriangle, ShieldCheck, Trash2
 } from "lucide-react";
 import {
-  toPersianDigits, formatJalaliDate, formatJalaliDateTime,
+  toPersianDigits, toEnglishDigits, formatJalaliDate, formatJalaliDateTime,
   formatJalaliFromNow, formatRecurrenceText
 } from "@/lib/jalali";
 
@@ -19,6 +19,15 @@ interface ScheduleItem {
   intervalValue: number;
   startDate?: string | null;
   endDate?: string | null;
+  mealRelation?: string | null;
+  requiresNote?: boolean;
+}
+
+interface EditableMedSchedule {
+  id?: string;
+  targetTime: string;
+  intervalUnit?: string;
+  intervalValue?: number;
   mealRelation?: string | null;
   requiresNote?: boolean;
 }
@@ -109,6 +118,7 @@ export default function AdminMedicationsPage() {
   });
   const [formSchedCustomEndTime, setFormSchedCustomEndTime] = useState("23:59");
   const [formSchedRequiresNote, setFormSchedRequiresNote] = useState(false);
+  const [formMedSchedules, setFormMedSchedules] = useState<EditableMedSchedule[]>([]);
 
   // Form: Discontinue other active medications (when adding new one)
   const [formDiscontinuePrevious, setFormDiscontinuePrevious] = useState(false);
@@ -174,6 +184,15 @@ export default function AdminMedicationsPage() {
     setFormSchedCustomEndDate(defEnd.toISOString().split("T")[0]);
     setFormSchedCustomEndTime("23:59");
     setFormSchedRequiresNote(false);
+    setFormMedSchedules([
+      {
+        targetTime: "08:00",
+        intervalUnit: "DAYS",
+        intervalValue: 1,
+        mealRelation: "NONE",
+        requiresNote: false,
+      },
+    ]);
 
     setFormDiscontinuePrevious(false);
     setFormSelectedDiscontinueIds([]);
@@ -193,7 +212,33 @@ export default function AdminMedicationsPage() {
     setFormLowStockThreshold((med.lowStockThreshold || 15).toString());
     setFormTimeConstraints(med.timeConstraints || "");
 
-    // Load schedule if medication has an active schedule
+    // Populate all active schedules of this medication
+    if (med.schedules && med.schedules.length > 0) {
+      setFormCreateSchedule(true);
+      setFormMedSchedules(
+        med.schedules.map((s) => ({
+          id: s.id,
+          targetTime: s.targetTime || "08:00",
+          intervalUnit: s.intervalUnit || "DAYS",
+          intervalValue: s.intervalValue || 1,
+          mealRelation: s.mealRelation || "NONE",
+          requiresNote: Boolean(s.requiresNote),
+        }))
+      );
+    } else {
+      setFormCreateSchedule(false);
+      setFormMedSchedules([
+        {
+          targetTime: "08:00",
+          intervalUnit: "DAYS",
+          intervalValue: 1,
+          mealRelation: "NONE",
+          requiresNote: false,
+        },
+      ]);
+    }
+
+    // Load first schedule for legacy preset fields if present
     const activeSched = med.schedules && med.schedules.length > 0 ? med.schedules[0] : null;
     if (activeSched) {
       setFormCreateSchedule(true);
@@ -378,15 +423,20 @@ export default function AdminMedicationsPage() {
         };
 
         if (formCreateSchedule) {
+          payload.schedules = formMedSchedules;
+          payload.deactivateUnlistedSchedules = true;
           payload.schedule = {
-            targetTime: formSchedTargetTime,
-            mealRelation: formSchedMealRelation === "NONE" ? null : formSchedMealRelation,
+            targetTime: formMedSchedules[0]?.targetTime || formSchedTargetTime,
+            mealRelation: formMedSchedules[0]?.mealRelation === "NONE" ? null : (formMedSchedules[0]?.mealRelation || null),
             intervalUnit: resolvedIntervalUnit,
             intervalValue: resolvedIntervalValue,
             startDate: getSchedStartDate().toISOString(),
             endDate: getSchedEndDate() ? getSchedEndDate()!.toISOString() : null,
             requiresNote: formSchedRequiresNote,
           };
+        } else {
+          payload.schedules = [];
+          payload.deactivateUnlistedSchedules = true;
         }
 
         await fetch("/api/admin/medications", {
@@ -394,7 +444,7 @@ export default function AdminMedicationsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        showToast("اطلاعات و زمان‌بندی دارو با موفقیت به‌روزرسانی شد.");
+        showToast("اطلاعات و زمان‌بندی‌های دارو با موفقیت به‌روزرسانی شد.");
       } else {
         // Create new medication + optional auto-schedule + optional discontinue
         const payload: any = {
@@ -409,9 +459,10 @@ export default function AdminMedicationsPage() {
         };
 
         if (formCreateSchedule) {
+          payload.schedules = formMedSchedules;
           payload.schedule = {
-            targetTime: formSchedTargetTime,
-            mealRelation: formSchedMealRelation === "NONE" ? null : formSchedMealRelation,
+            targetTime: formMedSchedules[0]?.targetTime || formSchedTargetTime,
+            mealRelation: formMedSchedules[0]?.mealRelation === "NONE" ? null : (formMedSchedules[0]?.mealRelation || null),
             intervalUnit: resolvedIntervalUnit,
             intervalValue: resolvedIntervalValue,
             startDate: getSchedStartDate().toISOString(),
@@ -466,19 +517,27 @@ export default function AdminMedicationsPage() {
     if (activeTab === "discontinued" && m.isActive) return false;
 
     if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
+    const qRaw = searchQuery.toLowerCase().trim();
+    const qFa = toPersianDigits(qRaw);
+    const qEn = toEnglishDigits(qRaw);
+
+    const boxFa = m.boxNumber ? toPersianDigits(m.boxNumber) : "";
+    const boxEn = m.boxNumber ? toEnglishDigits(m.boxNumber) : "";
+
     return (
-      m.nameFa.toLowerCase().includes(q) ||
-      (m.boxNumber && m.boxNumber.includes(q)) ||
-      (m.doctorName && m.doctorName.toLowerCase().includes(q)) ||
-      (m.instructions && m.instructions.toLowerCase().includes(q)) ||
-      (m.discontinuedReason && m.discontinuedReason.toLowerCase().includes(q))
+      m.nameFa.toLowerCase().includes(qRaw) ||
+      Boolean(m.nameEn && m.nameEn.toLowerCase().includes(qRaw)) ||
+      Boolean(m.dosage && m.dosage.toLowerCase().includes(qRaw)) ||
+      Boolean(m.boxNumber && (m.boxNumber.includes(qRaw) || boxFa.includes(qFa) || boxEn.includes(qEn))) ||
+      Boolean(m.doctorName && m.doctorName.toLowerCase().includes(qRaw)) ||
+      Boolean(m.instructions && m.instructions.toLowerCase().includes(qRaw)) ||
+      Boolean(m.discontinuedReason && m.discontinuedReason.toLowerCase().includes(qRaw))
     );
   });
 
   const filteredHistory = history.filter((h) => {
     if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
     return (
       h.medicationName.toLowerCase().includes(q) ||
       h.description.toLowerCase().includes(q) ||
@@ -1212,7 +1271,109 @@ export default function AdminMedicationsPage() {
                   </label>
 
                   {formCreateSchedule && (
-                    <div className="pt-2 border-t border-indigo-200/60 dark:border-indigo-900/50 space-y-3">
+                    editingMed ? (
+                      /* Multi-schedules list for editing medication */
+                      <div className="pt-2 border-t border-indigo-200/60 dark:border-indigo-900/50 space-y-3">
+                        <div className="flex items-center justify-between pb-1">
+                          <span className="text-xs font-black text-indigo-950 dark:text-indigo-200">
+                            زمان‌بندی‌های مصرف این دارو در کارتابل:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormMedSchedules((prev) => [
+                                ...prev,
+                                {
+                                  targetTime: "12:00",
+                                  intervalUnit: "DAYS",
+                                  intervalValue: 1,
+                                  mealRelation: "NONE",
+                                  requiresNote: false,
+                                },
+                              ]);
+                            }}
+                            className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>افزودن زمان‌بندی جدید</span>
+                          </button>
+                        </div>
+
+                        {formMedSchedules.length === 0 ? (
+                          <div className="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl border border-dashed border-indigo-200 dark:border-indigo-800">
+                            هیچ زمان‌بندی فعالی برای این دارو ثبت نشده است. با دکمه بالا یک زمان اضافه کنید.
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {formMedSchedules.map((s, sIdx) => (
+                              <div
+                                key={s.id || `sched-${sIdx}`}
+                                className="p-3 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-white/90 dark:bg-slate-800/90 space-y-2"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] font-bold text-indigo-900 dark:text-indigo-300">
+                                    نوبت {toPersianDigits(sIdx + 1)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormMedSchedules((prev) => prev.filter((_, i) => i !== sIdx));
+                                    }}
+                                    className="text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 p-1 rounded-lg transition"
+                                    title="حذف این نوبت"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">
+                                      ساعت مصرف:
+                                    </label>
+                                    <input
+                                      type="time"
+                                      value={s.targetTime}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFormMedSchedules((prev) =>
+                                          prev.map((item, i) => (i === sIdx ? { ...item, targetTime: val } : item))
+                                        );
+                                      }}
+                                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold text-xs font-mono text-center"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">
+                                      رابطه با غذا:
+                                    </label>
+                                    <select
+                                      value={s.mealRelation || "NONE"}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFormMedSchedules((prev) =>
+                                          prev.map((item, i) => (i === sIdx ? { ...item, mealRelation: val } : item))
+                                        );
+                                      }}
+                                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold text-xs"
+                                    >
+                                      <option value="NONE">بدون قید غذا</option>
+                                      <option value="FASTING">ناشتا (صبح زود)</option>
+                                      <option value="BEFORE_MEAL">قبل از غذا</option>
+                                      <option value="WITH_MEAL">همراه غذا</option>
+                                      <option value="AFTER_MEAL">بعد از غذا</option>
+                                      <option value="BEDTIME">قبل از خواب</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="pt-2 border-t border-indigo-200/60 dark:border-indigo-900/50 space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {/* Target Time */}
                         <div>
@@ -1427,7 +1588,7 @@ export default function AdminMedicationsPage() {
                           )}
                         </span>
                       </div>
-                    </div>
+                    )
                   )}
                 </div>
               </div>

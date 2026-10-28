@@ -142,7 +142,29 @@ export async function POST(request: NextRequest) {
 
     // 3. Create connected schedule automatically if schedule details provided
     let createdSchedule = null;
-    if (schedule && schedule.targetTime) {
+    if (Array.isArray(body.schedules) && body.schedules.length > 0) {
+      const scheduleTitle = `${nameFa}${boxNumber ? ` (جعبه ${boxNumber})` : ""}${dosage ? ` - ${dosage}` : ""}`;
+      for (const s of body.schedules) {
+        if (!s.targetTime) continue;
+        const cr = await prisma.schedule.create({
+          data: {
+            itemType: "medication",
+            category: "medication",
+            title: scheduleTitle,
+            targetTime: s.targetTime.trim(),
+            mealRelation: s.mealRelation === "NONE" ? null : (s.mealRelation || null),
+            startDate: s.startDate ? new Date(s.startDate) : new Date(),
+            endDate: s.endDate ? new Date(s.endDate) : null,
+            intervalUnit: s.intervalUnit || "DAYS",
+            intervalValue: Number(s.intervalValue) || 1,
+            requiresNote: Boolean(s.requiresNote),
+            medicationId: medication.id,
+            isActive: true,
+          },
+        });
+        if (!createdSchedule) createdSchedule = cr;
+      }
+    } else if (schedule && schedule.targetTime) {
       const scheduleTitle = `${nameFa}${boxNumber ? ` (جعبه ${boxNumber})` : ""}${dosage ? ` - ${dosage}` : ""}`;
       createdSchedule = await prisma.schedule.create({
         data: {
@@ -200,7 +222,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, stockDelta, schedule, discontinueMedIds, discontinueReason, ...data } = body;
+    const { id, stockDelta, schedule, schedules, deactivateUnlistedSchedules, discontinueMedIds, discontinueReason, ...data } = body;
 
     if (!id) {
       return NextResponse.json({ error: "شناسه دارو الزامی است" }, { status: 400 });
@@ -236,9 +258,68 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    // If updating/adding schedule
-    if (schedule && schedule.targetTime) {
-      const scheduleTitle = `${updated.nameFa}${updated.boxNumber ? ` (جعبه ${updated.boxNumber})` : ""}${updated.dosage ? ` - ${updated.dosage}` : ""}`;
+    // If medication is deactivated, cascade deactivate all associated schedules!
+    if (data.isActive === false) {
+      await prisma.schedule.updateMany({
+        where: { medicationId: id, isActive: true },
+        data: { isActive: false },
+      });
+    }
+
+    const scheduleTitle = `${updated.nameFa}${updated.boxNumber ? ` (جعبه ${updated.boxNumber})` : ""}${updated.dosage ? ` - ${updated.dosage}` : ""}`;
+
+    // Handle multiple schedules array
+    if (Array.isArray(schedules) && updated.isActive) {
+      const keptIds: string[] = [];
+      for (const s of schedules) {
+        if (!s.targetTime) continue;
+        if (s.id) {
+          const upd = await prisma.schedule.update({
+            where: { id: s.id },
+            data: {
+              title: scheduleTitle,
+              targetTime: s.targetTime.trim(),
+              mealRelation: s.mealRelation === "NONE" ? null : (s.mealRelation || null),
+              intervalUnit: s.intervalUnit || "DAYS",
+              intervalValue: Number(s.intervalValue) || 1,
+              daysOfWeek: s.daysOfWeek || "ALL",
+              requiresNote: Boolean(s.requiresNote),
+              isActive: true,
+            },
+          });
+          keptIds.push(upd.id);
+        } else {
+          const created = await prisma.schedule.create({
+            data: {
+              itemType: "medication",
+              category: "medication",
+              title: scheduleTitle,
+              targetTime: s.targetTime.trim(),
+              mealRelation: s.mealRelation === "NONE" ? null : (s.mealRelation || null),
+              startDate: new Date(),
+              intervalUnit: s.intervalUnit || "DAYS",
+              intervalValue: Number(s.intervalValue) || 1,
+              daysOfWeek: s.daysOfWeek || "ALL",
+              requiresNote: Boolean(s.requiresNote),
+              medicationId: id,
+              isActive: true,
+            },
+          });
+          keptIds.push(created.id);
+        }
+      }
+
+      if (deactivateUnlistedSchedules) {
+        await prisma.schedule.updateMany({
+          where: {
+            medicationId: id,
+            isActive: true,
+            id: { notIn: keptIds },
+          },
+          data: { isActive: false },
+        });
+      }
+    } else if (schedule && schedule.targetTime && updated.isActive) {
       const existingSchedule = await prisma.schedule.findFirst({
         where: { medicationId: id, isActive: true },
       });
