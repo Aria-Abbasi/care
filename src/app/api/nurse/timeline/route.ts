@@ -104,7 +104,24 @@ export async function GET(request: NextRequest) {
             const finalH = Math.floor(totalM / 60);
             const finalM = totalM % 60;
             targetTime = `${String(finalH).padStart(2, "0")}:${String(finalM).padStart(2, "0")}`;
-            mealRelativeLabel = rules.label || null;
+            if (rules.label) {
+              mealRelativeLabel = rules.label;
+            } else {
+              const slotObj = mealSlots.find((ms) => ms.name === rules.mealSlot);
+              const slotLabel = slotObj?.labelFa || rules.mealSlot;
+              if (rules.relation === "WITH") {
+                mealRelativeLabel = `همراه با ${slotLabel}`;
+              } else {
+                const prefix = rules.relation === "BEFORE" ? "قبل از" : "بعد از";
+                const h = Math.floor(offset / 60);
+                const m = offset % 60;
+                let dur = "";
+                if (h > 0 && m > 0) dur = `${h} ساعت و ${m} دقیقه`;
+                else if (h > 0) dur = `${h} ساعت`;
+                else if (m > 0) dur = `${m} دقیقه`;
+                mealRelativeLabel = dur ? `${dur} ${prefix} ${slotLabel}` : `${prefix} ${slotLabel}`;
+              }
+            }
           }
         } catch {
           // ignore parsing error
