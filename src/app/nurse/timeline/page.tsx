@@ -395,7 +395,7 @@ export default function NurseTimelinePage() {
   const pendingCount = totalCount - completedCount;
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 pb-28">
       {/* Shift Quick Status Bar */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-slate-200/80 dark:border-slate-800 transition-colors">
         <div className="flex items-center justify-between mb-3">
@@ -469,10 +469,10 @@ export default function NurseTimelinePage() {
       {/* 4 Dedicated Filter Tabs (Requirement 2) */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {[
-          { id: "all", label: "همه تسک‌ها", icon: ListFilter, count: pendingCount },
-          { id: "medication", label: "داروها", icon: Pill, count: schedules.filter(s => !s.isCompleted && (s.category === "medication" || s.itemType === "medication")).length },
-          { id: "vital", label: "سنجش‌های بالینی", icon: HeartPulse, count: schedules.filter(s => !s.isCompleted && (s.category === "vital" || s.vitalType)).length },
-          { id: "done", label: "تسک‌های انجام‌شده", icon: CheckCircle2, count: completedCount },
+          { id: "all", label: "فعال", icon: ListFilter, count: pendingCount },
+          { id: "medication", label: "دارو", icon: Pill, count: schedules.filter(s => !s.isCompleted && (s.category === "medication" || s.itemType === "medication")).length },
+          { id: "vital", label: "سنجش", icon: HeartPulse, count: schedules.filter(s => !s.isCompleted && (s.category === "vital" || s.vitalType)).length },
+          { id: "done", label: "انجام شد", icon: CheckCircle2, count: completedCount },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeFilter === tab.id;
