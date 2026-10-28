@@ -477,7 +477,7 @@ export default function QuickActionFAB({
                 </div>
                 <div>
                   <div className="text-sm font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
-                    <span>ثبت اقدام پیش‌بینی‌نشده / موردی</span>
+                    <span>اقدامات موردی</span>
                     <span className="px-1.5 py-0.5 rounded bg-indigo-200 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-200 text-[10px] font-bold">فوری</span>
                   </div>
                   <div className="text-[11px] text-indigo-800 dark:text-indigo-300 font-medium">
@@ -613,7 +613,7 @@ export default function QuickActionFAB({
               <div className="flex items-center gap-2">
                 <ClipboardPlus className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                 <div>
-                  <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت اقدام پیش‌بینی‌نشده / موردی</h3>
+                  <h3 className="font-black text-base text-slate-900 dark:text-slate-100">اقدامات موردی</h3>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">اقدامی که در برنامه روتین نبود و انجام شد</p>
                 </div>
               </div>

@@ -51,7 +51,7 @@ export default function AdminNav() {
                 سامانه مراقبت در منزل
               </div>
               <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                پرونده آقای جواد یزدانی ({userRole === "ADMIN" ? "سرپرستی" : "مشاهده و گزارش"})
+                پرونده آقای جواد یزدانی ({userRole === "ADMIN" ? "مدیریت و سرپرستی" : userRole === "VIEWER" ? "مشاهده‌کننده (فقط خواندنی)" : "پرستاری و ثبت"})
               </div>
             </div>
           </div>

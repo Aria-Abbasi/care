@@ -11,7 +11,7 @@ export interface AuthUser {
   id: string;
   username: string;
   fullName: string;
-  role: "ADMIN" | "NURSE";
+  role: "ADMIN" | "NURSE" | "VIEWER";
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -42,7 +42,7 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
       id: payload.id as string,
       username: payload.username as string,
       fullName: payload.fullName as string,
-      role: payload.role as "ADMIN" | "NURSE",
+      role: payload.role as "ADMIN" | "NURSE" | "VIEWER",
     };
   } catch {
     return null;

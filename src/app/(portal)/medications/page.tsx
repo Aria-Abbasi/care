@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import {
   toPersianDigits, toEnglishDigits, formatJalaliDate, formatJalaliDateTime,
-  formatJalaliFromNow, formatRecurrenceText
+  formatJalaliFromNow, formatRecurrenceText, getJalaliToday
 } from "@/lib/jalali";
 
 interface MealSlotItem {
@@ -401,6 +401,72 @@ export default function AdminMedicationsPage() {
   const [stopDate, setStopDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [stopSubmitting, setStopSubmitting] = useState(false);
 
+  // Restock / Purchase Modal State
+  const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
+  const [restockMed, setRestockMed] = useState<Medication | null>(null);
+  const [restockAmount, setRestockAmount] = useState<string>("10");
+  const [restockDate, setRestockDate] = useState<string>("");
+  const [restockPharmacy, setRestockPharmacy] = useState<string>("");
+  const [restockNotes, setRestockNotes] = useState<string>("");
+  const [restockSubmitting, setRestockSubmitting] = useState(false);
+
+  function openRestockModal(med: Medication) {
+    setRestockMed(med);
+    setRestockAmount("10");
+    setRestockDate(getJalaliToday());
+    setRestockPharmacy("");
+    setRestockNotes("");
+    setIsRestockModalOpen(true);
+  }
+
+  async function handleRestockSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!restockMed) return;
+    const amount = parseInt(restockAmount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      alert("لطفاً تعداد معتبر وارد کنید");
+      return;
+    }
+
+    try {
+      setRestockSubmitting(true);
+      const res = await fetch("/api/admin/medications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: restockMed.id,
+          stockDelta: amount,
+          restockDetails: {
+            date: restockDate || getJalaliToday(),
+            pharmacy: restockPharmacy.trim(),
+            notes: restockNotes.trim(),
+            amount,
+          },
+        }),
+      });
+
+      if (res.ok) {
+        setMedications((prev) =>
+          prev.map((m) =>
+            m.id === restockMed.id ? { ...m, stockCount: m.stockCount + amount } : m
+          )
+        );
+        showToast(`موجودی «${restockMed.nameFa}» با موفقیت ${toPersianDigits(amount)} عدد افزایش یافت`);
+        setIsRestockModalOpen(false);
+        setRestockMed(null);
+        fetchMeds();
+      } else {
+        const data = await res.json();
+        alert(data.error || "خطا در ثبت افزایش موجودی");
+      }
+    } catch (err) {
+      console.error("Restock error:", err);
+      alert("خطا در ارتباط با سرور");
+    } finally {
+      setRestockSubmitting(false);
+    }
+  }
+
   // Form: Medication Core Info
   const [formNameFa, setFormNameFa] = useState("");
   const [formBoxNumber, setFormBoxNumber] = useState("");
@@ -742,7 +808,7 @@ export default function AdminMedicationsPage() {
             <div className="p-2.5 rounded-2xl bg-care-50 dark:bg-emerald-950/40 text-care-700 dark:text-emerald-400">
               <Pill className="w-6 h-6" />
             </div>
-            <span>مرکز جامع مدیریت داروها، نسخه و تاریخچه</span>
+            <span>لیست داروها و تاریخچه</span>
           </h1>
           <p className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">
             شماره جعبه در منزل، دستور پزشک، زمان‌بندی هوشمند و گزارش تفصیلی تغییرات
@@ -755,12 +821,12 @@ export default function AdminMedicationsPage() {
             className="px-5 py-2.5 rounded-2xl bg-care-600 hover:bg-care-700 text-white font-black text-xs shadow-lg shadow-care-600/30 flex items-center gap-2 transition active:scale-95 self-start sm:self-center"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span>ثبت داروی جدید + زمان‌بندی</span>
+            <span>ثبت داروی جدید</span>
           </button>
         ) : (
           <div className="bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/80 rounded-2xl p-2.5 px-3.5 text-xs font-bold text-sky-800 dark:text-sky-300 flex items-center gap-2">
             <Info className="w-4 h-4 flex-shrink-0 text-sky-600 dark:text-sky-400" />
-            <span>حالت مشاهده پرستار: بررسی پروتکل دارویی بیمار</span>
+            <span>{userRole === "VIEWER" ? "حالت مشاهده‌کننده: دسترسی صرفاً خواندنی به پرونده دارویی" : "حالت مشاهده پرستار: بررسی پروتکل دارویی بیمار"}</span>
           </div>
         )}
       </div>
@@ -1101,31 +1167,17 @@ export default function AdminMedicationsPage() {
                         )}
                       </div>
 
-                      {/* Quick Increment / Decrement for ADMIN */}
+                      {/* Add Stock Button for ADMIN (replaces manual +/- buttons) */}
                       {userRole === "ADMIN" && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => updateStockDelta(med.id, -1)}
-                            className="p-1 rounded-lg text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 active:scale-90 transition"
-                            title="کاهش ۱ عدد"
-                          >
-                            <MinusCircle className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => updateStockDelta(med.id, 10)}
-                            className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-[11px] font-bold transition active:scale-95"
-                            title="خرید یک بسته (۱۰ تایی)"
-                          >
-                            +۱۰
-                          </button>
-                          <button
-                            onClick={() => updateStockDelta(med.id, 1)}
-                            className="p-1 rounded-lg text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 active:scale-90 transition"
-                            title="افزایش ۱ عدد"
-                          >
-                            <PlusCircle className="w-5 h-5" />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openRestockModal(med)}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-bold text-xs flex items-center gap-1.5 transition active:scale-95 shadow-2xs"
+                          title="ثبت خرید و افزایش موجودی در منزل"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 stroke-[3]" />
+                          <span>افزودن موجودی</span>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -1133,6 +1185,148 @@ export default function AdminMedicationsPage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Restock / Medicine Purchase Modal */}
+      {isRestockModalOpen && restockMed && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md flex flex-col rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-emerald-50/70 dark:bg-emerald-950/40 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-slate-100">
+                    افزودن موجودی (فرم خرید دارو)
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {restockMed.nameFa} {restockMed.boxNumber ? `(جعبه ${restockMed.boxNumber})` : ""}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRestockModalOpen(false);
+                  setRestockMed(null);
+                }}
+                className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleRestockSubmit} className="p-5 space-y-4">
+              {/* Current Stock Banner */}
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs font-bold">
+                <span className="text-slate-600 dark:text-slate-400">موجودی فعلی در منزل:</span>
+                <span className="font-mono font-black text-slate-900 dark:text-slate-100 text-sm">
+                  {toPersianDigits(restockMed.stockCount)} عدد
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  تعداد خریداری‌شده (افزایش به موجودی): <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={restockAmount}
+                    onChange={(e) => setRestockAmount(e.target.value)}
+                    placeholder="مثلاً: ۱۰ یا ۳۰"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                    autoFocus
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                    عدد
+                  </span>
+                </div>
+                {/* Quick Add Presets */}
+                <div className="flex items-center gap-1.5 mt-2">
+                  <span className="text-[11px] text-slate-400">انتخاب سریع:</span>
+                  {[10, 20, 30, 60, 100].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setRestockAmount(String(num))}
+                      className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-slate-700 dark:text-slate-300 text-[11px] font-mono font-bold transition active:scale-95"
+                    >
+                      +{toPersianDigits(num)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  تاریخ خرید دارو:
+                </label>
+                <input
+                  type="text"
+                  value={restockDate}
+                  onChange={(e) => setRestockDate(e.target.value)}
+                  placeholder="۱۴۰۳/۰۸/۰۷"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  نام داروخانه / فروشنده (اختیاری):
+                </label>
+                <input
+                  type="text"
+                  value={restockPharmacy}
+                  onChange={(e) => setRestockPharmacy(e.target.value)}
+                  placeholder="مثلاً: داروخانه شبانه‌روزی دکتر صابر"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  توضیحات و یادداشت خرید (اختیاری):
+                </label>
+                <input
+                  type="text"
+                  value={restockNotes}
+                  onChange={(e) => setRestockNotes(e.target.value)}
+                  placeholder="مثلاً: خرید ۱ جعبه ۳ بلیستره با نسخه جدید"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              {/* Actions Footer */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRestockModalOpen(false);
+                    setRestockMed(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  انصراف
+                </button>
+                <button
+                  type="submit"
+                  disabled={restockSubmitting}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/30 transition active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Package className="w-4 h-4" />
+                  <span>{restockSubmitting ? "در حال ثبت..." : "ثبت خرید و افزایش موجودی"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

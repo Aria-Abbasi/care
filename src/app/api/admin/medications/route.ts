@@ -237,12 +237,35 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "شناسه دارو الزامی است" }, { status: 400 });
     }
 
-    // Support quick stock increment/decrement
+    // Support quick stock increment/decrement and purchase restock logging
     if (stockDelta !== undefined) {
+      const deltaNum = Number(stockDelta);
       const updated = await prisma.medication.update({
         where: { id },
-        data: { stockCount: { increment: Number(stockDelta) } },
+        data: { stockCount: { increment: deltaNum } },
       });
+
+      // Log purchase / restock in MedicationHistory if restockDetails provided
+      const details = body.restockDetails;
+      if (details) {
+        const descParts = [`خرید و شارژ موجودی دارو به میزان ${deltaNum} عدد`];
+        if (details.pharmacy) descParts.push(`داروخانه: ${details.pharmacy}`);
+        if (details.date) descParts.push(`تاریخ: ${details.date}`);
+        if (details.notes) descParts.push(`یادداشت: ${details.notes}`);
+
+        await prisma.medicationHistory.create({
+          data: {
+            medicationId: updated.id,
+            medicationName: updated.nameFa,
+            actionType: "RESTOCKED",
+            description: descParts.join(" - "),
+            performedBy: user.fullName || "سرپرست پرونده",
+            detailsJson: JSON.stringify(details),
+            createdAt: new Date(),
+          },
+        });
+      }
+
       return NextResponse.json({ success: true, medication: updated });
     }
 

@@ -19,6 +19,8 @@ import { NextRequest } from "next/server";
 import { GET as getMeds, POST as postMeds, PUT as putMeds } from "../src/app/api/admin/medications/route";
 import { POST as postVitals } from "../src/app/api/nurse/vitals/route";
 import { PUT as putEditLog } from "../src/app/api/nurse/tasks/edit-log/route";
+import { POST as postUsers, PUT as putUsers } from "../src/app/api/admin/users/route";
+import { GET as getAdhoc, POST as postAdhoc, DELETE as deleteAdhoc } from "../src/app/api/admin/adhoc-suggestions/route";
 
 let passed = 0;
 let failed = 0;
@@ -859,6 +861,156 @@ async function runTests() {
   await prisma.vitalLog.deleteMany({ where: { id: createdVitalId } });
   await prisma.taskLog.deleteMany({ where: { id: { in: [createdTaskLogId, routineTaskLog.id] } } });
   assert(true, "Task edit test records cleaned up successfully");
+
+  console.log("\n================ 10. VIEWER ROLE, PASSWORD RESET & RESTOCK TESTS ================");
+  // 10.1 Create VIEWER user
+  const adminUserRec = await prisma.user.findFirst({ where: { role: "ADMIN" } });
+  const adminAuthToken = await signToken({
+    id: adminUserRec!.id,
+    username: adminUserRec!.username,
+    fullName: adminUserRec!.fullName,
+    role: "ADMIN",
+  });
+
+  const viewerUsername = `viewer_test_${Date.now()}`;
+  const createViewerReq = new NextRequest("http://localhost:3000/api/admin/users", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: `care_token=${adminAuthToken}`,
+    },
+    body: JSON.stringify({
+      username: viewerUsername,
+      password: "viewerPass123",
+      fullName: "کاربر مشاهده‌کننده تست",
+      role: "VIEWER",
+    }),
+  });
+  const createViewerRes = await postUsers(createViewerReq);
+  assert(createViewerRes.status === 200, "Created user with VIEWER role successfully");
+  const createViewerData = await createViewerRes.json();
+  const createdViewerId = createViewerData.user.id;
+  assert(createViewerData.user.role === "VIEWER", "Created user role is explicitly VIEWER");
+
+  // 10.2 Verify VIEWER JWT & Middleware access control
+  const viewerAuthToken = await signToken({
+    id: createdViewerId,
+    username: viewerUsername,
+    fullName: "کاربر مشاهده‌کننده تست",
+    role: "VIEWER",
+  });
+  const verifiedViewer = await verifyToken(viewerAuthToken);
+  assert(verifiedViewer?.role === "VIEWER", "verifyToken returns VIEWER role correctly");
+
+  // Middleware blocks POST for VIEWER with 403 Forbidden
+  const viewerMutateReq = new NextRequest("http://localhost:3000/api/admin/medications", {
+    method: "POST",
+    headers: {
+      cookie: `care_token=${viewerAuthToken}`,
+    },
+  });
+  const middlewareRes = await middleware(viewerMutateReq);
+  assert(middlewareRes.status === 403, "Middleware blocks mutating POST request for VIEWER with 403");
+
+  // 10.3 Password update via PUT /api/admin/users
+  const updatePassReq = new NextRequest("http://localhost:3000/api/admin/users", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: `care_token=${adminAuthToken}`,
+    },
+    body: JSON.stringify({
+      id: createdViewerId,
+      password: "newSecretPass999!",
+    }),
+  });
+  const updatePassRes = await putUsers(updatePassReq);
+  assert(updatePassRes.status === 200, "User password updated via PUT /api/admin/users");
+  const updatedUserDb = await prisma.user.findUnique({ where: { id: createdViewerId } });
+  assert(
+    await comparePassword("newSecretPass999!", updatedUserDb!.passwordHash),
+    "Updated password verified against hash in DB"
+  );
+
+  // 10.4 Adhoc suggestions API
+  const adhocTitle = `اقدام تست ${Date.now()}`;
+  const addAdhocReq = new NextRequest("http://localhost:3000/api/admin/adhoc-suggestions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: `care_token=${adminAuthToken}`,
+    },
+    body: JSON.stringify({
+      title: adhocTitle,
+      category: "مراقبتی",
+    }),
+  });
+  const addAdhocRes = await postAdhoc(addAdhocReq);
+  assert(addAdhocRes.status === 200, "Ad-hoc suggestion created via API");
+
+  const getAdhocReq = new NextRequest("http://localhost:3000/api/admin/adhoc-suggestions", {
+    headers: { cookie: `care_token=${adminAuthToken}` },
+  });
+  const getAdhocRes = await getAdhoc(getAdhocReq);
+  const getAdhocData = await getAdhocRes.json();
+  const createdAdhocItem = getAdhocData.suggestions.find((s: any) => s.title === adhocTitle);
+  assert(Boolean(createdAdhocItem), "Newly created ad-hoc suggestion found in list");
+
+  if (createdAdhocItem) {
+    const delAdhocReq = new NextRequest(`http://localhost:3000/api/admin/adhoc-suggestions?id=${createdAdhocItem.id}`, {
+      method: "DELETE",
+      headers: { cookie: `care_token=${adminAuthToken}` },
+    });
+    const delAdhocRes = await deleteAdhoc(delAdhocReq);
+    assert(delAdhocRes.status === 200, "Ad-hoc suggestion deleted successfully via API");
+  }
+
+  // 10.5 Medication restock via PUT /api/admin/medications
+  const sampleMed = await prisma.medication.findFirst({ where: { isActive: true } });
+  if (sampleMed) {
+    const prevStock = sampleMed.stockCount;
+    const restockReq = new NextRequest("http://localhost:3000/api/admin/medications", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: `care_token=${adminAuthToken}`,
+      },
+      body: JSON.stringify({
+        id: sampleMed.id,
+        stockDelta: 15,
+        restockDetails: {
+          pharmacy: "داروخانه شبانه‌روزی صابر",
+          date: "۱۴۰۳/۰۸/۰۷",
+          notes: "تست خرید با نسخه جدید",
+          amount: 15,
+        },
+      }),
+    });
+    const restockRes = await putMeds(restockReq);
+    assert(restockRes.status === 200, "Medication restock PUT returned 200");
+    const updatedMed = await prisma.medication.findUnique({ where: { id: sampleMed.id } });
+    assert(updatedMed?.stockCount === prevStock + 15, `Medication stock incremented by 15 (from ${prevStock} to ${updatedMed?.stockCount})`);
+
+    const restockHistory = await prisma.medicationHistory.findFirst({
+      where: { medicationId: sampleMed.id, actionType: "RESTOCKED" },
+      orderBy: { createdAt: "desc" },
+    });
+    assert(Boolean(restockHistory), "MedicationHistory record logged with actionType RESTOCKED");
+    assert(Boolean(restockHistory?.description.includes("داروخانه شبانه‌روزی صابر")), "Restock history includes pharmacy name");
+
+    // Revert stock delta to maintain test DB state
+    await prisma.medication.update({
+      where: { id: sampleMed.id },
+      data: { stockCount: prevStock },
+    });
+    if (restockHistory) {
+      await prisma.medicationHistory.delete({ where: { id: restockHistory.id } });
+    }
+  }
+
+  // Cleanup test user
+  await prisma.user.delete({ where: { id: createdViewerId } });
+  assert(true, "Test VIEWER user cleaned up successfully");
 
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);

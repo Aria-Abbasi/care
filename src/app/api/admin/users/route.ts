@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         username: username.trim().toLowerCase(),
         passwordHash,
         fullName: fullName.trim(),
-        role: role === "ADMIN" ? "ADMIN" : "NURSE",
+        role: ["ADMIN", "NURSE", "VIEWER"].includes(role) ? role : "NURSE",
         isActive: true,
       },
       select: {
@@ -88,17 +88,23 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, fullName, password, isActive } = body;
+    const { id, fullName, password, isActive, role } = body;
 
     if (!id) {
       return NextResponse.json({ error: "شناسه کاربر الزامی است" }, { status: 400 });
     }
 
     const dataToUpdate: any = {};
-    if (fullName) dataToUpdate.fullName = fullName;
+    if (fullName) dataToUpdate.fullName = fullName.trim();
     if (isActive !== undefined) dataToUpdate.isActive = Boolean(isActive);
+    if (role && ["ADMIN", "NURSE", "VIEWER"].includes(role)) {
+      dataToUpdate.role = role;
+    }
     if (password) {
-      dataToUpdate.passwordHash = await hashPassword(password);
+      if (typeof password !== "string" || password.trim().length < 4) {
+        return NextResponse.json({ error: "رمز عبور جدید باید حداقل ۴ کاراکتر باشد" }, { status: 400 });
+      }
+      dataToUpdate.passwordHash = await hashPassword(password.trim());
     }
 
     const updated = await prisma.user.update({

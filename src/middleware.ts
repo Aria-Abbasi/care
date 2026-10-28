@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
         }
 
         // Default home redirect by role
-        if (role === "ADMIN") {
+        if (role === "ADMIN" || role === "VIEWER") {
           return NextResponse.redirect(new URL("/dashboard", request.url));
         } else {
           return NextResponse.redirect(new URL("/nurse/timeline", request.url));
@@ -77,7 +77,7 @@ export async function middleware(request: NextRequest) {
 
     // Root path redirects to appropriate role home
     if (pathname === "/") {
-      if (role === "ADMIN") {
+      if (role === "ADMIN" || role === "VIEWER") {
         return NextResponse.redirect(new URL("/dashboard", request.url));
       } else {
         return NextResponse.redirect(new URL("/nurse/timeline", request.url));
@@ -87,6 +87,16 @@ export async function middleware(request: NextRequest) {
     // Protect users management route (ADMIN only)
     if (pathname.startsWith("/users") && role !== "ADMIN") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    // Enforce read-only constraint for VIEWER: cannot change or mutate any data
+    if (role === "VIEWER" && ["POST", "PUT", "DELETE", "PATCH"].includes(request.method)) {
+      if (pathname !== "/api/auth/logout" && pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: "کاربر با دسترسی مشاهده‌کننده فقط امکان مشاهده اطلاعات را دارد و مجاز به تغییر نیست." },
+          { status: 403 }
+        );
+      }
     }
 
     // Set user headers for downstream server components

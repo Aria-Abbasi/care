@@ -663,7 +663,7 @@ export default function NurseTimelinePage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              اقدامات موردی و پیش‌بینی‌نشده امروز ({toPersianDigits(adhocTasks.length)})
+              اقدامات موردی امروز ({toPersianDigits(adhocTasks.length)})
             </span>
           </div>
 
