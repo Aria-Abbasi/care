@@ -45,19 +45,18 @@ export async function POST(request: NextRequest) {
 
     const scheduleId = formData.get("scheduleId") as string | null;
     const taskTitle = formData.get("taskTitle") as string | null;
-    if (scheduleId) {
-      const cleanScheduleId = String(scheduleId).split("_")[0];
-      await prisma.taskLog.create({
-        data: {
-          scheduleId: cleanScheduleId,
-          taskTitle: taskTitle || "ثبت تصویر یا یادداشت بالینی",
-          nurseId: user.id,
-          status: "DONE",
-          notes: noteText || (photoUrl ? "ثبت تصویر بالینی" : "یادداشت بالینی"),
-          completedAt: new Date(),
-        },
-      });
-    }
+    const cleanScheduleId = scheduleId ? String(scheduleId).split("_")[0] : null;
+
+    await prisma.taskLog.create({
+      data: {
+        scheduleId: cleanScheduleId,
+        taskTitle: taskTitle || (photoUrl ? "ثبت تصویر بالینی" : "یادداشت بالینی"),
+        nurseId: user.id,
+        status: "DONE",
+        notes: noteText || (photoUrl ? "ثبت تصویر بالینی" : "یادداشت بالینی"),
+        completedAt: new Date(),
+      },
+    });
 
     return NextResponse.json({ success: true, note });
   } catch (error) {

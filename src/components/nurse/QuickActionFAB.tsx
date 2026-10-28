@@ -63,8 +63,10 @@ export default function QuickActionFAB({
   const [selectedTag, setSelectedTag] = useState("fasting");
   const [bpSys, setBpSys] = useState("");
   const [bpDia, setBpDia] = useState("");
+  const [bowelMode, setBowelMode] = useState<"BOWEL" | "LAXATIVE">("BOWEL");
   const [bowelGrade, setBowelGrade] = useState("2_plus");
   const [laxatives, setLaxatives] = useState<string[]>([]);
+  const [bowelNotes, setBowelNotes] = useState("");
   const [urineColor, setUrineColor] = useState("شفاف و زرد روشن");
   const [noteCategory, setNoteCategory] = useState("dvt_leg");
   const [noteText, setNoteText] = useState("");
@@ -143,8 +145,10 @@ export default function QuickActionFAB({
     setBpSys("");
     setBpDia("");
     setLaxatives([]);
+    setBowelNotes("");
     setPhotoFile(null);
     setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setNoteText("");
     setAdhocTitle("");
     setAdhocNotes("");
@@ -157,17 +161,31 @@ export default function QuickActionFAB({
     if (!dvtActive) {
       const now = Date.now();
       localStorage.setItem("care_dvt_start_time", now.toString());
+      if (activeAction?.scheduleId) {
+        localStorage.setItem("care_dvt_schedule_id", activeAction.scheduleId);
+      }
+      if (activeAction?.taskTitle) {
+        localStorage.setItem("care_dvt_task_title", activeAction.taskTitle);
+      }
       setDvtStartTime(now);
       setDvtActive(true);
       showToast("تایمر DVT پای راست شروع شد");
     } else {
       const elapsed = dvtElapsedSeconds;
+      const targetScheduleId = activeAction?.scheduleId || localStorage.getItem("care_dvt_schedule_id") || undefined;
+      const targetTaskTitle = activeAction?.taskTitle || localStorage.getItem("care_dvt_task_title") || undefined;
+
       localStorage.removeItem("care_dvt_start_time");
+      localStorage.removeItem("care_dvt_schedule_id");
+      localStorage.removeItem("care_dvt_task_title");
       setDvtActive(false);
       setDvtStartTime(null);
       setDvtElapsedSeconds(0);
 
-      const minutes = Math.round(elapsed / 60);
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      const durationStr = minutes > 0 ? `${minutes} دقیقه` : `${seconds} ثانیه`;
+
       try {
         await fetch("/api/nurse/vitals", {
           method: "POST",
@@ -175,12 +193,12 @@ export default function QuickActionFAB({
           body: JSON.stringify({
             type: "dvt_timer",
             valueNum: elapsed,
-            valueText: `پای راست بالا برده شد به مدت ${minutes} دقیقه`,
-            scheduleId: activeAction?.scheduleId,
-            taskTitle: activeAction?.taskTitle,
+            valueText: `پای راست بالا برده شد به مدت ${durationStr}`,
+            scheduleId: targetScheduleId,
+            taskTitle: targetTaskTitle || "مراقبت DVT پای راست",
           }),
         });
-        showToast(`DVT ثبت شد: ${toPersianDigits(minutes)} دقیقه پای راست بالا بود`);
+        showToast(`DVT ثبت شد: ${toPersianDigits(durationStr)} پای راست بالا بود`);
         resetForm();
         onDataLogged?.();
       } catch {
@@ -320,32 +338,39 @@ export default function QuickActionFAB({
     }
   }
 
-  // Submit Bowel Movement
+  // Submit Bowel Movement or Laxative
   async function submitBowel() {
     setSubmitting(true);
     const laxStr = laxatives.length > 0 ? laxatives.join("، ") : null;
+    const isBowel = bowelMode === "BOWEL";
+
+    let summary = isBowel ? `کارکرد روده: ${bowelGrade}` : `مصرف ملین: ${laxStr || "ملین"}`;
+    if (bowelNotes.trim()) {
+      summary += ` - توضیحات: ${bowelNotes.trim()}`;
+    }
 
     try {
       const res = await fetch("/api/nurse/vitals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "bowel_movement",
+          type: isBowel ? "bowel_movement" : "laxative",
           valueNum: 1.0,
-          bowelGrade,
-          laxativeGiven: laxStr,
-          valueText: `کارکرد روده ${bowelGrade}${laxStr ? " همراه ملین: " + laxStr : ""}`,
+          bowelGrade: isBowel ? bowelGrade : null,
+          laxativeGiven: !isBowel ? laxStr : null,
+          valueText: summary,
+          extraData: bowelNotes.trim() ? { notes: bowelNotes.trim() } : undefined,
           scheduleId: activeAction?.scheduleId,
-          taskTitle: activeAction?.taskTitle,
+          taskTitle: activeAction?.taskTitle || (isBowel ? "ثبت کارکرد شکم" : "ثبت داروی ملین"),
         }),
       });
       if (res.ok) {
-        showToast("کارکرد روده با موفقیت ثبت شد");
+        showToast(isBowel ? "کارکرد روده با موفقیت ثبت شد" : "مصرف ملین با موفقیت ثبت شد");
         resetForm();
         onDataLogged?.();
       }
     } catch {
-      showToast("خطا در ثبت کارکرد روده");
+      showToast("خطا در ثبت اطلاعات");
     } finally {
       setSubmitting(false);
     }
@@ -1028,65 +1053,111 @@ export default function QuickActionFAB({
               </button>
             </div>
 
-            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">میزان کارکرد شکم:</p>
-            <div className="grid grid-cols-2 gap-2.5 mb-5">
-              {[
-                { id: "partial", label: "جزئی", desc: "کم یا تکه‌ای", stars: "•" },
-                { id: "1_plus", label: "۱ مثبت (+)", desc: "متوسط و طبیعی", stars: "+" },
-                { id: "2_plus", label: "۲ مثبت (++)", desc: "خوب و کامل", stars: "++" },
-                { id: "3_plus", label: "۳ مثبت (+++)", desc: "زیاد یا اسهالی", stars: "+++" },
-              ].map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => setBowelGrade(b.id)}
-                  className={`p-3 rounded-2xl border-2 text-right transition active:scale-95 ${
-                    bowelGrade === b.id
-                      ? "border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-950 dark:text-orange-200 shadow-sm"
-                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                  }`}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-black text-sm">{b.label}</span>
-                    <span className="text-xs font-mono font-bold text-orange-600">{b.stars}</span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">{b.desc}</div>
-                </button>
-              ))}
+            {/* Mode Switcher Tabs */}
+            <div className="grid grid-cols-2 gap-2 mb-4 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => setBowelMode("BOWEL")}
+                className={`py-2 rounded-xl text-xs font-black transition ${
+                  bowelMode === "BOWEL"
+                    ? "bg-white dark:bg-slate-900 text-orange-950 dark:text-orange-200 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                کارکرد شکم (دفع)
+              </button>
+              <button
+                type="button"
+                onClick={() => setBowelMode("LAXATIVE")}
+                className={`py-2 rounded-xl text-xs font-black transition ${
+                  bowelMode === "LAXATIVE"
+                    ? "bg-white dark:bg-slate-900 text-orange-950 dark:text-orange-200 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                مصرف داروی ملین
+              </button>
             </div>
 
-            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">ملین مصرف‌شده در این وعده (اختیاری):</p>
-            <div className="grid grid-cols-2 gap-2 mb-5">
-              {[
-                "شیاف بیزاکودیل",
-                "پودر پیدرولاکس",
-                "شربت منیزیم",
-                "شربت لاکتولوز",
-                "ملین گیاهی گل محمدی",
-                "روغن زیتون",
-              ].map((item) => {
-                const isSelected = laxatives.includes(item);
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => {
-                      if (isSelected) {
-                        setLaxatives(laxatives.filter((l) => l !== item));
-                      } else {
-                        setLaxatives([...laxatives, item]);
-                      }
-                    }}
-                    className={`p-2.5 rounded-xl border text-xs font-bold transition text-right ${
-                      isSelected
-                        ? "border-orange-500 bg-orange-100/70 dark:bg-orange-900/40 text-orange-900 dark:text-orange-200"
-                        : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                    }`}
-                  >
-                    {item}
-                  </button>
-                );
-              })}
+            {bowelMode === "BOWEL" ? (
+              <div className="mb-4">
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">میزان کارکرد شکم:</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { id: "partial", label: "جزئی", desc: "کم یا تکه‌ای", stars: "•" },
+                    { id: "1_plus", label: "۱ مثبت (+)", desc: "متوسط و طبیعی", stars: "+" },
+                    { id: "2_plus", label: "۲ مثبت (++)", desc: "خوب و کامل", stars: "++" },
+                    { id: "3_plus", label: "۳ مثبت (+++)", desc: "زیاد یا اسهالی", stars: "+++" },
+                  ].map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setBowelGrade(b.id)}
+                      className={`p-3 rounded-2xl border-2 text-right transition active:scale-95 ${
+                        bowelGrade === b.id
+                          ? "border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-950 dark:text-orange-200 shadow-sm"
+                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-black text-sm">{b.label}</span>
+                        <span className="text-xs font-mono font-bold text-orange-600">{b.stars}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">{b.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">انتخاب داروی ملین مصرف‌شده:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    "شیاف بیزاکودیل",
+                    "پودر پیدرولاکس",
+                    "شربت منیزیم",
+                    "شربت لاکتولوز",
+                    "ملین گیاهی گل محمدی",
+                    "روغن زیتون",
+                  ].map((item) => {
+                    const isSelected = laxatives.includes(item);
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setLaxatives(laxatives.filter((l) => l !== item));
+                          } else {
+                            setLaxatives([...laxatives, item]);
+                          }
+                        }}
+                        className={`p-2.5 rounded-xl border text-xs font-bold transition text-right ${
+                          isSelected
+                            ? "border-orange-500 bg-orange-100/70 dark:bg-orange-900/40 text-orange-900 dark:text-orange-200"
+                            : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Optional Notes */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                شرح یا توضیحات اختیاری:
+              </label>
+              <textarea
+                rows={2}
+                value={bowelNotes}
+                onChange={(e) => setBowelNotes(e.target.value)}
+                placeholder="توضیحات تکمیلی وضعیت یا نحوه مصرف..."
+                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium focus:ring-2 focus:ring-orange-500 outline-none text-slate-900 dark:text-slate-100"
+              />
             </div>
 
             <button
@@ -1094,7 +1165,7 @@ export default function QuickActionFAB({
               onClick={submitBowel}
               className="w-full py-3.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-md shadow-orange-600/30 active:scale-95 transition"
             >
-              ثبت کارکرد شکم
+              {bowelMode === "BOWEL" ? "ثبت کارکرد شکم" : "ثبت داروی ملین"}
             </button>
           </div>
         </div>
