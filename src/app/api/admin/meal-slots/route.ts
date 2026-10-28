@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 
-export const DEFAULT_MEAL_SLOTS = [
+const DEFAULT_MEAL_SLOTS = [
   { name: "BREAKFAST", labelFa: "ناشتا / صبحانه", defaultTime: "07:00", order: 1 },
   { name: "MORNING_SNACK", labelFa: "میان‌وعده صبح", defaultTime: "10:00", order: 2 },
   { name: "LUNCH", labelFa: "ناهار", defaultTime: "12:30", order: 3 },

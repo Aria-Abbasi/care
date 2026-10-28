@@ -440,7 +440,7 @@ async function runTests() {
   });
   assert(
     testRulesSchedule.daysOfWeek === "شنبه,دوشنبه" &&
-    testRulesSchedule.rulesJson?.includes("MEAL_RELATIVE"),
+    Boolean(testRulesSchedule.rulesJson?.includes("MEAL_RELATIVE")),
     "Schedule rulesJson and daysOfWeek persistence"
   );
   await prisma.schedule.delete({ where: { id: testRulesSchedule.id } });
