@@ -1588,10 +1588,11 @@ export default function AdminMedicationsPage() {
                           )}
                         </span>
                       </div>
-                    )
-                  )}
-                </div>
+                    </div>
+                  )
+                )}
               </div>
+            </div>
 
               {/* Section 4: Discontinue Previous Medications (Only for Create) */}
               {!editingMed && eligibleActiveMeds.length > 0 && (

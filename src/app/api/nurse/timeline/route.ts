@@ -290,9 +290,32 @@ export async function GET(request: NextRequest) {
       select: { recordedAt: true, bowelGrade: true, laxativeGiven: true },
     });
 
+    const activeDvt = await prisma.activeTimer.findFirst({
+      where: { timerType: "dvt_care" },
+      orderBy: { createdAt: "desc" },
+    });
+
+    let activeTimer = null;
+    if (activeDvt) {
+      const elapsedSeconds = Math.max(
+        0,
+        Math.floor((Date.now() - new Date(activeDvt.startTime).getTime()) / 1000)
+      );
+      activeTimer = {
+        id: activeDvt.id,
+        timerType: activeDvt.timerType,
+        startTime: activeDvt.startTime.toISOString(),
+        scheduleId: activeDvt.scheduleId,
+        taskTitle: activeDvt.taskTitle,
+        nurseId: activeDvt.nurseId,
+        elapsedSeconds,
+      };
+    }
+
     return NextResponse.json({
       schedules: mappedSchedules,
       adhocTasks,
+      activeTimer,
       stats: {
         waterToday: Math.round(waterToday),
         urineToday: Math.round(urineToday),

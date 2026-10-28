@@ -81,6 +81,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    if (type === "dvt_timer") {
+      await prisma.activeTimer.deleteMany({
+        where: { timerType: "dvt_care" },
+      });
+    }
+
     return NextResponse.json({ success: true, vital, taskLog });
   } catch (error) {
     console.error("Vital log error:", error);

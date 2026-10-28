@@ -58,10 +58,8 @@ export default function QuickActionFAB({
     }
   }, [activeAction]);
 
-  // DVT Stopwatch state (persisted in localStorage)
+  // DVT Stopwatch state (server-tracked)
   const [dvtActive, setDvtActive] = useState(false);
-  const [dvtStartTime, setDvtStartTime] = useState<number | null>(null);
-  const [dvtElapsedSeconds, setDvtElapsedSeconds] = useState(0);
 
   // Keypad / input states
   const [keypadValue, setKeypadValue] = useState("");
@@ -112,33 +110,19 @@ export default function QuickActionFAB({
     loadSuggestions();
   }, []);
 
-  // Load DVT timer from localStorage
+  // Sync active DVT timer status from server
   useEffect(() => {
-    const savedStart = localStorage.getItem("care_dvt_start_time");
-    if (savedStart) {
-      const startMs = parseInt(savedStart, 10);
-      if (!isNaN(startMs)) {
-        setDvtActive(true);
-        setDvtStartTime(startMs);
-      }
+    async function checkDvtStatus() {
+      try {
+        const res = await fetch("/api/nurse/dvt-timer");
+        if (res.ok) {
+          const data = await res.json();
+          setDvtActive(Boolean(data.active));
+        }
+      } catch {}
     }
-  }, []);
-
-  // Update DVT elapsed timer
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (dvtActive && dvtStartTime) {
-      interval = setInterval(() => {
-        const now = Date.now();
-        setDvtElapsedSeconds(Math.floor((now - dvtStartTime) / 1000));
-      }, 1000);
-    } else {
-      setDvtElapsedSeconds(0);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [dvtActive, dvtStartTime]);
+    checkDvtStatus();
+  }, [activeModal]);
 
   function showToast(msg: string) {
     setToastMessage(msg);
@@ -161,53 +145,48 @@ export default function QuickActionFAB({
     onCloseAction?.();
   }
 
-  // Handle DVT Start/Stop
+  // Handle DVT Start/Stop via Server API
   async function toggleDvtTimer() {
     if (!dvtActive) {
-      const now = Date.now();
-      localStorage.setItem("care_dvt_start_time", now.toString());
-      if (activeAction?.scheduleId) {
-        localStorage.setItem("care_dvt_schedule_id", activeAction.scheduleId);
-      }
-      if (activeAction?.taskTitle) {
-        localStorage.setItem("care_dvt_task_title", activeAction.taskTitle);
-      }
-      setDvtStartTime(now);
-      setDvtActive(true);
-      showToast("تایمر DVT پای راست شروع شد");
-    } else {
-      const elapsed = dvtElapsedSeconds;
-      const targetScheduleId = activeAction?.scheduleId || localStorage.getItem("care_dvt_schedule_id") || undefined;
-      const targetTaskTitle = activeAction?.taskTitle || localStorage.getItem("care_dvt_task_title") || undefined;
-
-      localStorage.removeItem("care_dvt_start_time");
-      localStorage.removeItem("care_dvt_schedule_id");
-      localStorage.removeItem("care_dvt_task_title");
-      setDvtActive(false);
-      setDvtStartTime(null);
-      setDvtElapsedSeconds(0);
-
-      const minutes = Math.floor(elapsed / 60);
-      const seconds = elapsed % 60;
-      const durationStr = minutes > 0 ? `${minutes} دقیقه` : `${seconds} ثانیه`;
-
       try {
-        await fetch("/api/nurse/vitals", {
+        const res = await fetch("/api/nurse/dvt-timer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: "dvt_timer",
-            valueNum: elapsed,
-            valueText: `پای راست بالا برده شد به مدت ${durationStr}`,
-            scheduleId: targetScheduleId,
-            taskTitle: targetTaskTitle || "مراقبت DVT پای راست",
+            action: "START",
+            scheduleId: activeAction?.scheduleId,
+            taskTitle: activeAction?.taskTitle || "مراقبت DVT پای راست",
           }),
         });
-        showToast(`DVT ثبت شد: ${toPersianDigits(durationStr)} پای راست بالا بود`);
-        resetForm();
-        onDataLogged?.();
+        if (res.ok) {
+          setDvtActive(true);
+          showToast("تایمر DVT شروع شد و در لیست کارهای امروز در حال اجراست");
+          onDataLogged?.();
+        } else {
+          showToast("خطا در شروع تایمر DVT");
+        }
       } catch {
-        showToast("خطا در ثبت تایمر DVT");
+        showToast("خطا در برقراری ارتباط با سرور");
+      }
+    } else {
+      try {
+        const res = await fetch("/api/nurse/dvt-timer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "STOP" }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setDvtActive(false);
+          const durStr = data.durationStr || "مدت ثبت‌شده";
+          showToast(`DVT ثبت شد: ${toPersianDigits(durStr)} پای راست بالا بود`);
+          resetForm();
+          onDataLogged?.();
+        } else {
+          showToast("خطا در توقف تایمر DVT");
+        }
+      } catch {
+        showToast("خطا در ارتباط با سرور جهت ثبت DVT");
       }
     }
   }
@@ -444,14 +423,6 @@ export default function QuickActionFAB({
     }
   }
 
-  const formatTimer = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${toPersianDigits(m.toString().padStart(2, "0"))}:${toPersianDigits(
-      s.toString().padStart(2, "0")
-    )}`;
-  };
-
   return (
     <>
       {/* Toast Notification */}
@@ -459,26 +430,6 @@ export default function QuickActionFAB({
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-emerald-900/90 backdrop-blur-md text-white font-bold text-sm shadow-2xl flex items-center gap-2 animate-bounce border border-emerald-500/40">
           <Check className="w-5 h-5 text-emerald-400" />
           <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* DVT Sticky Status Banner */}
-      {dvtActive && (
-        <div className="fixed bottom-24 left-4 right-4 z-30 max-w-lg mx-auto bg-amber-500 text-slate-950 font-black px-4 py-3 rounded-2xl shadow-xl flex items-center justify-between border-2 border-amber-300 animate-pulse">
-          <div className="flex items-center gap-2">
-            <Timer className="w-6 h-6 animate-spin" />
-            <div>
-              <div className="text-xs font-bold text-slate-900">پای راست بالا برده شده (DVT)</div>
-              <div className="text-xl font-black font-mono tracking-wider">{formatTimer(dvtElapsedSeconds)}</div>
-            </div>
-          </div>
-          <button
-            onClick={toggleDvtTimer}
-            className="px-4 py-2 bg-slate-900 text-white rounded-xl font-black text-xs hover:bg-slate-800 transition active:scale-95 shadow-md flex items-center gap-1.5"
-          >
-            <Square className="w-4 h-4 fill-white" />
-            <span>پا پایین آمد (اتمام)</span>
-          </button>
         </div>
       )}
 

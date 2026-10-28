@@ -499,6 +499,63 @@ async function runTests() {
   await prisma.medication.delete({ where: { id: testMed.id } });
   assert(true, "Medication cascade test records cleanup");
 
+  // 6c. Server-tracked DVT Timer persistence & completion tests
+  const dvtNurseUser = await prisma.user.findFirst({ where: { role: "NURSE" } });
+  assert(dvtNurseUser !== null, "Nurse user found for DVT timer test");
+
+  // 1. Create ActiveTimer (START action)
+  const timerStart = new Date(Date.now() - 45 * 1000); // 45s ago
+  const activeTimerRecord = await prisma.activeTimer.create({
+    data: {
+      timerType: "dvt_care",
+      startTime: timerStart,
+      taskTitle: "مراقبت DVT پای راست (آزمایشی)",
+      nurseId: dvtNurseUser!.id,
+    },
+  });
+  assert(Boolean(activeTimerRecord.id), "ActiveTimer started and persisted in DB");
+
+  // 2. Query and compute elapsed seconds
+  const foundTimer = await prisma.activeTimer.findFirst({
+    where: { timerType: "dvt_care" },
+  });
+  assert(foundTimer !== null, "ActiveTimer retrieved successfully");
+  const elapsedSec = Math.floor((Date.now() - new Date(foundTimer!.startTime).getTime()) / 1000);
+  assert(elapsedSec >= 45, `ActiveTimer elapsed seconds calculated correctly (${elapsedSec}s >= 45s)`);
+
+  // 3. Complete ActiveTimer (STOP action)
+  const durationStr = elapsedSec < 60 ? `${elapsedSec} ثانیه` : `${Math.floor(elapsedSec / 60)} دقیقه`;
+  const vitalCreated = await prisma.vitalLog.create({
+    data: {
+      nurseId: dvtNurseUser!.id,
+      recordedAt: new Date(),
+      type: "dvt_timer",
+      valueNum: elapsedSec,
+      valueText: durationStr,
+    },
+  });
+  const taskLogCreated = await prisma.taskLog.create({
+    data: {
+      taskTitle: foundTimer!.taskTitle || "مراقبت DVT",
+      nurseId: dvtNurseUser!.id,
+      status: "DONE",
+      notes: `مراقبت DVT: ${durationStr} بالا بردن پا`,
+    },
+  });
+  await prisma.activeTimer.delete({ where: { id: foundTimer!.id } });
+
+  const activeTimerAfterStop = await prisma.activeTimer.findFirst({
+    where: { timerType: "dvt_care" },
+  });
+  assert(activeTimerAfterStop === null, "ActiveTimer cleared from DB after completion");
+  assert(vitalCreated.type === "dvt_timer", "VitalLog for dvt_timer recorded properly");
+  assert(taskLogCreated.status === "DONE", "TaskLog for DVT marked DONE properly");
+
+  // Cleanup test logs
+  await prisma.vitalLog.delete({ where: { id: vitalCreated.id } });
+  await prisma.taskLog.delete({ where: { id: taskLogCreated.id } });
+  assert(true, "DVT test logs cleanup successful");
+
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);
 

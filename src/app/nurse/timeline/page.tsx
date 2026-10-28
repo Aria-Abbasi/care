@@ -179,6 +179,17 @@ export default function NurseTimelinePage() {
   const [editDia, setEditDia] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Active DVT timer state (server-tracked)
+  const [activeTimer, setActiveTimer] = useState<{
+    id: string;
+    timerType: string;
+    startTime: string;
+    scheduleId?: string | null;
+    taskTitle?: string | null;
+    elapsedSeconds?: number;
+  } | null>(null);
+  const [dvtElapsedSeconds, setDvtElapsedSeconds] = useState(0);
+
   const fetchTimeline = useCallback(async () => {
     try {
       const res = await fetch("/api/nurse/timeline");
@@ -187,6 +198,13 @@ export default function NurseTimelinePage() {
         setSchedules(data.schedules || []);
         setAdhocTasks(data.adhocTasks || []);
         if (data.stats) setStats(data.stats);
+        if (data.activeTimer) {
+          setActiveTimer(data.activeTimer);
+          setDvtElapsedSeconds(data.activeTimer.elapsedSeconds || 0);
+        } else {
+          setActiveTimer(null);
+          setDvtElapsedSeconds(0);
+        }
       }
     } catch (err) {
       console.error("Fetch timeline error:", err);
@@ -201,9 +219,101 @@ export default function NurseTimelinePage() {
     return () => clearInterval(interval);
   }, [fetchTimeline]);
 
+  // Live stopwatch tick effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (activeTimer) {
+      interval = setInterval(() => {
+        const startMs = new Date(activeTimer.startTime).getTime();
+        const diffSec = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+        setDvtElapsedSeconds(diffSec);
+      }, 1000);
+    } else {
+      setDvtElapsedSeconds(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [activeTimer]);
+
+  function formatStopwatch(totalSec: number) {
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${toPersianDigits(m.toString().padStart(2, "0"))}:${toPersianDigits(s.toString().padStart(2, "0"))}`;
+  }
+
+  async function handleStartDvtTimer(scheduleId?: string, taskTitle?: string) {
+    try {
+      const res = await fetch("/api/nurse/dvt-timer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "START",
+          scheduleId: scheduleId || undefined,
+          taskTitle: taskTitle || "مراقبت DVT پای راست",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveTimer(data.timer);
+        setDvtElapsedSeconds(0);
+      }
+    } catch (err) {
+      console.error("Start DVT timer error:", err);
+    }
+  }
+
+  async function handleStopDvtTimer() {
+    try {
+      const res = await fetch("/api/nurse/dvt-timer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "STOP" }),
+      });
+      if (res.ok) {
+        setActiveTimer(null);
+        setDvtElapsedSeconds(0);
+        fetchTimeline();
+      }
+    } catch (err) {
+      console.error("Stop DVT timer error:", err);
+    }
+  }
+
+  async function handleCancelDvtTimer() {
+    try {
+      const res = await fetch("/api/nurse/dvt-timer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "CANCEL" }),
+      });
+      if (res.ok) {
+        setActiveTimer(null);
+        setDvtElapsedSeconds(0);
+        fetchTimeline();
+      }
+    } catch (err) {
+      console.error("Cancel DVT timer error:", err);
+    }
+  }
+
   // Handle task completion click
   function handleTaskClick(item: ScheduleItem) {
     if (item.isCompleted || completingId) return;
+
+    if (item.vitalType === "dvt_care" || item.category === "dvt_care") {
+      const isRunning = Boolean(
+        activeTimer &&
+          (activeTimer.scheduleId === item.id ||
+            (!activeTimer.scheduleId && (item.vitalType === "dvt_care" || item.category === "dvt_care")))
+      );
+      if (isRunning) {
+        handleStopDvtTimer();
+      } else {
+        handleStartDvtTimer(item.id, item.title);
+      }
+      return;
+    }
 
     if (item.vitalType && VITAL_META[item.vitalType]) {
       setActiveAction({
@@ -551,6 +661,56 @@ export default function NurseTimelinePage() {
 
       {/* Chronological Timeline List */}
       <div className="space-y-3">
+        {/* Active DVT In-Progress Card (Bedside action started or ad-hoc) */}
+        {activeTimer &&
+          !schedules.some(
+            (s) =>
+              !s.isCompleted &&
+              (s.id === activeTimer.scheduleId ||
+                s.vitalType === "dvt_care" ||
+                s.category === "dvt_care")
+          ) &&
+          activeFilter !== "done" && (
+            <div className="p-4 rounded-3xl border-2 border-teal-500/80 dark:border-teal-600 bg-teal-50/90 dark:bg-teal-950/60 shadow-md flex items-center justify-between gap-3 animate-in fade-in duration-200">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="px-3.5 py-2.5 rounded-2xl bg-teal-600 text-white font-mono text-sm font-black flex items-center justify-center gap-1.5 flex-shrink-0 shadow-sm animate-pulse">
+                  <Timer className="w-4 h-4 animate-spin" />
+                  <span>{formatStopwatch(dvtElapsedSeconds)}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                      {activeTimer.taskTitle || "مراقبت DVT پای راست"}
+                    </h2>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-200 dark:bg-teal-900 text-teal-900 dark:text-teal-200 border border-teal-300 dark:border-teal-700">
+                      در حال انجام (پای راست بالا برده شده)
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-teal-800 dark:text-teal-300 font-semibold truncate">
+                    زمان سپری‌شده: {formatStopwatch(dvtElapsedSeconds)}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCancelDvtTimer}
+                  className="px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition"
+                >
+                  انصراف
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStopDvtTimer}
+                  className="px-3.5 py-2 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black shadow-md shadow-teal-600/30 flex items-center gap-1.5 transition active:scale-95"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>پایان و ثبت DVT</span>
+                </button>
+              </div>
+            </div>
+          )}
+
         {displayItems.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 text-center border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
             <Clock className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
@@ -564,6 +724,11 @@ export default function NurseTimelinePage() {
             const isLastDone = item.id === lastDoneOverall?.id;
             const isMed = item.category === "medication" || item.itemType === "medication";
             const isMeal = item.category === "meal";
+            const isDvt = item.vitalType === "dvt_care" || item.category === "dvt_care";
+            const isThisDvtRunning = Boolean(
+              activeTimer &&
+                (activeTimer.scheduleId === item.id || (!activeTimer.scheduleId && isDvt))
+            );
             const vitalMeta = item.vitalType ? VITAL_META[item.vitalType] : null;
             const VitalIcon = vitalMeta?.icon;
 
@@ -591,6 +756,8 @@ export default function NurseTimelinePage() {
             let stripColor = "border-r-slate-400 dark:border-r-slate-600";
             if (isCompleted) {
               stripColor = "border-r-slate-400 dark:border-r-slate-600";
+            } else if (isThisDvtRunning) {
+              stripColor = "border-r-teal-500";
             } else if (isOverdue) {
               stripColor = "border-r-amber-500";
             } else if (item.vitalType) {
@@ -634,6 +801,8 @@ export default function NurseTimelinePage() {
                 className={`p-3.5 sm:p-4 rounded-3xl border border-r-[5px] transition-all duration-200 ${
                   isCompleted
                     ? "bg-slate-100/90 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 border-r-slate-500 text-slate-800 dark:text-slate-200 shadow-xs"
+                    : isThisDvtRunning
+                    ? `bg-teal-50/80 dark:bg-teal-950/40 border-teal-400 dark:border-teal-700 ${stripColor} shadow-md`
                     : isOverdue
                     ? `bg-amber-50/70 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800/80 ${stripColor} shadow-sm`
                     : `bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/90 dark:border-emerald-800/60 ${stripColor} shadow-sm hover:shadow-md`
@@ -710,6 +879,83 @@ export default function NurseTimelinePage() {
                       </div>
                     )}
                   </div>
+                ) : isThisDvtRunning ? (
+                  /* Active DVT In-Progress Card */
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="px-3.5 py-2.5 rounded-2xl bg-teal-600 text-white font-mono text-sm font-black flex items-center justify-center gap-1.5 flex-shrink-0 shadow-sm animate-pulse">
+                        <Timer className="w-4 h-4 animate-spin" />
+                        <span>{formatStopwatch(dvtElapsedSeconds)}</span>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 leading-snug">
+                            {item.title}
+                          </h2>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 dark:bg-teal-950 text-teal-900 dark:text-teal-200 border border-teal-300 dark:border-teal-700">
+                            در حال انجام (پای راست بالا برده شده)
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs text-teal-800 dark:text-teal-300 font-semibold truncate">
+                          زمان سپری‌شده: {formatStopwatch(dvtElapsedSeconds)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleStopDvtTimer}
+                      className="px-3.5 py-2.5 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black shadow-md shadow-teal-600/30 flex items-center gap-1.5 transition active:scale-95 flex-shrink-0"
+                      title="پایین آوردن پا و ثبت انجام DVT"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>پایان و ثبت DVT</span>
+                    </button>
+                  </div>
+                ) : isDvt ? (
+                  /* Pending DVT Card with Direct Start Button */
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => handleStartDvtTimer(item.id, item.title)}
+                        className="px-3.5 py-2.5 rounded-2xl font-mono text-sm font-black flex items-center justify-center flex-shrink-0 shadow-sm bg-teal-600 hover:bg-teal-700 text-white transition active:scale-90"
+                        title="شروع تایمر بالا بردن پا"
+                      >
+                        {toPersianDigits(item.targetTime)}
+                      </button>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 leading-snug">
+                            {item.title}
+                          </h2>
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-100 dark:bg-teal-950 text-teal-900 dark:text-teal-200 border border-teal-300">
+                            مراقبت DVT
+                          </span>
+                          {isOverdue && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border border-amber-300">
+                              موعد گذشته
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          لمس برای شروع تایمر بالا بردن پای راست
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleStartDvtTimer(item.id, item.title)}
+                      className="px-3 py-2 rounded-2xl bg-teal-50 dark:bg-teal-950/70 text-teal-700 dark:text-teal-300 hover:bg-teal-600 hover:text-white border border-teal-200 dark:border-teal-800 text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0"
+                      title="شروع تایمر DVT"
+                    >
+                      <Timer className="w-4 h-4" />
+                      <span>شروع تایمر</span>
+                    </button>
+                  </div>
                 ) : (
                   /* Active Task Card: 2 Lines (Page 18 specification) */
                   <div className="flex items-center justify-between gap-3">
@@ -732,12 +978,12 @@ export default function NurseTimelinePage() {
                       <div className="min-w-0 flex-1">
                         {/* Line 1: [کد دارو] نام دارو یا عنوان فعالیت */}
                         <div className="flex items-center gap-2 flex-wrap">
+                          {item.medication?.boxNumber && (
+                            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/70 px-1.5 py-0.5 rounded-md ml-1.5">
+                              کد {toPersianDigits(item.medication.boxNumber)}
+                            </span>
+                          )}
                           <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 leading-snug">
-                            {item.medication?.boxNumber && (
-                              <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/70 px-1.5 py-0.5 rounded-md ml-1.5">
-                                کد {toPersianDigits(item.medication.boxNumber)}
-                              </span>
-                            )}
                             {item.title}
                           </h2>
 

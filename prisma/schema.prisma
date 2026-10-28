@@ -187,4 +187,15 @@ model MealTimeSlot {
   updatedAt   DateTime @updatedAt
 }
 
+model ActiveTimer {
+  id         String   @id @default(cuid())
+  timerType  String   // dvt_care
+  startTime  DateTime
+  scheduleId String?
+  taskTitle  String?  @default("مراقبت DVT پای راست")
+  nurseId    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 
