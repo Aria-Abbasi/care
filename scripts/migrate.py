@@ -64,6 +64,49 @@ if count == 0:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (f"mh_stop_{mid}", mid, nameFa, "STOPPED", f"داروی {nameFa} به علت {r_text} مصرف‌اش متوقف شد.", r_text, d_text, "سرپرست پرونده", d_date))
 
+# MealTimeSlot table
+con.execute("""
+CREATE TABLE IF NOT EXISTS MealTimeSlot (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    labelFa TEXT NOT NULL,
+    defaultTime TEXT NOT NULL,
+    isActive BOOLEAN NOT NULL DEFAULT 1,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+""")
+con.execute("CREATE UNIQUE INDEX IF NOT EXISTS MealTimeSlot_name_key ON MealTimeSlot(name)")
+
+slot_count = con.execute("SELECT COUNT(*) FROM MealTimeSlot").fetchone()[0]
+if slot_count == 0:
+    default_slots = [
+        ("slot_breakfast", "breakfast", "صبحانه", "08:00", 1, 1),
+        ("slot_lunch", "lunch", "ناهار", "13:00", 1, 2),
+        ("slot_dinner", "dinner", "شام", "20:00", 1, 3),
+        ("slot_bedtime", "bedtime", "قبل از خواب", "23:00", 1, 4),
+    ]
+    for s_id, s_name, s_label, s_time, s_active, s_order in default_slots:
+        con.execute("""
+            INSERT INTO MealTimeSlot (id, name, labelFa, defaultTime, isActive, "order", createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """, (s_id, s_name, s_label, s_time, s_active, s_order))
+
+# ActiveTimer table
+con.execute("""
+CREATE TABLE IF NOT EXISTS ActiveTimer (
+    id TEXT NOT NULL PRIMARY KEY,
+    timerType TEXT NOT NULL,
+    startTime DATETIME NOT NULL,
+    scheduleId TEXT,
+    taskTitle TEXT DEFAULT 'مراقبت DVT پای راست',
+    nurseId TEXT,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
 con.commit()
 con.close()
 print("Database migration completed successfully.")
