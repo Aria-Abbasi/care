@@ -64,14 +64,14 @@ export default function QuickActionFAB({
 
   // Keypad / input states
   const [keypadValue, setKeypadValue] = useState("");
-  const [selectedTag, setSelectedTag] = useState("fasting");
+  const [selectedTag, setSelectedTag] = useState("");
   const [bpSys, setBpSys] = useState("");
   const [bpDia, setBpDia] = useState("");
   const [bowelMode, setBowelMode] = useState<"BOWEL" | "LAXATIVE">("BOWEL");
-  const [bowelGrade, setBowelGrade] = useState("2_plus");
+  const [bowelGrade, setBowelGrade] = useState("");
   const [laxatives, setLaxatives] = useState<string[]>([]);
   const [bowelNotes, setBowelNotes] = useState("");
-  const [urineColor, setUrineColor] = useState("شفاف و زرد روشن");
+  const [urineColor, setUrineColor] = useState("");
   const [noteCategory, setNoteCategory] = useState("dvt_leg");
   const [noteText, setNoteText] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -143,10 +143,13 @@ export default function QuickActionFAB({
 
   function resetForm() {
     setKeypadValue("");
+    setSelectedTag("");
     setBpSys("");
     setBpDia("");
+    setBowelGrade("");
     setLaxatives([]);
     setBowelNotes("");
+    setUrineColor("");
     setPhotoFile(null);
     setPhotoPreview(null);
     setIsCompressing(false);
@@ -247,6 +250,10 @@ export default function QuickActionFAB({
 
   // Submit Urine Output
   async function submitUrine(amount: number) {
+    if (!urineColor) {
+      showToast("لطفاً ابتدا رنگ ادرار را انتخاب کنید");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/nurse/vitals", {
@@ -277,6 +284,10 @@ export default function QuickActionFAB({
   async function submitGlucose() {
     const val = parseInt(keypadValue, 10);
     if (isNaN(val) || val <= 0) return;
+    if (!selectedTag) {
+      showToast("لطفاً نوبت سنجش قند (ناشتا، پس از غذا و...) را انتخاب کنید");
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -338,9 +349,17 @@ export default function QuickActionFAB({
 
   // Submit Bowel Movement or Laxative
   async function submitBowel() {
+    const isBowel = bowelMode === "BOWEL";
+    if (isBowel && !bowelGrade) {
+      showToast("لطفاً وضعیت کارکرد شکم را مشخص کنید");
+      return;
+    }
+    if (!isBowel && laxatives.length === 0 && !bowelNotes.trim()) {
+      showToast("لطفاً داروی ملین مصرف‌شده یا توضیحات را وارد کنید");
+      return;
+    }
     setSubmitting(true);
     const laxStr = laxatives.length > 0 ? laxatives.join("، ") : null;
-    const isBowel = bowelMode === "BOWEL";
 
     let summary = isBowel ? `کارکرد روده: ${bowelGrade}` : `مصرف ملین: ${laxStr || "ملین"}`;
     if (bowelNotes.trim()) {
@@ -789,7 +808,7 @@ export default function QuickActionFAB({
               </button>
             </div>
 
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">انتخاب رنگ ادرار:</p>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">انتخاب رنگ ادرار: <span className="text-amber-500">*</span></p>
             <div className="grid grid-cols-2 gap-2 mb-4">
               {["شفاف و زرد روشن", "کهربایی / غلیظ", "کدر", "تیره / متمایل به خون"].map((color) => (
                 <button
@@ -842,7 +861,7 @@ export default function QuickActionFAB({
                 ))}
               </div>
               <button
-                disabled={!keypadValue || submitting}
+                disabled={!keypadValue || !urineColor || submitting}
                 onClick={() => submitUrine(parseInt(keypadValue, 10))}
                 className="w-full py-3 rounded-xl bg-amber-600 disabled:opacity-50 text-white font-bold shadow-md shadow-amber-600/30 active:scale-95 transition"
               >
@@ -868,6 +887,7 @@ export default function QuickActionFAB({
             </div>
 
             {/* Meal tag chips */}
+            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">نوبت سنجش قند خون: <span className="text-rose-500">*</span></p>
             <div className="flex flex-wrap gap-1.5 mb-4">
               {[
                 { id: "fasting", label: "ناشتا" },
@@ -939,7 +959,7 @@ export default function QuickActionFAB({
             </div>
 
             <button
-              disabled={!keypadValue || submitting}
+              disabled={!keypadValue || !selectedTag || submitting}
               onClick={submitGlucose}
               className="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold shadow-md shadow-rose-600/30 active:scale-95 transition"
             >
@@ -1041,7 +1061,7 @@ export default function QuickActionFAB({
 
             {bowelMode === "BOWEL" ? (
               <div className="mb-4">
-                <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">میزان کارکرد شکم:</p>
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">میزان کارکرد شکم: <span className="text-orange-500">*</span></p>
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
                     { id: "partial", label: "جزئی", desc: "کم یا تکه‌ای", stars: "•" },
@@ -1121,9 +1141,9 @@ export default function QuickActionFAB({
             </div>
 
             <button
-              disabled={submitting}
+              disabled={submitting || (bowelMode === "BOWEL" ? !bowelGrade : (laxatives.length === 0 && !bowelNotes.trim()))}
               onClick={submitBowel}
-              className="w-full py-3.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-md shadow-orange-600/30 active:scale-95 transition"
+              className="w-full py-3.5 rounded-xl bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold shadow-md shadow-orange-600/30 active:scale-95 transition"
             >
               {bowelMode === "BOWEL" ? "ثبت کارکرد شکم" : "ثبت داروی ملین"}
             </button>

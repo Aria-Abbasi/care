@@ -1656,7 +1656,7 @@ export default function AdminSchedulesPage() {
                             type="text"
                             value={formDiscontinueReason}
                             onChange={(e) => setFormDiscontinueReason(e.target.value)}
-                            placeholder="مثلاً: قطع آپیکسابان و جایگزینی داروی جدید طبق دستور پزشک معالج..."
+                            placeholder="علت بالینی قطع داروی قبلی..."
                             className="w-full px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
                           />
                         </div>

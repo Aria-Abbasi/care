@@ -395,7 +395,7 @@ export default function AdminMedicationsPage() {
   // Stop Medication Modal State
   const [isStopModalOpen, setIsStopModalOpen] = useState(false);
   const [stoppingMed, setStoppingMed] = useState<Medication | null>(null);
-  const [stopReason, setStopReason] = useState("به دستور پزشک معالج");
+  const [stopReason, setStopReason] = useState("");
   const [stopDoctorName, setStopDoctorName] = useState("");
   const [stopNotes, setStopNotes] = useState("");
   const [stopDate, setStopDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -404,7 +404,7 @@ export default function AdminMedicationsPage() {
   // Restock / Purchase Modal State
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
   const [restockMed, setRestockMed] = useState<Medication | null>(null);
-  const [restockAmount, setRestockAmount] = useState<string>("10");
+  const [restockAmount, setRestockAmount] = useState<string>("");
   const [restockDate, setRestockDate] = useState<string>("");
   const [restockDoctor, setRestockDoctor] = useState<string>("");
   const [restockPharmacy, setRestockPharmacy] = useState<string>("");
@@ -413,9 +413,9 @@ export default function AdminMedicationsPage() {
 
   function openRestockModal(med: Medication) {
     setRestockMed(med);
-    setRestockAmount("10");
+    setRestockAmount("");
     setRestockDate(getJalaliToday());
-    setRestockDoctor(med.doctorName || "");
+    setRestockDoctor("");
     setRestockPharmacy("");
     setRestockNotes("");
     setIsRestockModalOpen(true);
@@ -476,7 +476,7 @@ export default function AdminMedicationsPage() {
   const [formInstructions, setFormInstructions] = useState("");
   const [formDoctorName, setFormDoctorName] = useState("");
   const [formDoctorOrderNotes, setFormDoctorOrderNotes] = useState("");
-  const [formStockCount, setFormStockCount] = useState("100");
+  const [formStockCount, setFormStockCount] = useState("");
   const [formLowStockThreshold, setFormLowStockThreshold] = useState("15");
   const [formTimeConstraints, setFormTimeConstraints] = useState("");
 
@@ -571,7 +571,7 @@ export default function AdminMedicationsPage() {
     setFormInstructions("");
     setFormDoctorName("");
     setFormDoctorOrderNotes("");
-    setFormStockCount("100");
+    setFormStockCount("");
     setFormLowStockThreshold("15");
     setFormTimeConstraints("");
 
@@ -614,7 +614,7 @@ export default function AdminMedicationsPage() {
 
   function openStopModal(med: Medication) {
     setStoppingMed(med);
-    setStopReason("به دستور پزشک معالج");
+    setStopReason("");
     setStopDoctorName(med.doctorName || "");
     setStopNotes("");
     setStopDate(new Date().toISOString().split("T")[0]);
@@ -623,6 +623,10 @@ export default function AdminMedicationsPage() {
 
   async function handleConfirmStop() {
     if (!stoppingMed) return;
+    if (!stopReason.trim()) {
+      alert("لطفاً علت توقف مصرف دارو را بنویسید یا یکی از گزینه‌ها را انتخاب کنید.");
+      return;
+    }
     setStopSubmitting(true);
     try {
       const res = await fetch("/api/admin/medications/stop", {
@@ -630,7 +634,7 @@ export default function AdminMedicationsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: stoppingMed.id,
-          reason: stopReason.trim() || "به دستور پزشک معالج",
+          reason: stopReason.trim(),
           doctorName: stopDoctorName.trim() || null,
           notes: stopNotes.trim() || null,
           date: stopDate,
@@ -700,7 +704,7 @@ export default function AdminMedicationsPage() {
           instructions: formInstructions.trim() || null,
           doctorName: formDoctorName.trim() || null,
           doctorOrderNotes: formDoctorOrderNotes.trim() || null,
-          stockCount: parseInt(formStockCount, 10) || 100,
+          stockCount: parseInt(formStockCount, 10) || 0,
           lowStockThreshold: parseInt(formLowStockThreshold, 10) || 15,
           timeConstraints: formTimeConstraints.trim() || null,
           schedules: schedulesPayload,
@@ -1247,7 +1251,7 @@ export default function AdminMedicationsPage() {
                     required
                     value={restockAmount}
                     onChange={(e) => setRestockAmount(e.target.value)}
-                    placeholder="مثلاً: ۱۰ یا ۳۰"
+                    placeholder="تعداد به عدد..."
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                     autoFocus
                   />
@@ -1293,7 +1297,7 @@ export default function AdminMedicationsPage() {
                   type="text"
                   value={restockDoctor}
                   onChange={(e) => setRestockDoctor(e.target.value)}
-                  placeholder="مثلاً: دکتر مسعود صابر / پزشک آنکال قلب"
+                  placeholder="نام پزشک تجویزکننده..."
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -1306,7 +1310,7 @@ export default function AdminMedicationsPage() {
                   type="text"
                   value={restockPharmacy}
                   onChange={(e) => setRestockPharmacy(e.target.value)}
-                  placeholder="مثلاً: داروخانه شبانه‌روزی دکتر صابر"
+                  placeholder="نام داروخانه یا مرکز تهیه..."
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -1319,7 +1323,7 @@ export default function AdminMedicationsPage() {
                   type="text"
                   value={restockNotes}
                   onChange={(e) => setRestockNotes(e.target.value)}
-                  placeholder="مثلاً: خرید ۱ جعبه ۳ بلیستره با نسخه جدید"
+                  placeholder="توضیحات و جزئیات خرید..."
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -1425,7 +1429,7 @@ export default function AdminMedicationsPage() {
                     type="text"
                     value={stopDoctorName}
                     onChange={(e) => setStopDoctorName(e.target.value)}
-                    placeholder="مثلاً دکتر علایی"
+                    placeholder="نام پزشک معالج..."
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
                   />
                 </div>
@@ -1450,7 +1454,7 @@ export default function AdminMedicationsPage() {
                   rows={2}
                   value={stopNotes}
                   onChange={(e) => setStopNotes(e.target.value)}
-                  placeholder="مثلاً: قطع آپیکسابان و جایگزینی داروی جدید به دلیل تغییر دوز طبق دستور دکتر علایی..."
+                  placeholder="توضیحات تکمیلی یا علت تغییر نسخه..."
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-400"
                 />
               </div>
@@ -1557,7 +1561,7 @@ export default function AdminMedicationsPage() {
                       type="number"
                       value={formStockCount}
                       onChange={(e) => setFormStockCount(e.target.value)}
-                      placeholder="100"
+                      placeholder="۰"
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none text-center font-mono"
                     />
                   </div>
@@ -1618,7 +1622,7 @@ export default function AdminMedicationsPage() {
                       type="text"
                       value={formDoctorName}
                       onChange={(e) => setFormDoctorName(e.target.value)}
-                      placeholder="مثلاً دکتر علایی (فوق تخصص عروق)"
+                      placeholder="نام پزشک تجویزکننده..."
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
                     />
                   </div>
@@ -1630,7 +1634,7 @@ export default function AdminMedicationsPage() {
                       type="text"
                       value={formDoctorOrderNotes}
                       onChange={(e) => setFormDoctorOrderNotes(e.target.value)}
-                      placeholder="جهت درمان ترومبوز ورید عمقی (DVT)"
+                      placeholder="توضیحات طرح درمان یا نکات نسخه..."
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
                     />
                   </div>
@@ -2202,7 +2206,7 @@ export default function AdminMedicationsPage() {
                             type="text"
                             value={formDiscontinueReason}
                             onChange={(e) => setFormDiscontinueReason(e.target.value)}
-                            placeholder="مثلاً: قطع آپیکسابان و جایگزینی داروی جدید به دلیل تغییر دوز طبق دستور دکتر علایی"
+                            placeholder="علت بالینی قطع یا جایگزینی دارو..."
                             className="w-full px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
                           />
                         </div>
