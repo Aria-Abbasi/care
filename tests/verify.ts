@@ -17,6 +17,7 @@ import { hashPassword, comparePassword, signToken, verifyToken } from "../src/li
 import { middleware } from "../src/middleware";
 import { NextRequest } from "next/server";
 import { GET as getMeds, POST as postMeds, PUT as putMeds } from "../src/app/api/admin/medications/route";
+import { POST as postStopMed } from "../src/app/api/admin/medications/stop/route";
 import { POST as postVitals } from "../src/app/api/nurse/vitals/route";
 import { PUT as putEditLog } from "../src/app/api/nurse/tasks/edit-log/route";
 import { POST as postUsers, PUT as putUsers } from "../src/app/api/admin/users/route";
@@ -1065,6 +1066,129 @@ async function runTests() {
   const dvtData = await dvtRes.json();
   const allDvt = dvtData.photos.every((p: any) => p.category === "dvt_leg");
   assert(allDvt, "Category filtering returns only matching photos");
+
+  console.log("\n================ 14. FORM VALIDATION & SAFE DEFAULTS TESTS ================");
+  // 14.1 Medication creation with empty/0 stockCount defaults to 0, not 100
+  const zeroStockMedReq = new NextRequest("http://localhost:3000/api/admin/medications", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: `care_token=${adminTokenForPhotos}`,
+    },
+    body: JSON.stringify({
+      nameFa: "داروی تست موجودی صفر",
+      stockCount: 0,
+      lowStockThreshold: 10,
+    }),
+  });
+  const zeroStockRes = await postMeds(zeroStockMedReq);
+  assert(zeroStockRes.status === 200, "POST /api/admin/medications with 0 stock returns 200");
+  const zeroStockData = await zeroStockRes.json();
+  const createdZeroStockMed = await prisma.medication.findUnique({ where: { id: zeroStockData.medication.id } });
+  assert(Boolean(createdZeroStockMed && createdZeroStockMed.stockCount === 0), "Created medication has stockCount = 0 (not defaulted to 100)");
+
+  // 14.2 Stop medication requires custom clinical reason and records it accurately
+  const stopMedReq = new NextRequest("http://localhost:3000/api/admin/medications/stop", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: `care_token=${adminTokenForPhotos}`,
+    },
+    body: JSON.stringify({
+      id: createdZeroStockMed!.id,
+      reason: "بروز حساسیت و کهیر پوستی",
+      doctorName: "دکتر متخصص آنکال",
+      notes: "قطع فوری و جایگزینی با داروی جدید",
+    }),
+  });
+  const stopRes = await postStopMed(stopMedReq);
+  assert(stopRes.status === 200, "POST /api/admin/medications/stop returns 200");
+  const stoppedMedInDb = await prisma.medication.findUnique({ where: { id: createdZeroStockMed!.id } });
+  assert(Boolean(stoppedMedInDb && stoppedMedInDb.isActive === false), "Medication is deactivated on stop");
+  assert(Boolean(stoppedMedInDb?.discontinuedReason === "بروز حساسیت و کهیر پوستی"), "Medication has custom clinical stop reason");
+  assert(Boolean(stoppedMedInDb?.discontinuedBy === "دکتر متخصص آنکال"), "Medication has custom prescribing doctor on stop");
+
+  // Verify stopped narrative history
+  const stopHistory = await prisma.medicationHistory.findFirst({
+    where: { medicationId: createdZeroStockMed!.id, actionType: "STOPPED" },
+  });
+  assert(Boolean(stopHistory && stopHistory.reason === "بروز حساسیت و کهیر پوستی"), "History record has accurate clinical stop reason");
+  assert(Boolean(stopHistory?.description.includes("بروز حساسیت و کهیر پوستی")), "History narrative text includes accurate clinical stop reason");
+
+  // Cleanup test medication and history
+  await prisma.medicationHistory.deleteMany({ where: { medicationId: createdZeroStockMed!.id } });
+  await prisma.medication.delete({ where: { id: createdZeroStockMed!.id } });
+  assert(true, "Test zero-stock medication cleaned up successfully");
+
+  // 14.3 Vital logs: urine output with color, blood glucose with mealTag, bowel movement with grade
+  const urineWithColorReq = new NextRequest("http://localhost:3000/api/nurse/vitals", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: `care_token=${nurseAuthToken}`,
+    },
+    body: JSON.stringify({
+      type: "urine_output",
+      valueNum: 320,
+      valueText: "تخلیه ادرار ۳۲۰ سی سی - کهربایی / غلیظ",
+      extraData: { color: "کهربایی / غلیظ" },
+    }),
+  });
+  const urineWithColorRes = await postVitals(urineWithColorReq);
+  assert(urineWithColorRes.status === 200, "POST /api/nurse/vitals for urine output returns 200");
+  const urineLogData = await urineWithColorRes.json();
+  const urineLogInDb = await prisma.vitalLog.findUnique({ where: { id: urineLogData.vital.id } });
+  const parsedExtra = typeof urineLogInDb?.extraData === "string" ? JSON.parse(urineLogInDb.extraData) : (urineLogInDb?.extraData as any);
+  assert(Boolean(urineLogInDb && parsedExtra?.color === "کهربایی / غلیظ"), "Urine vital record contains specified color in extraData");
+
+  // Blood glucose with mealTag
+  const glucoseWithTagReq = new NextRequest("http://localhost:3000/api/nurse/vitals", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: `care_token=${nurseAuthToken}`,
+    },
+    body: JSON.stringify({
+      type: "blood_sugar",
+      valueNum: 115,
+      mealTag: "2h_lunch",
+      valueText: "قند خون ۱۱۵ (۲س ناهار)",
+    }),
+  });
+  const glucoseWithTagRes = await postVitals(glucoseWithTagReq);
+  assert(glucoseWithTagRes.status === 200, "POST /api/nurse/vitals for glucose returns 200");
+  const glucoseLogData = await glucoseWithTagRes.json();
+  const glucoseLogInDb = await prisma.vitalLog.findUnique({ where: { id: glucoseLogData.vital.id } });
+  assert(Boolean(glucoseLogInDb && glucoseLogInDb.mealTag === "2h_lunch"), "Blood glucose vital record contains selected mealTag (not forced fasting)");
+
+  // Bowel movement with bowelGrade
+  const bowelWithGradeReq = new NextRequest("http://localhost:3000/api/nurse/vitals", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: `care_token=${nurseAuthToken}`,
+    },
+    body: JSON.stringify({
+      type: "bowel_movement",
+      valueNum: 1.0,
+      bowelGrade: "3_plus",
+      valueText: "کارکرد روده: 3_plus",
+    }),
+  });
+  const bowelWithGradeRes = await postVitals(bowelWithGradeReq);
+  assert(bowelWithGradeRes.status === 200, "POST /api/nurse/vitals for bowel movement returns 200");
+  const bowelLogData = await bowelWithGradeRes.json();
+  const bowelLogInDb = await prisma.vitalLog.findUnique({ where: { id: bowelLogData.vital.id } });
+  assert(Boolean(bowelLogInDb && bowelLogInDb.bowelGrade === "3_plus"), "Bowel movement vital record contains selected bowelGrade");
+
+  // Cleanup test vital logs and task logs
+  await prisma.vitalLog.deleteMany({
+    where: { id: { in: [urineLogInDb!.id, glucoseLogInDb!.id, bowelLogInDb!.id] } },
+  });
+  if (urineLogData.taskLog?.id) await prisma.taskLog.delete({ where: { id: urineLogData.taskLog.id } }).catch(() => {});
+  if (glucoseLogData.taskLog?.id) await prisma.taskLog.delete({ where: { id: glucoseLogData.taskLog.id } }).catch(() => {});
+  if (bowelLogData.taskLog?.id) await prisma.taskLog.delete({ where: { id: bowelLogData.taskLog.id } }).catch(() => {});
+  assert(true, "Validation vital records and task logs cleaned up successfully");
 
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);

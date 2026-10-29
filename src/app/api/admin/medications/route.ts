@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       instructions,
       doctorName,
       doctorOrderNotes,
-      stockCount = 100,
+      stockCount = 0,
       lowStockThreshold = 15,
       timeConstraints,
       schedule,
@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Create the Medication
+    const numStock = typeof stockCount !== "undefined" && !isNaN(Number(stockCount)) ? Number(stockCount) : 0;
     const medication = await prisma.medication.create({
       data: {
         nameFa,
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
         instructions: instructions || null,
         doctorName: doctorName || null,
         doctorOrderNotes: doctorOrderNotes || null,
-        stockCount: Number(stockCount) || 100,
+        stockCount: numStock,
         lowStockThreshold: Number(lowStockThreshold) || 15,
         timeConstraints: timeConstraints || null,
         isActive: true,
