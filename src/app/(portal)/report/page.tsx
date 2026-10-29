@@ -65,11 +65,11 @@ export default function DoctorReportPage() {
           const analytics = await res.json();
           const medsJson = await medsRes.json();
 
-          const sugars = analytics.glucoseChart.map((g: any) => g.value);
+          const sugars = (analytics?.glucoseChart || []).map((g: any) => g.value);
           const minG = sugars.length > 0 ? Math.min(...sugars) : 0;
           const maxG = sugars.length > 0 ? Math.max(...sugars) : 0;
 
-          const allMeds = medsJson.medications || [];
+          const allMeds = medsJson?.medications || [];
           const activeMeds = allMeds.filter((m: any) => m.isActive);
           const discontinuedMeds = allMeds.filter((m: any) => !m.isActive || m.discontinuedAt);
 
@@ -82,20 +82,20 @@ export default function DoctorReportPage() {
             },
             metrics: {
               period: "۳۰ روز اخیر",
-              glucoseAvg: analytics.kpi.glucoseAvg,
+              glucoseAvg: analytics?.kpi?.glucoseAvg || 110,
               glucoseMin: minG,
               glucoseMax: maxG,
-              glucoseSpikes: analytics.kpi.glucoseSpikesCount,
+              glucoseSpikes: analytics?.kpi?.glucoseSpikesCount || 0,
               bpAvgSys: 125,
               bpAvgDia: 75,
-              dailyAvgIntake: analytics.kpi.todayIntake || 1600,
-              dailyAvgOutput: analytics.kpi.todayOutput || 1450,
-              dvtAvgDailyMinutes: Math.round(analytics.kpi.totalDvtMinutes / 14) || 90,
+              dailyAvgIntake: analytics?.kpi?.todayIntake || 1600,
+              dailyAvgOutput: analytics?.kpi?.todayOutput || 1450,
+              dvtAvgDailyMinutes: Math.round((analytics?.kpi?.totalDvtMinutes || 0) / 14) || 90,
             },
             activeMedications: activeMeds,
             discontinuedMedications: discontinuedMeds,
-            medicationHistory: medsJson.history || [],
-            recentIncidents: analytics.clinicalPhotos.map((p: any) => ({
+            medicationHistory: medsJson?.history || [],
+            recentIncidents: (analytics?.clinicalPhotos || []).map((p: any) => ({
               date: p.createdAt,
               category: p.category,
               noteText: p.noteText,
