@@ -195,6 +195,35 @@ export async function GET(request: NextRequest) {
 
     const retentionRisk = totalIntake > 1000 && totalOutput < totalIntake * 0.45;
 
+    // 9. Medication Purchases / Restock Logs for Reports
+    const purchases = await prisma.medicationHistory.findMany({
+      where: {
+        actionType: "RESTOCKED",
+        createdAt: { gte: startDate, lte: now },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+
+    const medicationPurchases = purchases.map((p) => {
+      let details: any = null;
+      try {
+        if (p.detailsJson) details = JSON.parse(p.detailsJson);
+      } catch {}
+      return {
+        id: p.id,
+        medicationName: p.medicationName,
+        description: p.description,
+        doctorName: p.doctorName || details?.doctorName || null,
+        pharmacy: details?.pharmacy || null,
+        purchaseDate: details?.date || null,
+        amount: details?.amount || null,
+        notes: details?.notes || null,
+        performedBy: p.performedBy,
+        createdAt: p.createdAt.toISOString(),
+      };
+    });
+
     return NextResponse.json({
       range,
       kpi: {
@@ -216,6 +245,7 @@ export async function GET(request: NextRequest) {
       dvtMeasurements,
       bowelTimeline,
       clinicalPhotos,
+      medicationPurchases,
     });
   } catch (error) {
     console.error("Analytics API error:", error);

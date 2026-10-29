@@ -22,6 +22,7 @@ import { PUT as putEditLog } from "../src/app/api/nurse/tasks/edit-log/route";
 import { POST as postUsers, PUT as putUsers } from "../src/app/api/admin/users/route";
 import { GET as getAdhoc, POST as postAdhoc, DELETE as deleteAdhoc } from "../src/app/api/admin/adhoc-suggestions/route";
 import { GET as getClinicalPhotos } from "../src/app/api/admin/clinical-photos/route";
+import { GET as getAnalytics } from "../src/app/api/admin/analytics/route";
 import { formatFileSize } from "../src/lib/imageCompression";
 
 let passed = 0;
@@ -981,6 +982,7 @@ async function runTests() {
         id: sampleMed.id,
         stockDelta: 15,
         restockDetails: {
+          doctorName: "دکتر مسعود صابر",
           pharmacy: "داروخانه شبانه‌روزی صابر",
           date: "۱۴۰۳/۰۸/۰۷",
           notes: "تست خرید با نسخه جدید",
@@ -998,7 +1000,20 @@ async function runTests() {
       orderBy: { createdAt: "desc" },
     });
     assert(Boolean(restockHistory), "MedicationHistory record logged with actionType RESTOCKED");
+    assert(Boolean(restockHistory?.doctorName === "دکتر مسعود صابر"), "Restock history includes prescribing doctor name");
+    assert(Boolean(restockHistory?.description.includes("دکتر مسعود صابر")), "Restock description includes doctor name");
     assert(Boolean(restockHistory?.description.includes("داروخانه شبانه‌روزی صابر")), "Restock history includes pharmacy name");
+
+    // Verify appearance in Analytics / Reports API
+    const analyticsReq = new NextRequest("http://localhost:3000/api/admin/analytics?range=all", {
+      headers: { Cookie: `care_token=${adminToken}` },
+    });
+    const analyticsRes = await getAnalytics(analyticsReq);
+    assert(analyticsRes.status === 200, "GET /api/admin/analytics returns 200");
+    const analyticsData = await analyticsRes.json();
+    assert(Array.isArray(analyticsData.medicationPurchases), "Analytics reports include medicationPurchases array");
+    const foundPurchase = analyticsData.medicationPurchases.find((p: any) => p.id === restockHistory?.id);
+    assert(Boolean(foundPurchase && foundPurchase.doctorName === "دکتر مسعود صابر"), "Medication purchase in reports has correct doctorName");
 
     // Revert stock delta to maintain test DB state
     await prisma.medication.update({

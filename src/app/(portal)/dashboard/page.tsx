@@ -8,7 +8,7 @@ import {
 import {
   AlertTriangle, Droplets, Activity, Heart, Clock,
   Calendar, CheckCircle, ShieldAlert, Sparkles, RefreshCw, Eye, Image as ImageIcon,
-  FolderArchive, ChevronRight, ChevronLeft, X, Filter, Loader2
+  FolderArchive, ChevronRight, ChevronLeft, X, Filter, Loader2, Package, Pill, User
 } from "lucide-react";
 import { toPersianDigits, formatJalaliDateTime } from "@/lib/jalali";
 
@@ -66,6 +66,18 @@ interface AnalyticsData {
     category: string;
     noteText: string;
     photoUrl: string;
+    createdAt: string;
+  }>;
+  medicationPurchases?: Array<{
+    id: string;
+    medicationName: string;
+    description: string;
+    doctorName?: string | null;
+    pharmacy?: string | null;
+    purchaseDate?: string | null;
+    amount?: number | null;
+    notes?: string | null;
+    performedBy?: string | null;
     createdAt: string;
   }>;
 }
@@ -494,6 +506,72 @@ export default function AdminDashboardPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Medication Purchases & Supply Log Section */}
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Package className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <span>گزارش خریدهای اخیر دارو و شارژ موجودی (فرم خرید دارو)</span>
+          </h2>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">
+            مستندات تأمین دارو و نسخه‌های پزشک
+          </span>
+        </div>
+
+        {data?.medicationPurchases && data.medicationPurchases.length > 0 ? (
+          <div className="space-y-3">
+            {data.medicationPurchases.map((purchase) => (
+              <div
+                key={purchase.id}
+                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-emerald-300 dark:hover:border-emerald-700 transition"
+              >
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center flex-shrink-0 font-bold">
+                    <Pill className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-black text-sm text-slate-900 dark:text-slate-100">
+                        {purchase.medicationName}
+                      </span>
+                      {purchase.amount && (
+                        <span className="px-2 py-0.5 rounded-lg text-xs font-mono font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
+                          +{toPersianDigits(purchase.amount)} عدد
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                      {purchase.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-4 text-xs text-slate-500 dark:text-slate-400 flex-wrap pt-2 md:pt-0 border-t md:border-t-0 border-slate-200 dark:border-slate-700">
+                  {purchase.doctorName && (
+                    <div className="flex items-center gap-1 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-300">
+                      <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>پزشک: {purchase.doctorName}</span>
+                    </div>
+                  )}
+                  {purchase.pharmacy && (
+                    <div className="flex items-center gap-1 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 font-medium">
+                      <span>داروخانه: {purchase.pharmacy}</span>
+                    </div>
+                  )}
+                  <div className="font-mono text-[11px]">
+                    {purchase.purchaseDate ? `تاریخ خرید: ${purchase.purchaseDate}` : formatJalaliDateTime(purchase.createdAt)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-6 text-center text-slate-400 text-xs">
+            در این بازه زمانی خرید یا افزایش موجودی دارویی ثبت نشده است. خریدهای جدید از صفحه داروها فوراً در این بخش درج می‌شوند.
+          </div>
+        )}
       </div>
 
       {/* Comparative Clinical Photo Gallery (for DVT / skin / wounds) */}

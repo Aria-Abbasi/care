@@ -331,6 +331,8 @@ export default function DoctorReportPage() {
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                           : h.actionType === "STOPPED"
                           ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                          : h.actionType === "RESTOCKED"
+                          ? "bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300"
                           : "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300"
                       }`}
                     >
@@ -338,6 +340,8 @@ export default function DoctorReportPage() {
                         ? "افزودن"
                         : h.actionType === "STOPPED"
                         ? "توقف"
+                        : h.actionType === "RESTOCKED"
+                        ? "خرید دارو"
                         : "تغییر زمان‌بندی"}
                     </span>
                     <span className="font-bold text-slate-900 dark:text-slate-100 leading-relaxed">

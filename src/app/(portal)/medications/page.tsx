@@ -406,6 +406,7 @@ export default function AdminMedicationsPage() {
   const [restockMed, setRestockMed] = useState<Medication | null>(null);
   const [restockAmount, setRestockAmount] = useState<string>("10");
   const [restockDate, setRestockDate] = useState<string>("");
+  const [restockDoctor, setRestockDoctor] = useState<string>("");
   const [restockPharmacy, setRestockPharmacy] = useState<string>("");
   const [restockNotes, setRestockNotes] = useState<string>("");
   const [restockSubmitting, setRestockSubmitting] = useState(false);
@@ -414,6 +415,7 @@ export default function AdminMedicationsPage() {
     setRestockMed(med);
     setRestockAmount("10");
     setRestockDate(getJalaliToday());
+    setRestockDoctor(med.doctorName || "");
     setRestockPharmacy("");
     setRestockNotes("");
     setIsRestockModalOpen(true);
@@ -438,6 +440,7 @@ export default function AdminMedicationsPage() {
           stockDelta: amount,
           restockDetails: {
             date: restockDate || getJalaliToday(),
+            doctorName: restockDoctor.trim(),
             pharmacy: restockPharmacy.trim(),
             notes: restockNotes.trim(),
             amount,
@@ -954,6 +957,10 @@ export default function AdminMedicationsPage() {
                   badgeColor = "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800";
                   badgeLabel = "فعال‌سازی مجدد";
                   IconComponent = RotateCcw;
+                } else if (item.actionType === "RESTOCKED") {
+                  badgeColor = "bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800";
+                  badgeLabel = "خرید و شارژ موجودی";
+                  IconComponent = Package;
                 }
 
                 return (
@@ -1275,6 +1282,19 @@ export default function AdminMedicationsPage() {
                   placeholder="۱۴۰۳/۰۸/۰۷"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                   dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  پزشک تجویزکننده نسخه (اختیاری):
+                </label>
+                <input
+                  type="text"
+                  value={restockDoctor}
+                  onChange={(e) => setRestockDoctor(e.target.value)}
+                  placeholder="مثلاً: دکتر مسعود صابر / پزشک آنکال قلب"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 

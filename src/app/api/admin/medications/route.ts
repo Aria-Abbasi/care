@@ -249,6 +249,7 @@ export async function PUT(request: NextRequest) {
       const details = body.restockDetails;
       if (details) {
         const descParts = [`خرید و شارژ موجودی دارو به میزان ${deltaNum} عدد`];
+        if (details.doctorName) descParts.push(`پزشک: ${details.doctorName}`);
         if (details.pharmacy) descParts.push(`داروخانه: ${details.pharmacy}`);
         if (details.date) descParts.push(`تاریخ: ${details.date}`);
         if (details.notes) descParts.push(`یادداشت: ${details.notes}`);
@@ -259,6 +260,7 @@ export async function PUT(request: NextRequest) {
             medicationName: updated.nameFa,
             actionType: "RESTOCKED",
             description: descParts.join(" - "),
+            doctorName: details.doctorName ? String(details.doctorName).trim() : null,
             performedBy: user.fullName || "سرپرست پرونده",
             detailsJson: JSON.stringify(details),
             createdAt: new Date(),
