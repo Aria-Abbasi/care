@@ -7,7 +7,8 @@ import {
 } from "recharts";
 import {
   AlertTriangle, Droplets, Activity, Heart, Clock,
-  Calendar, CheckCircle, ShieldAlert, Sparkles, RefreshCw, Eye, Image as ImageIcon
+  Calendar, CheckCircle, ShieldAlert, Sparkles, RefreshCw, Eye, Image as ImageIcon,
+  FolderArchive, ChevronRight, ChevronLeft, X, Filter, Loader2
 } from "lucide-react";
 import { toPersianDigits, formatJalaliDateTime } from "@/lib/jalali";
 
@@ -74,7 +75,58 @@ export default function AdminDashboardPage() {
   const [range, setRange] = useState<"today" | "7d" | "30d" | "all">("7d");
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<{
+    url: string;
+    category?: string;
+    date?: string;
+    note?: string;
+    nurse?: string;
+  } | null>(null);
+
+  // Archive modal & pagination state
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveCategory, setArchiveCategory] = useState("all");
+  const [archivePage, setArchivePage] = useState(1);
+  const [archiveData, setArchiveData] = useState<{
+    photos: Array<{
+      id: string;
+      category: string;
+      noteText: string | null;
+      photoUrl: string;
+      createdAt: string;
+      nurseName: string;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      totalCount: number;
+      totalPages: number;
+    };
+  } | null>(null);
+
+  const fetchArchivePhotos = useCallback(async (page: number, category: string) => {
+    setArchiveLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: "12",
+      });
+      if (category && category !== "all") {
+        params.set("category", category);
+      }
+      const res = await fetch(`/api/admin/clinical-photos?${params.toString()}`);
+      if (res.ok) {
+        const json = await res.json();
+        setArchiveData(json);
+        setArchivePage(json.pagination.page);
+      }
+    } catch (err) {
+      console.error("Failed to fetch archive photos:", err);
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     setIsMounted(true);
@@ -459,12 +511,21 @@ export default function AdminDashboardPage() {
             {data.clinicalPhotos.map((photo) => (
               <div
                 key={photo.id}
-                onClick={() => setSelectedPhoto(photo.photoUrl)}
+                onClick={() =>
+                  setSelectedPhoto({
+                    url: photo.photoUrl,
+                    category: photo.category,
+                    date: formatJalaliDateTime(photo.createdAt),
+                    note: photo.noteText,
+                  })
+                }
                 className="group relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-pointer hover:shadow-lg transition"
               >
                 <img
                   src={photo.photoUrl}
                   alt={photo.noteText || "عکس بالینی"}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-36 object-cover group-hover:scale-105 transition duration-300"
                 />
                 <div className="p-2.5 bg-white dark:bg-slate-800">
@@ -489,20 +550,241 @@ export default function AdminDashboardPage() {
             هنوز تصویری از پای بیمار یا پوست آپلود نشده است. عکس‌ها توسط پرستار در نمای پای تخت بارگذاری می‌شوند.
           </div>
         )}
+
+        {/* Gallery bottom bar with Archive button */}
+        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            نمایش ۸ تصویر اخیر بالینی بیمار • جهت بارگذاری سریع و بهینه
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setIsArchiveOpen(true);
+              fetchArchivePhotos(1, archiveCategory);
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-xl transition border border-emerald-200 dark:border-emerald-800/80 active:scale-95"
+          >
+            <FolderArchive className="w-4 h-4" />
+            <span>مشاهده آرشیو کامل و فیلتر پیشرفته</span>
+          </button>
+        </div>
       </div>
 
-      {/* Photo Full Modal */}
+      {/* Clinical Photos Archive Modal */}
+      {isArchiveOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5"
+        >
+          <div
+            className="max-w-4xl w-full max-h-[90vh] bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden shadow-2xl"
+          >
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <FolderArchive className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
+                    آرشیو جامع تصاویر و یادداشت‌های بالینی
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    {archiveData?.pagination ? (
+                      <>مجموع {toPersianDigits(archiveData.pagination.totalCount)} تصویر ثبت‌شده با امکان تفکیک موضوعی</>
+                    ) : (
+                      "در حال دریافت فهرست تصاویر..."
+                    )}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsArchiveOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Category Filter Chips */}
+            <div className="px-4 py-3 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 overflow-x-auto scrollbar-none">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 pl-1">
+                <Filter className="w-3.5 h-3.5" />
+                فیلتر:
+              </span>
+              {[
+                { id: "all", label: "همه تصاویر" },
+                { id: "dvt_leg", label: "عکس پای راست / DVT" },
+                { id: "skin_wound", label: "زخم یا قرمزی پوست" },
+                { id: "nails", label: "ناخن‌ها و اندام‌ها" },
+                { id: "incident", label: "رویداد / درد" },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    setArchiveCategory(cat.id);
+                    fetchArchivePhotos(1, cat.id);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
+                    archiveCategory === cat.id
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-400"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Modal Body: Photo Grid */}
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 min-h-[320px]">
+              {archiveLoading ? (
+                <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+                  <span className="text-xs font-medium">در حال بارگذاری تصاویر آرشیو...</span>
+                </div>
+              ) : archiveData?.photos && archiveData.photos.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+                  {archiveData.photos.map((photo) => (
+                    <div
+                      key={photo.id}
+                      onClick={() =>
+                        setSelectedPhoto({
+                          url: photo.photoUrl,
+                          category: photo.category,
+                          date: formatJalaliDateTime(photo.createdAt),
+                          note: photo.noteText || undefined,
+                          nurse: photo.nurseName,
+                        })
+                      }
+                      className="group relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 cursor-pointer hover:shadow-lg transition flex flex-col"
+                    >
+                      <div className="relative h-32 w-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                        <img
+                          src={photo.photoUrl}
+                          alt={photo.noteText || "عکس بالینی"}
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                        />
+                        <span className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-lg text-[10px] font-black bg-slate-950/75 backdrop-blur-sm text-white">
+                          {photo.category === "dvt_leg"
+                            ? "DVT پای راست"
+                            : photo.category === "skin_wound"
+                            ? "زخم / قرمزی"
+                            : photo.category === "nails"
+                            ? "ناخن‌ها"
+                            : "رویداد / درد"}
+                        </span>
+                      </div>
+                      <div className="p-2.5 flex-1 flex flex-col justify-between bg-white dark:bg-slate-800">
+                        <div>
+                          <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                            {formatJalaliDateTime(photo.createdAt)}
+                          </div>
+                          {photo.noteText && (
+                            <p className="text-[11px] font-medium text-slate-800 dark:text-slate-200 mt-1 line-clamp-2">
+                              {photo.noteText}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-2 pt-1 border-t border-slate-100 dark:border-slate-700/60 truncate">
+                          پرستار: {photo.nurseName}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-xs">
+                  تصویری در این دسته‌بندی یافت نشد.
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer: Pagination */}
+            {archiveData?.pagination && archiveData.pagination.totalPages > 1 && (
+              <div className="px-4 py-3 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <button
+                  type="button"
+                  disabled={archivePage <= 1 || archiveLoading}
+                  onClick={() => fetchArchivePhotos(archivePage - 1, archiveCategory)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-750 transition"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                  <span>صفحه قبلی</span>
+                </button>
+
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  صفحه {toPersianDigits(archivePage)} از {toPersianDigits(archiveData.pagination.totalPages)}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={archivePage >= archiveData.pagination.totalPages || archiveLoading}
+                  onClick={() => fetchArchivePhotos(archivePage + 1, archiveCategory)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-750 transition"
+                >
+                  <span>صفحه بعدی</span>
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Photo Full Modal (Enhanced Lightbox) */}
       {selectedPhoto && (
         <div
           onClick={() => setSelectedPhoto(null)}
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5"
         >
-          <div className="max-w-2xl w-full bg-white dark:bg-slate-900 rounded-3xl overflow-hidden p-2 border border-slate-200 dark:border-slate-800">
-            <img src={selectedPhoto} alt="بزرگنمایی تصویر" className="w-full h-auto max-h-[80vh] object-contain rounded-2xl" />
-            <div className="p-3 text-center">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-3xl w-full bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[90vh]"
+          >
+            <div className="relative bg-black flex items-center justify-center p-2 min-h-[300px] max-h-[70vh] overflow-hidden">
+              <img
+                src={selectedPhoto.url}
+                alt={selectedPhoto.note || "بزرگنمایی تصویر بالینی"}
+                className="w-full h-auto max-h-[68vh] object-contain"
+              />
               <button
                 onClick={() => setSelectedPhoto(null)}
-                className="px-6 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition"
+                className="absolute top-3 left-3 bg-black/60 hover:bg-black text-white p-2 rounded-full transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 bg-white dark:bg-slate-900 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+              <div>
+                {selectedPhoto.category && (
+                  <span className="inline-block px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 mb-1">
+                    {selectedPhoto.category === "dvt_leg"
+                      ? "عکس پای راست / DVT"
+                      : selectedPhoto.category === "skin_wound"
+                      ? "زخم یا قرمزی پوست"
+                      : selectedPhoto.category === "nails"
+                      ? "ناخن‌ها و اندام‌ها"
+                      : "رویداد / درد"}
+                  </span>
+                )}
+                {selectedPhoto.date && (
+                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    زمان ثبت: {selectedPhoto.date}
+                    {selectedPhoto.nurse && ` • ثبت توسط: ${selectedPhoto.nurse}`}
+                  </div>
+                )}
+                {selectedPhoto.note && (
+                  <p className="text-xs text-slate-800 dark:text-slate-200 font-medium mt-1">
+                    {selectedPhoto.note}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setSelectedPhoto(null)}
+                className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition flex-shrink-0"
               >
                 بستن
               </button>

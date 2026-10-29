@@ -6,6 +6,7 @@ import {
   Smile, Camera, Timer, Check, AlertTriangle, Play, Square, Sparkles, ClipboardPlus, FileText
 } from "lucide-react";
 import { toPersianDigits } from "@/lib/jalali";
+import { compressImage, formatFileSize } from "@/lib/imageCompression";
 
 export type QuickModalType =
   | null
@@ -75,6 +76,8 @@ export default function QuickActionFAB({
   const [noteText, setNoteText] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionStats, setCompressionStats] = useState<{ original: string; compressed: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Ad-hoc task state
@@ -146,6 +149,8 @@ export default function QuickActionFAB({
     setBowelNotes("");
     setPhotoFile(null);
     setPhotoPreview(null);
+    setIsCompressing(false);
+    setCompressionStats(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setNoteText("");
     setAdhocTitle("");
@@ -1170,29 +1175,63 @@ export default function QuickActionFAB({
               capture="environment"
               ref={fileInputRef}
               className="hidden"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  setPhotoFile(file);
-                  setPhotoPreview(URL.createObjectURL(file));
+                  const tempPreview = URL.createObjectURL(file);
+                  setPhotoPreview(tempPreview);
+                  setIsCompressing(true);
+                  try {
+                    const result = await compressImage(file, { maxWidthOrHeight: 1280, quality: 0.82 });
+                    setPhotoFile(result.file);
+                    setCompressionStats({
+                      original: formatFileSize(result.originalSize),
+                      compressed: formatFileSize(result.compressedSize),
+                    });
+                  } catch (err) {
+                    console.error("Compression failed, using original file", err);
+                    setPhotoFile(file);
+                  } finally {
+                    setIsCompressing(false);
+                  }
                 }
               }}
             />
 
             <div className="mb-4">
               {photoPreview ? (
-                <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500">
+                <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500 bg-slate-900/10">
                   <img src={photoPreview} alt="پیش‌نمایش" className="w-full h-44 object-cover" />
                   <button
                     type="button"
                     onClick={() => {
                       setPhotoFile(null);
                       setPhotoPreview(null);
+                      setCompressionStats(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
                     }}
-                    className="absolute top-2 left-2 bg-slate-900/80 text-white p-1.5 rounded-full"
+                    className="absolute top-2 left-2 bg-slate-900/80 text-white p-1.5 rounded-full hover:bg-slate-900"
                   >
                     <X className="w-4 h-4" />
                   </button>
+
+                  {/* Compression Indicator / Stats */}
+                  {isCompressing ? (
+                    <div className="absolute bottom-0 inset-x-0 bg-slate-950/80 backdrop-blur-sm p-2 text-center text-[11px] text-emerald-300 font-bold flex items-center justify-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                      <span>در حال بهینه‌سازی و فشرده‌سازی خودکار تصویر...</span>
+                    </div>
+                  ) : compressionStats ? (
+                    <div className="absolute bottom-0 inset-x-0 bg-slate-950/80 backdrop-blur-sm px-2.5 py-1.5 flex items-center justify-between text-[10px] text-emerald-300 font-bold">
+                      <span className="flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        حجم بهینه‌شده جهت ارسال سریع:
+                      </span>
+                      <span dir="ltr" className="text-white">
+                        {toPersianDigits(compressionStats.original)} ➔ {toPersianDigits(compressionStats.compressed)}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <button
@@ -1220,7 +1259,7 @@ export default function QuickActionFAB({
             </div>
 
             <button
-              disabled={submitting || (!photoFile && !noteText.trim())}
+              disabled={submitting || isCompressing || (!photoFile && !noteText.trim())}
               onClick={submitNote}
               className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold shadow-md shadow-emerald-600/30 active:scale-95 transition"
             >

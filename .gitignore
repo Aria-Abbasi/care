@@ -37,5 +37,7 @@ next-env.d.ts
 # SQLite db and uploads for local
 prisma/*.db
 prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal
 public/uploads/*
 !public/uploads/.gitkeep

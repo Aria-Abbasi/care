@@ -21,6 +21,8 @@ import { POST as postVitals } from "../src/app/api/nurse/vitals/route";
 import { PUT as putEditLog } from "../src/app/api/nurse/tasks/edit-log/route";
 import { POST as postUsers, PUT as putUsers } from "../src/app/api/admin/users/route";
 import { GET as getAdhoc, POST as postAdhoc, DELETE as deleteAdhoc } from "../src/app/api/admin/adhoc-suggestions/route";
+import { GET as getClinicalPhotos } from "../src/app/api/admin/clinical-photos/route";
+import { formatFileSize } from "../src/lib/imageCompression";
 
 let passed = 0;
 let failed = 0;
@@ -1011,6 +1013,43 @@ async function runTests() {
   // Cleanup test user
   await prisma.user.delete({ where: { id: createdViewerId } });
   assert(true, "Test VIEWER user cleaned up successfully");
+
+  console.log("\n================ 13. CLINICAL PHOTOS ARCHIVE & OPTIMIZATION TESTS ================");
+  assert(formatFileSize(500) === "500 بایت", "formatFileSize: 500 bytes -> 500 بایت");
+  assert(formatFileSize(2048) === "2 کیلوبایت", "formatFileSize: 2048 bytes -> 2 کیلوبایت");
+  assert(formatFileSize(1048576 * 2.5) === "2.5 مگابایت", "formatFileSize: 2.5MB -> 2.5 مگابایت");
+
+  // Test GET /api/admin/clinical-photos with limit
+  const adminUserForPhotos = await prisma.user.findFirst({ where: { role: "ADMIN" } });
+  const adminTokenForPhotos = adminUserForPhotos
+    ? await signToken({
+        id: adminUserForPhotos.id,
+        username: adminUserForPhotos.username,
+        role: adminUserForPhotos.role as "ADMIN" | "NURSE" | "VIEWER",
+        fullName: adminUserForPhotos.fullName,
+      })
+    : "";
+
+  const photosReq = new NextRequest("http://localhost:3000/api/admin/clinical-photos?page=1&limit=4", {
+    headers: { Cookie: `care_token=${adminTokenForPhotos}` },
+  });
+  const photosRes = await getClinicalPhotos(photosReq);
+  assert(photosRes.status === 200, "GET /api/admin/clinical-photos returns 200");
+  const photosData = await photosRes.json();
+  assert(Array.isArray(photosData.photos), "Response includes photos array");
+  assert(Boolean(photosData.pagination), "Response includes pagination metadata");
+  assert(photosData.pagination?.limit === 4, "Pagination limit respected (limit=4)");
+  assert(photosData.photos?.length <= 4, "Number of returned photos is <= limit");
+
+  // Test category filtering
+  const dvtReq = new NextRequest("http://localhost:3000/api/admin/clinical-photos?page=1&limit=4&category=dvt_leg", {
+    headers: { Cookie: `care_token=${adminTokenForPhotos}` },
+  });
+  const dvtRes = await getClinicalPhotos(dvtReq);
+  assert(dvtRes.status === 200, "GET /api/admin/clinical-photos?category=dvt_leg returns 200");
+  const dvtData = await dvtRes.json();
+  const allDvt = dvtData.photos.every((p: any) => p.category === "dvt_leg");
+  assert(allDvt, "Category filtering returns only matching photos");
 
   console.log("\n================ TEST SUMMARY ================");
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);
