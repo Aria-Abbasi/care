@@ -476,6 +476,10 @@ export default function QuickActionFAB({
   // Submit Ad-Hoc Task
   async function submitAdhocTask() {
     if (!adhocTitle.trim()) return;
+    if (adhocCategory === "medication" && !adhocMedicationId) {
+      showToast("لطفاً یک دارو از لیست داروها انتخاب کنید");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/nurse/tasks/complete", {
@@ -681,10 +685,11 @@ export default function QuickActionFAB({
               {adhocCategory === "medication" && (
                 <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-900/50 space-y-2">
                   <label className="block text-xs font-black text-indigo-950 dark:text-indigo-200">
-                    انتخاب از لیست داروها (کسر اتوماتیک موجودی):
+                    انتخاب از لیست داروها (اجباری - کسر اتوماتیک موجودی): <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={adhocMedicationId}
+                    required
                     onChange={(e) => {
                       const mId = e.target.value;
                       setAdhocMedicationId(mId);
@@ -692,11 +697,15 @@ export default function QuickActionFAB({
                       if (selected) {
                         const codePrefix = selected.boxNumber ? `[کد ${toPersianDigits(selected.boxNumber)}] ` : "";
                         setAdhocTitle(`مصرف داروی ${codePrefix}${selected.nameFa}${selected.dosage ? ` (${selected.dosage})` : ""}`);
+                      } else {
+                        setAdhocTitle("");
                       }
                     }}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      !adhocMedicationId ? "border-amber-300 dark:border-amber-600" : "border-slate-200 dark:border-slate-700"
+                    }`}
                   >
-                    <option value="">-- انتخاب دارو یا ورود آزاد عنوان در زیر --</option>
+                    <option value="">-- لطفاً یک دارو از لیست انتخاب کنید --</option>
                     {medicationsList.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.boxNumber ? `[کد ${toPersianDigits(m.boxNumber)}] ` : ""}{m.nameFa} {m.dosage ? `(${m.dosage})` : ""}
@@ -704,7 +713,7 @@ export default function QuickActionFAB({
                     ))}
                   </select>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    در صورت انتخاب دارو، ۱ عدد از موجودی این دارو در منزل کسر خواهد شد.
+                    با ثبت این اقدام، ۱ عدد از موجودی این دارو در منزل کسر خواهد شد.
                   </p>
                 </div>
               )}
@@ -821,7 +830,7 @@ export default function QuickActionFAB({
                 </button>
                 <button
                   type="button"
-                  disabled={submitting || !adhocTitle.trim()}
+                  disabled={submitting || !adhocTitle.trim() || (adhocCategory === "medication" && !adhocMedicationId)}
                   onClick={submitAdhocTask}
                   className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-indigo-600/30 active:scale-95 transition flex items-center gap-1.5"
                 >
