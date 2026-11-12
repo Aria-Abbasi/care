@@ -83,7 +83,7 @@ export default function QuickActionFAB({
 
   // Ad-hoc task state
   const [adhocTitle, setAdhocTitle] = useState("");
-  const [adhocCategory, setAdhocCategory] = useState("routine");
+  const [adhocCategory, setAdhocCategory] = useState("vital");
   const [adhocNotes, setAdhocNotes] = useState("");
   const [adhocMedicationId, setAdhocMedicationId] = useState("");
   const [medicationsList, setMedicationsList] = useState<Array<{ id: string; nameFa: string; boxNumber?: string | null; dosage?: string | null }>>([]);
@@ -203,7 +203,7 @@ export default function QuickActionFAB({
     setAdhocTitle("");
     setAdhocNotes("");
     setAdhocMedicationId("");
-    setAdhocCategory("routine");
+    setAdhocCategory("vital");
     setActiveModal(null);
     onCloseAction?.();
   }
