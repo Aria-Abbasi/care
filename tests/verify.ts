@@ -17,6 +17,7 @@ import { hashPassword, comparePassword, signToken, verifyToken } from "../src/li
 import { middleware } from "../src/middleware";
 import { NextRequest } from "next/server";
 import { GET as getMeds, POST as postMeds, PUT as putMeds } from "../src/app/api/admin/medications/route";
+import { POST as postActivity } from "../src/app/api/admin/medications/activity/route";
 import { POST as postStopMed } from "../src/app/api/admin/medications/stop/route";
 import { POST as postVitals } from "../src/app/api/nurse/vitals/route";
 import { PUT as putEditLog } from "../src/app/api/nurse/tasks/edit-log/route";
@@ -565,10 +566,10 @@ async function runTests() {
   await prisma.taskLog.delete({ where: { id: taskLogCreated.id } });
   assert(true, "DVT test logs cleanup successful");
 
-  // Section 6d: Unified Medication Multi-Schedule, Meal-Relative Timing & Bi-directional Task Sync Tests
+  // Section 6d: Medication Registration, Auto-Code, and Activity/Prescription Multi-Schedule Tests
   console.log("\n================ 6d. MEDICATION MULTI-SCHEDULE & TASK SYNC TESTS ================");
   
-  // 1. Create a medication with multiple schedules (fixed time + meal-relative with rulesJson)
+  // 1. Create a medication master record via POST /api/admin/medications (Form 1)
   const createMedReq = new NextRequest("http://localhost:3000/api/admin/medications", {
     method: "POST",
     headers: {
@@ -577,9 +578,33 @@ async function runTests() {
     },
     body: JSON.stringify({
       nameFa: "آسپرین ۸۰ تست نوبت‌ها",
-      boxNumber: "88",
-      dosage: "80mg",
-      stockCount: 60,
+      lowStockThreshold: 15,
+      timeConstraints: "عدم مصرف همزمان با ایبوپروفن",
+      doctorOrderNotes: "توضیحات اختصاصی آسپرین ۸۰",
+    }),
+  });
+
+  const postRes = await postMeds(createMedReq);
+  assert(postRes.status === 200, "POST /api/admin/medications returns 200");
+  const postData = await postRes.json();
+  const createdMed = postData.medication;
+  assert(Boolean(createdMed?.id), "Medication created with valid ID");
+  assert(createdMed.stockCount === 0, "New medication stockCount defaults to 0 (restock via purchase form only)");
+  assert(Boolean(createdMed.boxNumber), "Medication code (boxNumber) auto-generated");
+  const createdMedId = createdMed.id;
+
+  // 2. Register Medication Activity (Prescription & Multi-Schedules) via POST /api/admin/medications/activity (Form 2)
+  const activityReq = new NextRequest("http://localhost:3000/api/admin/medications/activity", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: `care_token=${adminToken}`,
+    },
+    body: JSON.stringify({
+      medicationId: createdMedId,
+      doctorName: "دکتر مهران نیازی",
+      notes: "روزی ۲ بار طبق دستور",
+      replacePreviousPrescription: true,
       schedules: [
         {
           title: "آسپرین ۸۰ تست نوبت‌ها (صبح ناشتا)",
@@ -614,13 +639,13 @@ async function runTests() {
     }),
   });
 
-  const postRes = await postMeds(createMedReq);
-  assert(postRes.status === 200, "POST /api/admin/medications with multiple schedules returns 200");
-  const postData = await postRes.json();
-  const createdMedId = postData.medication.id;
-  assert(Boolean(createdMedId), "Medication created with valid ID");
+  const actRes = await postActivity(activityReq);
+  assert(actRes.status === 200, "POST /api/admin/medications/activity returns 200");
+  const actData = await actRes.json();
+  assert(Boolean(actData.prescription?.id), "Prescription record created successfully");
+  assert(Array.isArray(actData.schedules) && actData.schedules.length === 2, "Created exactly 2 active schedules for prescription");
 
-  // 2. Fetch via GET /api/admin/medications and verify both schedules exist with rulesJson and daysOfWeek
+  // 3. Fetch via GET /api/admin/medications and verify both schedules exist with rulesJson and daysOfWeek
   const getReq1 = new NextRequest("http://localhost:3000/api/admin/medications", {
     headers: { cookie: `care_token=${adminToken}` },
   });
@@ -643,7 +668,7 @@ async function runTests() {
     "Meal-relative schedule preserved rulesJson with LUNCH and timingMode"
   );
 
-  // 3. Bi-directional sync test: Add a third schedule directly linking to this medication (simulating /schedules creation)
+  // 4. Bi-directional sync test: Add a third schedule directly linking to this medication (simulating /schedules creation)
   const taskCreatedInSchedules = await prisma.schedule.create({
     data: {
       title: "آسپرین ۸۰ تست نوبت‌ها (نوبت شب - تسک جداگانه)",
@@ -668,21 +693,20 @@ async function runTests() {
     "Bi-directional sync: Task created in schedules is loaded in medication schedules (3 total schedules)"
   );
 
-  // 4. Update medication schedules via PUT /api/admin/medications (keep 2, omit 3rd to test cascade deactivation)
-  const putReq = new NextRequest("http://localhost:3000/api/admin/medications", {
-    method: "PUT",
+  // 5. Update medication prescription via activity route (replacing previous prescription)
+  const updateActReq = new NextRequest("http://localhost:3000/api/admin/medications/activity", {
+    method: "POST",
     headers: {
       "Content-Type": "application/json",
       cookie: `care_token=${adminToken}`,
     },
     body: JSON.stringify({
-      id: createdMedId,
-      nameFa: "آسپرین ۸۰ تست نوبت‌ها (ویرایش‌شده)",
-      boxNumber: "88",
-      deactivateUnlistedSchedules: true,
+      medicationId: createdMedId,
+      doctorName: "دکتر مهران نیازی (تغییر دوز)",
+      notes: "نوبت جدید پس از بررسی آزمایش",
+      replacePreviousPrescription: true,
       schedules: [
         {
-          id: fixedSched.id,
           title: "آسپرین نوبت صبح ویرایش‌شده",
           targetTime: "08:15",
           mealRelation: "AFTER_MEAL",
@@ -692,7 +716,6 @@ async function runTests() {
           requiresNote: false,
         },
         {
-          id: mealSched.id,
           title: "آسپرین نوبت ناهار ویرایش‌شده",
           targetTime: "14:30",
           rulesJson: JSON.stringify({
@@ -711,35 +734,24 @@ async function runTests() {
     }),
   });
 
-  const putRes = await putMeds(putReq);
-  assert(putRes.status === 200, "PUT /api/admin/medications returns 200");
+  const updateActRes = await postActivity(updateActReq);
+  assert(updateActRes.status === 200, "POST /api/admin/medications/activity to replace prescription returns 200");
 
-  // Verify DB state after PUT
+  // Verify DB state after replacement
   const getRes3 = await getMeds(getReq1);
   const getData3 = await getRes3.json();
   const foundMed3 = (getData3.medications as any[]).find((m) => m.id === createdMedId);
   assert(
     Boolean(foundMed3 && foundMed3.schedules && foundMed3.schedules.length === 2),
-    "Unlisted third schedule was cleanly deactivated by PUT deactivateUnlistedSchedules"
+    "Previous schedules were cleanly deactivated upon new prescription replacement"
   );
 
-  const updatedFixed = foundMed3.schedules.find((s: any) => s.id === fixedSched.id);
-  assert(
-    Boolean(updatedFixed && updatedFixed.targetTime === "08:15" && updatedFixed.daysOfWeek === "جمعه"),
-    "Updated schedule has targetTime 08:15 and daysOfWeek جمعه"
-  );
-
-  const updatedMeal = foundMed3.schedules.find((s: any) => s.id === mealSched.id);
-  assert(
-    Boolean(updatedMeal && updatedMeal.rulesJson?.includes("DINNER") && updatedMeal.requiresNote === true),
-    "Updated meal-relative schedule has rulesJson with DINNER and requiresNote true"
-  );
-
-  // 5. Cleanup test medication & schedules
+  // 6. Cleanup test medication, prescription & schedules
   await prisma.schedule.deleteMany({ where: { medicationId: createdMedId } });
+  await prisma.prescription.deleteMany({ where: { medicationId: createdMedId } });
   await prisma.medicationHistory.deleteMany({ where: { medicationId: createdMedId } });
   await prisma.medication.delete({ where: { id: createdMedId } });
-  assert(true, "Multi-schedule test data cleaned up successfully");
+  assert(true, "Multi-schedule and activity test data cleaned up successfully");
 
   console.log("\n================ 12. TASK EDITING & VITAL LOG ACCURACY TESTS ================");
   // 1. Create a 50 cc water intake log as nurse
