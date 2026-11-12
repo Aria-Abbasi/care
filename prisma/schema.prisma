@@ -28,23 +28,44 @@ model Medication {
   nameEn            String?
   dosage            String?
   unit              String?
-  boxNumber         String?
-  instructions      String?
-  doctorName        String?
-  stockCount        Int        @default(100)
+  boxNumber         String?    // کد دارو — auto-generated, written on the box, shown before the name everywhere
+  instructions      String?    // legacy: per-prescription instructions now live on Prescription.notes
+  doctorName        String?    // legacy: prescribing doctor now lives on Prescription.doctorName
+  stockCount        Int        @default(0) // only increased through the purchase (restock) form
   lowStockThreshold Int        @default(15)
-  timeConstraints   String?
+  timeConstraints   String?    // تداخل دارویی (drug interactions)
   isActive          Boolean    @default(true)
   discontinuedAt    DateTime?
   discontinuedReason String?
   discontinuedBy    String?
   replacedById      String?
-  doctorOrderNotes  String?
+  doctorOrderNotes  String?    // توضیحات اختصاصی دارو (fixed, not prescription-specific)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
+  schedules     Schedule[]
+  history       MedicationHistory[]
+  prescriptions Prescription[]
+}
+
+// ثبت فعالیت دارو — a doctor's prescription for a medication (one medication may have many over time)
+model Prescription {
+  id           String     @id @default(cuid())
+  medicationId String
+  medication   Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  doctorName   String?
+  prescribedAt DateTime   @default(now())
+  notes        String?
+  isActive     Boolean    @default(true)
+  endedAt      DateTime?
+  endedReason  String?
+  createdBy    String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
   schedules Schedule[]
-  history   MedicationHistory[]
+
+  @@index([medicationId])
 }
 
 model MedicationHistory {
@@ -81,6 +102,8 @@ model Schedule {
   rulesJson     String?
   medicationId  String?
   medication    Medication? @relation(fields: [medicationId], references: [id], onDelete: SetNull)
+  prescriptionId String?
+  prescription  Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
   isActive      Boolean     @default(true)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt

@@ -107,6 +107,112 @@ CREATE TABLE IF NOT EXISTS ActiveTimer (
 )
 """)
 
+# ---------------------------------------------------------------------------
+# Medication restructure: register / activity (prescription) / purchase forms
+# ---------------------------------------------------------------------------
+import re
+import time
+
+FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
+AR_DIGITS = "٠١٢٣٤٥٦٧٨٩"
+
+
+def to_en_digits(s):
+    s = str(s or "")
+    for i, d in enumerate(FA_DIGITS):
+        s = s.replace(d, str(i))
+    for i, d in enumerate(AR_DIGITS):
+        s = s.replace(d, str(i))
+    return s
+
+
+def to_fa_digits(s):
+    return "".join(FA_DIGITS[int(c)] if c.isdigit() and c.isascii() else c for c in str(s))
+
+
+now_ms = int(time.time() * 1000)
+
+# Prescription table
+con.execute("""
+CREATE TABLE IF NOT EXISTS Prescription (
+    id TEXT NOT NULL PRIMARY KEY,
+    medicationId TEXT NOT NULL,
+    doctorName TEXT,
+    prescribedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
+    isActive BOOLEAN NOT NULL DEFAULT 1,
+    endedAt DATETIME,
+    endedReason TEXT,
+    createdBy TEXT,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL,
+    CONSTRAINT Prescription_medicationId_fkey FOREIGN KEY (medicationId) REFERENCES Medication (id) ON DELETE CASCADE ON UPDATE CASCADE
+)
+""")
+con.execute("CREATE INDEX IF NOT EXISTS Prescription_medicationId_idx ON Prescription(medicationId)")
+
+# Schedule.prescriptionId
+s_cols = [r[1] for r in con.execute("PRAGMA table_info(Schedule)").fetchall()]
+if "prescriptionId" not in s_cols:
+    con.execute("ALTER TABLE Schedule ADD COLUMN prescriptionId TEXT REFERENCES Prescription(id) ON DELETE SET NULL ON UPDATE CASCADE")
+
+# Backfill medication codes (boxNumber) for medications that have none: sequential max+1,
+# active medications first, then by creation date.
+existing_codes = [to_en_digits(r[0]).strip() for r in con.execute(
+    "SELECT boxNumber FROM Medication WHERE boxNumber IS NOT NULL AND TRIM(boxNumber) != ''"
+).fetchall()]
+max_code = max([int(c) for c in existing_codes if c.isdigit()] or [0])
+uncoded = con.execute(
+    "SELECT id FROM Medication WHERE boxNumber IS NULL OR TRIM(boxNumber) = '' ORDER BY isActive DESC, createdAt ASC"
+).fetchall()
+for (mid,) in uncoded:
+    max_code += 1
+    con.execute("UPDATE Medication SET boxNumber = ? WHERE id = ?", (str(max_code), mid))
+if uncoded:
+    print(f"Assigned medication codes to {len(uncoded)} medications.")
+
+# Legacy prescription for every active medication whose active schedules are not linked to a prescription yet.
+# The old per-medication doctor + clinical instructions become that prescription's doctor + notes.
+legacy_rows = con.execute("""
+    SELECT DISTINCT m.id, m.doctorName, m.instructions, m.createdAt
+    FROM Medication m
+    JOIN Schedule s ON s.medicationId = m.id
+    WHERE m.isActive = 1 AND s.isActive = 1 AND s.prescriptionId IS NULL
+""").fetchall()
+for mid, doc, instr, created in legacy_rows:
+    rx_id = f"rx_legacy_{mid}"
+    con.execute("""
+        INSERT OR IGNORE INTO Prescription (id, medicationId, doctorName, prescribedAt, notes, isActive, createdBy, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+    """, (rx_id, mid, doc, created or now_ms, instr, "انتقال خودکار از نسخه قبلی سیستم", created or now_ms, now_ms))
+    con.execute(
+        "UPDATE Schedule SET prescriptionId = ? WHERE medicationId = ? AND isActive = 1 AND prescriptionId IS NULL",
+        (rx_id, mid),
+    )
+
+# Code-first schedule titles: "کد ۱۲ - نام دارو". The linked medication's own "(جعبه X)" is removed and
+# prefixed; other medications mentioned in combined titles keep their code as "(کد X)".
+BOX_RE = re.compile(r"\s*\(جعبه\s*([0-9۰-۹٠-٩]+)\)")
+sched_rows = con.execute("""
+    SELECT s.id, s.title, m.boxNumber FROM Schedule s
+    JOIN Medication m ON m.id = s.medicationId
+    WHERE m.boxNumber IS NOT NULL AND TRIM(m.boxNumber) != ''
+""").fetchall()
+renamed = 0
+for sid, title, code in sched_rows:
+    if not title or title.startswith("کد "):
+        continue
+    own = to_en_digits(code).strip()
+
+    def _sub(match):
+        return "" if to_en_digits(match.group(1)) == own else f" (کد {to_fa_digits(to_en_digits(match.group(1)))})"
+
+    new_title = f"کد {to_fa_digits(own)} - {BOX_RE.sub(_sub, title).strip()}"
+    con.execute("UPDATE Schedule SET title = ? WHERE id = ?", (new_title, sid))
+    renamed += 1
+if renamed:
+    print(f"Rewrote {renamed} medication schedule titles to code-first format.")
+
 con.commit()
 con.close()
 print("Database migration completed successfully.")
