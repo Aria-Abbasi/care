@@ -23,6 +23,13 @@ export async function GET(request: NextRequest) {
             instructions: true,
             timeConstraints: true,
             stockCount: true,
+            doctorOrderNotes: true,
+          },
+        },
+        prescription: {
+          select: {
+            doctorName: true,
+            notes: true,
           },
         },
       },
@@ -196,6 +203,7 @@ export async function GET(request: NextRequest) {
           itemType: s.itemType,
           mealRelation: s.mealRelation,
           medication: s.medication,
+          prescription: s.prescription,
           requiresNote: s.requiresNote || false,
           vitalType: s.vitalType || null,
           rulesJson: s.rulesJson || null,
