@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { scheduleId, taskTitle, adhocTitle, status = "DONE", notes, isAdHoc, category } = await request.json();
+    const { scheduleId, taskTitle, adhocTitle, status = "DONE", notes, isAdHoc, category, medicationId } = await request.json();
     const rawTitle = (taskTitle || adhocTitle || "").trim();
 
     if (!rawTitle) {
@@ -44,18 +44,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // If this task was linked to a medication, decrement stock by 1
-    if (cleanScheduleId) {
-      const schedule = await prisma.schedule.findUnique({
-        where: { id: cleanScheduleId },
-        select: { medicationId: true },
-      });
-      if (schedule?.medicationId) {
-        await prisma.medication.update({
-          where: { id: schedule.medicationId },
-          data: { stockCount: { decrement: 1 } },
-        });
-      }
+    // If this task was linked to a medication (either through schedule or directly in adhoc), decrement stock by 1
+    const targetMedicationId = medicationId || (cleanScheduleId
+      ? (await prisma.schedule.findUnique({
+          where: { id: cleanScheduleId },
+          select: { medicationId: true },
+        }))?.medicationId
+      : null);
+
+    if (targetMedicationId) {
+      await prisma.medication.update({
+        where: { id: targetMedicationId },
+        data: { stockCount: { decrement: 1 } },
+      }).catch((e) => console.error("Could not decrement medication stock:", e));
     }
 
     return NextResponse.json({ success: true, log });

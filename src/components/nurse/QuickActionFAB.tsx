@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Plus, X, Droplets, Activity, Heart, Stethoscope,
-  Smile, Camera, Timer, Check, AlertTriangle, Play, Square, Sparkles, ClipboardPlus, FileText
+  Smile, Camera, Timer, Check, AlertTriangle, Play, Square, Sparkles, ClipboardPlus, FileText,
+  Pill, Utensils, Clock
 } from "lucide-react";
 import { toPersianDigits } from "@/lib/jalali";
 import { compressImage, formatFileSize } from "@/lib/imageCompression";
@@ -82,18 +83,61 @@ export default function QuickActionFAB({
 
   // Ad-hoc task state
   const [adhocTitle, setAdhocTitle] = useState("");
-  const [adhocCategory, setAdhocCategory] = useState("مراقبتی");
+  const [adhocCategory, setAdhocCategory] = useState("routine");
   const [adhocNotes, setAdhocNotes] = useState("");
+  const [adhocMedicationId, setAdhocMedicationId] = useState("");
+  const [medicationsList, setMedicationsList] = useState<Array<{ id: string; nameFa: string; boxNumber?: string | null; dosage?: string | null }>>([]);
+  const [recipesList, setRecipesList] = useState<Array<{ id: string; title: string; type: "diet" | "smoothie" }>>([]);
   const [adhocSuggestions, setAdhocSuggestions] = useState<Array<{ id: string; title: string; category?: string }>>([
-    { id: "1", title: "تعویض پانسمان موضعی", category: "مراقبتی" },
-    { id: "2", title: "پانسمان زخم پای راست (DVT)", category: "مراقبتی" },
-    { id: "3", title: "ماساژ اضافه و چرب کردن ساق پا", category: "مراقبتی" },
-    { id: "4", title: "تعویض ملحفه و نظافت فوری", category: "بهداشتی" },
-    { id: "5", title: "کنترل دمای بدن و تب", category: "پایش علائم" },
-    { id: "6", title: "تنظیم سرم / آنژیوکت", category: "مراقبتی" },
-    { id: "7", title: "کمک به جابجایی / ویلچر", category: "مراقبتی" },
-    { id: "8", title: "دادن میان‌وعده اضافه", category: "بهداشتی" },
+    { id: "1", title: "تعویض پانسمان موضعی", category: "routine" },
+    { id: "2", title: "پانسمان زخم پای راست (DVT)", category: "routine" },
+    { id: "3", title: "ماساژ اضافه و چرب کردن ساق پا", category: "routine" },
+    { id: "4", title: "تعویض ملحفه و نظافت فوری", category: "routine" },
+    { id: "5", title: "کنترل دمای بدن و تب", category: "vital" },
+    { id: "6", title: "تنظیم سرم / آنژیوکت", category: "routine" },
+    { id: "7", title: "کمک به جابجایی / ویلچر", category: "routine" },
+    { id: "8", title: "دادن میان‌وعده اضافه", category: "meal" },
   ]);
+
+  // Load medications list for ad-hoc medication selection
+  useEffect(() => {
+    async function loadMeds() {
+      try {
+        const res = await fetch("/api/admin/medications");
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (Array.isArray(data?.medications) ? data.medications : []);
+          setMedicationsList(list.filter((m: any) => m.isActive));
+        }
+      } catch (err) {
+        console.error("Failed to load medications for adhoc modal:", err);
+      }
+    }
+    loadMeds();
+  }, []);
+
+  // Load recipes (diets & smoothies) for meal category selection
+  useEffect(() => {
+    async function loadRecipes() {
+      try {
+        const res = await fetch("/api/admin/recipes");
+        if (res.ok) {
+          const data = await res.json();
+          const items: Array<{ id: string; title: string; type: "diet" | "smoothie" }> = [];
+          if (Array.isArray(data.smoothies)) {
+            data.smoothies.forEach((s: any) => items.push({ id: s.id, title: s.title, type: "smoothie" }));
+          }
+          if (Array.isArray(data.diets)) {
+            data.diets.forEach((d: any) => items.push({ id: d.id, title: d.title, type: "diet" }));
+          }
+          setRecipesList(items);
+        }
+      } catch (err) {
+        console.error("Failed to load recipes for adhoc modal:", err);
+      }
+    }
+    loadRecipes();
+  }, []);
 
   // Load ad-hoc suggestions dynamically from server
   useEffect(() => {
@@ -130,7 +174,7 @@ export default function QuickActionFAB({
   // Listen to navbar + button clicks
   useEffect(() => {
     function handleOpenFromNavbar() {
-      setActiveModal("MENU");
+      setActiveModal("ADHOC");
     }
     window.addEventListener("open-quick-action-menu", handleOpenFromNavbar);
     return () => window.removeEventListener("open-quick-action-menu", handleOpenFromNavbar);
@@ -158,6 +202,8 @@ export default function QuickActionFAB({
     setNoteText("");
     setAdhocTitle("");
     setAdhocNotes("");
+    setAdhocMedicationId("");
+    setAdhocCategory("routine");
     setActiveModal(null);
     onCloseAction?.();
   }
@@ -440,6 +486,7 @@ export default function QuickActionFAB({
           isAdHoc: true,
           category: adhocCategory,
           notes: adhocNotes.trim() || undefined,
+          medicationId: adhocMedicationId || undefined,
           status: "DONE",
         }),
       });
@@ -466,264 +513,334 @@ export default function QuickActionFAB({
         </div>
       )}
 
-      {/* Main Quick Action Menu Sheet */}
-      {activeModal === "MENU" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden max-h-[90vh] flex flex-col transition-colors">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-base font-black text-slate-900 dark:text-slate-100">ثبت سریع پای تخت بیمار</h2>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">انتخاب اقدام جهت ثبت فوری</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setActiveModal(null)}
-                className="w-9 h-9 rounded-xl bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition active:scale-90"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Grid of Action Buttons */}
-            <div className="p-4 grid grid-cols-2 gap-3 overflow-y-auto">
-              {/* NEW: Ad-Hoc Task Button */}
-              <button
-                onClick={() => setActiveModal("ADHOC")}
-                className="col-span-2 flex items-center gap-3 p-3.5 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/80 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-right transition active:scale-95 shadow-sm"
-              >
-                <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-600/20">
-                  <ClipboardPlus className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-sm font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
-                    <span>اقدامات موردی</span>
-                    <span className="px-1.5 py-0.5 rounded bg-indigo-200 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-200 text-[10px] font-bold">فوری</span>
-                  </div>
-                  <div className="text-[11px] text-indigo-800 dark:text-indigo-300 font-medium">
-                    کاری خارج از روتین زمان‌بندی‌شده که هم‌اکنون انجام شد
-                  </div>
-                </div>
-              </button>
-
-              {/* 1. Water Intake */}
-              <button
-                onClick={() => setActiveModal("WATER")}
-                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-sky-100 dark:border-sky-900/50 bg-sky-50/50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-right transition active:scale-95"
-              >
-                <div className="w-11 h-11 rounded-xl bg-sky-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-sky-500/20">
-                  <Droplets className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">آب و مایعات</div>
-                  <div className="text-[11px] text-sky-700 dark:text-sky-300 font-medium">استکان / لیوان / ماگ</div>
-                </div>
-              </button>
-
-              {/* 2. Urine Output */}
-              <button
-                onClick={() => setActiveModal("URINE")}
-                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-amber-100 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-right transition active:scale-95"
-              >
-                <div className="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-amber-500/20">
-                  <Activity className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">تخلیه ادرار سوند</div>
-                  <div className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">سی سی + رنگ</div>
-                </div>
-              </button>
-
-              {/* 3. Blood Glucose */}
-              <button
-                onClick={() => setActiveModal("GLUCOSE")}
-                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-rose-100 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-right transition active:scale-95"
-              >
-                <div className="w-11 h-11 rounded-xl bg-rose-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-rose-500/20">
-                  <Heart className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">قند خون</div>
-                  <div className="text-[11px] text-rose-700 dark:text-rose-300 font-medium">ناشتا / ۲ ساعته / کیپد</div>
-                </div>
-              </button>
-
-              {/* 4. Blood Pressure */}
-              <button
-                onClick={() => setActiveModal("BP")}
-                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-violet-100 dark:border-violet-900/50 bg-violet-50/50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-900/50 text-right transition active:scale-95"
-              >
-                <div className="w-11 h-11 rounded-xl bg-violet-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-violet-500/20">
-                  <Stethoscope className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">فشار خون</div>
-                  <div className="text-[11px] text-violet-700 dark:text-violet-300 font-medium">سیستول / دیاستول</div>
-                </div>
-              </button>
-
-              {/* 5. Bowel Movement */}
-              <button
-                onClick={() => setActiveModal("BOWEL")}
-                className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-orange-100 dark:border-orange-900/50 bg-orange-50/50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-900/50 text-right transition active:scale-95"
-              >
-                <div className="w-11 h-11 rounded-xl bg-orange-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-orange-500/20">
-                  <Smile className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">کارکرد روده و ملین</div>
-                  <div className="text-[11px] text-orange-700 dark:text-orange-300 font-medium">۱+ / ۲+ / شیاف / ساشه</div>
-                </div>
-              </button>
-
-              {/* 6. DVT Stopwatch Toggle */}
-              <button
-                onClick={() => {
-                  setActiveModal(null);
-                  toggleDvtTimer();
-                }}
-                className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 text-right transition active:scale-95 ${
-                  dvtActive
-                    ? "border-amber-500 bg-amber-100 dark:bg-amber-950/60"
-                    : "border-teal-100 dark:border-teal-900/50 bg-teal-50/50 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-900/50"
-                }`}
-              >
-                <div
-                  className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md ${
-                    dvtActive ? "bg-amber-600 text-white" : "bg-teal-600 text-white shadow-teal-500/20"
-                  }`}
-                >
-                  <Timer className={`w-6 h-6 ${dvtActive ? "animate-spin" : ""}`} />
-                </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">
-                    {dvtActive ? "پایین آوردن پا" : "DVT پای راست"}
-                  </div>
-                  <div className="text-[11px] font-bold text-teal-700 dark:text-teal-300">
-                    {dvtActive ? "در حال ثبت زمان..." : "تایمر بالا بردن پا"}
-                  </div>
-                </div>
-              </button>
-
-              {/* 7. Clinical Photo & Incident Note */}
-              <button
-                onClick={() => setActiveModal("NOTE")}
-                className="col-span-2 flex items-center gap-3 p-3.5 rounded-2xl border-2 border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-right transition active:scale-95"
-              >
-                <div className="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-600/20">
-                  <Camera className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">ثبت تصویر یا یادداشت بالینی</div>
-                  <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium">
-                    عکس پا/DVT، قرمزی پوست، ناخن‌ها، رویداد یا درد
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Ad-Hoc Task */}
+      {/* Modal: Ad-Hoc Task (Unified UI matching /schedules) */}
       {activeModal === "ADHOC" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto transition-colors">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
-              <div className="flex items-center gap-2">
-                <ClipboardPlus className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col overflow-hidden transition-colors">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                  <ClipboardPlus className="w-5 h-5" />
+                </div>
                 <div>
-                  <h3 className="font-black text-base text-slate-900 dark:text-slate-100">اقدامات موردی</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">اقدامی که در برنامه روتین نبود و انجام شد</p>
+                  <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-slate-100">
+                    ثبت اقدام موردی (خارج از برنامه)
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    ثبت فوری تسک و اقدامی که در برنامه روتین نبوده و انجام شد
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Fast chip presets */}
-            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">انتخاب سریع عنوان اقدام:</p>
-            <div className="flex flex-wrap gap-1.5 mb-4 max-h-36 overflow-y-auto p-0.5">
-              {adhocSuggestions.map((suggestion) => (
-                <button
-                  key={suggestion.id}
-                  type="button"
-                  onClick={() => {
-                    setAdhocTitle(suggestion.title);
-                    if (suggestion.category) setAdhocCategory(suggestion.category);
-                  }}
-                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition ${
-                    adhocTitle === suggestion.title
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "bg-indigo-50/70 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
-                  }`}
-                >
-                  {suggestion.title}
-                </button>
-              ))}
-            </div>
-
-            {/* Custom Title Input */}
-            <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                یا عنوان دلخواه اقدام انجام‌شده:
-              </label>
-              <input
-                type="text"
-                value={adhocTitle}
-                onChange={(e) => setAdhocTitle(e.target.value)}
-                placeholder="مثلاً تعویض سوند، چک نبض، یا..."
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition"
-              />
-            </div>
-
-            {/* Category Chips */}
-            <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">دسته‌بندی:</label>
-              <div className="flex flex-wrap gap-1.5">
-                {["مراقبتی", "بهداشتی", "دارویی", "پایش علائم", "فوریت"].map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setAdhocCategory(cat)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      adhocCategory === cat
-                        ? "bg-slate-900 dark:bg-indigo-600 text-white"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+            {/* Scrollable Modal Body */}
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+              {/* Category Selector (Exact match to /schedules 4-card grid) */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                  دسته‌بندی اقدام:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: "vital", label: "سنجش بالینی", icon: Activity },
+                    { id: "medication", label: "دارویی", icon: Pill },
+                    { id: "meal", label: "غذا و میان‌وعده", icon: Utensils },
+                    { id: "routine", label: "عمومی / سایر", icon: Clock },
+                  ].map((cat) => {
+                    const Icon = cat.icon;
+                    const isSelected = adhocCategory === cat.id;
+                    return (
+                      <button
+                        type="button"
+                        key={cat.id}
+                        onClick={() => {
+                          setAdhocCategory(cat.id);
+                          if (cat.id === "vital") {
+                            setAdhocMedicationId("");
+                          } else if (cat.id !== "medication") {
+                            setAdhocMedicationId("");
+                          }
+                        }}
+                        className={`p-2.5 rounded-2xl border-2 font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                          isSelected
+                            ? "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-600 dark:border-indigo-500 text-indigo-900 dark:text-indigo-200 shadow-xs"
+                            : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 ${isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"}`} />
+                        <span>{cat.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              {/* Clinical Parameter Selector (when Vital category is selected) */}
+              {adhocCategory === "vital" && (
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-700 space-y-2">
+                  <label className="block text-xs font-black text-slate-800 dark:text-slate-200">
+                    انتخاب پارامتر بالینی (ورود مستقیم به فرم ثبت دقیق):
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      {
+                        id: "GLUCOSE",
+                        title: "قند خون",
+                        desc: "ناشتا / ۲ ساعته / کیپد",
+                        icon: Heart,
+                        color: "border-rose-300 bg-rose-50 text-rose-950 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800",
+                        iconBg: "bg-rose-500 text-white",
+                      },
+                      {
+                        id: "BP",
+                        title: "فشار خون",
+                        desc: "سیستول / دیاستول",
+                        icon: Stethoscope,
+                        color: "border-purple-300 bg-purple-50 text-purple-950 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-800",
+                        iconBg: "bg-purple-500 text-white",
+                      },
+                      {
+                        id: "URINE",
+                        title: "تخلیه ادرار سوند",
+                        desc: "سی سی + رنگ",
+                        icon: Activity,
+                        color: "border-amber-300 bg-amber-50 text-amber-950 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800",
+                        iconBg: "bg-amber-500 text-white",
+                      },
+                      {
+                        id: "WATER",
+                        title: "آب و مایعات",
+                        desc: "استکان / لیوان / ماگ",
+                        icon: Droplets,
+                        color: "border-sky-300 bg-sky-50 text-sky-950 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-800",
+                        iconBg: "bg-sky-500 text-white",
+                      },
+                      {
+                        id: "DVT_TOGGLE",
+                        title: "DVT پای راست",
+                        desc: dvtActive ? "تایمر فعال است (پایین آوردن پا)" : "تایمر بالا بردن پا",
+                        icon: Timer,
+                        color: "border-teal-300 bg-teal-50 text-teal-950 dark:bg-teal-950/40 dark:text-teal-200 dark:border-teal-800",
+                        iconBg: "bg-teal-600 text-white",
+                      },
+                      {
+                        id: "BOWEL",
+                        title: "کارکرد روده و ملین",
+                        desc: "اجابت مزاج / شیاف / ساشه",
+                        icon: Smile,
+                        color: "border-orange-300 bg-orange-50 text-orange-950 dark:bg-orange-950/40 dark:text-orange-200 dark:border-orange-800",
+                        iconBg: "bg-orange-500 text-white",
+                      },
+                      {
+                        id: "NOTE",
+                        title: "ثبت تصویر یا یادداشت بالینی",
+                        desc: "عکس پا/DVT، قرمزی پوست، رویداد",
+                        icon: Camera,
+                        color: "border-emerald-300 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800",
+                        iconBg: "bg-emerald-600 text-white",
+                      },
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          type="button"
+                          key={item.id}
+                          onClick={() => {
+                            if (item.id === "DVT_TOGGLE") {
+                              setActiveModal(null);
+                              toggleDvtTimer();
+                            } else {
+                              setActiveModal(item.id as QuickModalType);
+                            }
+                          }}
+                          className={`p-2.5 rounded-2xl border-2 text-right flex items-center justify-between transition hover:shadow-xs active:scale-95 ${item.color}`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-black">{item.title}</div>
+                            <div className="text-[10px] opacity-80 font-medium truncate">{item.desc}</div>
+                          </div>
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mr-2 ${item.iconBg}`}>
+                            <Icon className="w-4 h-4" />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Medication Selector (when Medication category is selected) */}
+              {adhocCategory === "medication" && (
+                <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-900/50 space-y-2">
+                  <label className="block text-xs font-black text-indigo-950 dark:text-indigo-200">
+                    انتخاب از لیست داروها (کسر اتوماتیک موجودی):
+                  </label>
+                  <select
+                    value={adhocMedicationId}
+                    onChange={(e) => {
+                      const mId = e.target.value;
+                      setAdhocMedicationId(mId);
+                      const selected = medicationsList.find((m) => m.id === mId);
+                      if (selected) {
+                        const codePrefix = selected.boxNumber ? `[کد ${toPersianDigits(selected.boxNumber)}] ` : "";
+                        setAdhocTitle(`مصرف داروی ${codePrefix}${selected.nameFa}${selected.dosage ? ` (${selected.dosage})` : ""}`);
+                      }
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">-- انتخاب دارو یا ورود آزاد عنوان در زیر --</option>
+                    {medicationsList.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.boxNumber ? `[کد ${toPersianDigits(m.boxNumber)}] ` : ""}{m.nameFa} {m.dosage ? `(${m.dosage})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                    در صورت انتخاب دارو، ۱ عدد از موجودی این دارو در منزل کسر خواهد شد.
+                  </p>
+                </div>
+              )}
+
+              {/* Meal & Smoothie Selector (when Meal category is selected) */}
+              {adhocCategory === "meal" && recipesList.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 space-y-2">
+                  <label className="block text-xs font-black text-amber-950 dark:text-amber-200">
+                    انتخاب از اسموتی‌ها و دستورهای غذایی بیمار:
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-0.5">
+                    {recipesList.map((recipe) => {
+                      const isSelected = adhocTitle === recipe.title || adhocTitle === `میان‌وعده: ${recipe.title}`;
+                      return (
+                        <button
+                          key={recipe.id}
+                          type="button"
+                          onClick={() => {
+                            setAdhocTitle(`میان‌وعده: ${recipe.title}`);
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                            isSelected
+                              ? "bg-amber-600 text-white shadow-xs"
+                              : "bg-white dark:bg-slate-800 text-amber-950 dark:text-amber-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-100/70 dark:hover:bg-amber-900/40"
+                          }`}
+                        >
+                          {recipe.type === "smoothie" ? "🥤 " : "🥣 "}
+                          {recipe.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Title Presets, Inputs & Notes: ONLY shown for non-vital categories */}
+              {adhocCategory !== "vital" && (
+                <>
+                  {/* Title Presets based on selected category */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                      پیشنهادهای متداول:
+                    </label>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60">
+                      {adhocSuggestions
+                        .filter((s) => !s.category || s.category === adhocCategory || adhocCategory === "routine")
+                        .map((suggestion) => (
+                          <button
+                            key={suggestion.id}
+                            type="button"
+                            onClick={() => {
+                              setAdhocTitle(suggestion.title);
+                              if (suggestion.category) setAdhocCategory(suggestion.category);
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                              adhocTitle === suggestion.title
+                                ? "bg-indigo-600 text-white shadow-xs"
+                                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                            }`}
+                          >
+                            {suggestion.title}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Custom Title Input */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                      عنوان کامل اقدام: <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={adhocTitle}
+                      onChange={(e) => setAdhocTitle(e.target.value)}
+                      placeholder={
+                        adhocCategory === "meal"
+                          ? "مثلاً: میان‌وعده اضافه، آب هویج، بیسکویت دیابتیک..."
+                          : adhocCategory === "medication"
+                          ? "مثلاً: مصرف سرم تقویتی، مسکن موردی..."
+                          : "مثلاً: تعویض پانسمان موضعی، ماساژ ساق پا..."
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 text-xs font-bold outline-none transition"
+                    />
+                  </div>
+
+                  {/* Notes / Reason */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                      توضیحات و گزارش انجام کار (اختیاری):
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={adhocNotes}
+                      onChange={(e) => setAdhocNotes(e.target.value)}
+                      placeholder="علت نیاز به این اقدام، جزئیات اجرا یا وضعیت و واکنش بیمار..."
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 text-xs font-medium outline-none transition"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Notes / Reason */}
-            <div className="mb-5">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                توضیحات یا علت انجام اقدام (اختیاری):
-              </label>
-              <textarea
-                rows={3}
-                value={adhocNotes}
-                onChange={(e) => setAdhocNotes(e.target.value)}
-                placeholder="علت نیاز به این اقدام، واکنش بیمار یا شرایط خاص..."
-                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition"
-              />
-            </div>
-
-            <button
-              disabled={submitting || !adhocTitle.trim()}
-              onClick={submitAdhocTask}
-              className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black shadow-lg shadow-indigo-600/30 active:scale-95 transition"
-            >
-              {submitting ? "در حال ثبت..." : "تأیید و ثبت اقدام موردی"}
-            </button>
+            {/* Modal Footer (Only shown for non-vital categories; vital actions have their own submodal submits) */}
+            {adhocCategory !== "vital" ? (
+              <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  انصراف
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting || !adhocTitle.trim()}
+                  onClick={submitAdhocTask}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-indigo-600/30 active:scale-95 transition flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>{submitting ? "در حال ثبت..." : "تأیید و ثبت اقدام"}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/60 dark:bg-slate-800/60 flex-shrink-0 text-[11px] text-slate-500 dark:text-slate-400 font-bold px-4">
+                <span>یکی از پارامترهای بالا را برای ثبت مستقیم انتخاب کنید</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="px-3.5 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                >
+                  بستن
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -737,7 +854,7 @@ export default function QuickActionFAB({
                 <Droplets className="w-6 h-6 text-sky-500 dark:text-sky-400" />
                 <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت مصرف آب و مایعات</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+              <button onClick={() => setActiveModal("ADHOC")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -803,7 +920,7 @@ export default function QuickActionFAB({
                 <Activity className="w-6 h-6 text-amber-500 dark:text-amber-400" />
                 <h3 className="font-black text-base text-slate-900 dark:text-slate-100">تخلیه ادرار سوند</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+              <button onClick={() => setActiveModal("ADHOC")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -881,7 +998,7 @@ export default function QuickActionFAB({
                 <Heart className="w-6 h-6 text-rose-500 dark:text-rose-400" />
                 <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت قند خون</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+              <button onClick={() => setActiveModal("ADHOC")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -978,7 +1095,7 @@ export default function QuickActionFAB({
                 <Stethoscope className="w-6 h-6 text-violet-500 dark:text-violet-400" />
                 <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت فشار خون</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+              <button onClick={() => setActiveModal("ADHOC")} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1028,7 +1145,7 @@ export default function QuickActionFAB({
                 <Smile className="w-6 h-6 text-orange-500" />
                 <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت کارکرد روده و ملین</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
+              <button onClick={() => setActiveModal("ADHOC")} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1160,7 +1277,7 @@ export default function QuickActionFAB({
                 <Camera className="w-6 h-6 text-emerald-600" />
                 <h3 className="font-black text-base text-slate-900 dark:text-slate-100">ثبت تصویر یا یادداشت بالینی</h3>
               </div>
-              <button onClick={() => setActiveModal("MENU")} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
+              <button onClick={() => setActiveModal("ADHOC")} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
