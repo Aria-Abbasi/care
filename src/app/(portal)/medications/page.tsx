@@ -7,6 +7,7 @@ import {
   Calendar, FileText, Ban, RotateCcw, Info, Sparkles, Stethoscope,
   CalendarClock, CheckCircle2, History, AlertTriangle, ShieldCheck, Trash2, Utensils
 } from "lucide-react";
+import { formatMedName, formatMedCode } from "@/lib/medicationCode";
 import {
   toPersianDigits, toEnglishDigits, formatJalaliDate, formatJalaliDateTime,
   formatJalaliFromNow, formatRecurrenceText, getJalaliToday
@@ -365,6 +366,13 @@ interface Medication {
   replacedById?: string | null;
   createdAt: string;
   schedules?: ScheduleItem[];
+  prescriptions?: Array<{
+    id: string;
+    doctorName?: string | null;
+    prescribedAt: string;
+    notes?: string | null;
+    isActive: boolean;
+  }>;
 }
 
 interface MedicationHistoryItem {
@@ -470,27 +478,28 @@ export default function AdminMedicationsPage() {
     }
   }
 
-  // Form: Medication Core Info
+  // Form 1: Register New Medication (ثبت داروی جدید)
   const [formNameFa, setFormNameFa] = useState("");
   const [formBoxNumber, setFormBoxNumber] = useState("");
-  const [formInstructions, setFormInstructions] = useState("");
-  const [formDoctorName, setFormDoctorName] = useState("");
-  const [formDoctorOrderNotes, setFormDoctorOrderNotes] = useState("");
-  const [formStockCount, setFormStockCount] = useState("");
   const [formLowStockThreshold, setFormLowStockThreshold] = useState("15");
-  const [formTimeConstraints, setFormTimeConstraints] = useState("");
+  const [formDrugInteractions, setFormDrugInteractions] = useState(""); // تداخل دارویی
+  const [formSpecificNotes, setFormSpecificNotes] = useState(""); // توضیحات اختصاصی دارو
+
+  // Form 2: Medication Activity / Prescription Modal (ثبت فعالیت دارو)
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [activityMed, setActivityMed] = useState<Medication | null>(null);
+  const [activityDoctorName, setActivityDoctorName] = useState("");
+  const [activityPrescribedAt, setActivityPrescribedAt] = useState(() => new Date().toISOString().split("T")[0]);
+  const [activityNotes, setActivityNotes] = useState("");
+  const [activityReplacePrevious, setActivityReplacePrevious] = useState(true);
+  const [activityMedSchedules, setActivityMedSchedules] = useState<EditableMedSchedule[]>([]);
+  const [activityDiscontinueOther, setActivityDiscontinueOther] = useState(false);
+  const [activitySelectedDiscontinueIds, setActivitySelectedDiscontinueIds] = useState<string[]>([]);
+  const [activityDiscontinueReason, setActivityDiscontinueReason] = useState("");
+  const [activitySubmitting, setActivitySubmitting] = useState(false);
 
   // Meal reference slots state
   const [mealSlots, setMealSlots] = useState<MealSlotItem[]>([]);
-
-  // Form: Schedule (Create & Edit)
-  const [formCreateSchedule, setFormCreateSchedule] = useState(true);
-  const [formMedSchedules, setFormMedSchedules] = useState<EditableMedSchedule[]>([]);
-
-  // Form: Discontinue other active medications (when adding new one)
-  const [formDiscontinuePrevious, setFormDiscontinuePrevious] = useState(false);
-  const [formSelectedDiscontinueIds, setFormSelectedDiscontinueIds] = useState<string[]>([]);
-  const [formDiscontinueReason, setFormDiscontinueReason] = useState("");
 
   function showToast(msg: string) {
     setToastMessage(msg);
@@ -536,8 +545,8 @@ export default function AdminMedicationsPage() {
     fetchMealSlots();
   }, [fetchMeds, fetchMealSlots]);
 
-  function updateScheduleItem(index: number, updates: Partial<EditableMedSchedule>) {
-    setFormMedSchedules((prev) =>
+  function updateActivityScheduleItem(index: number, updates: Partial<EditableMedSchedule>) {
+    setActivityMedSchedules((prev) =>
       prev.map((item, i) => {
         if (i !== index) return item;
         const updated = { ...item, ...updates };
@@ -556,32 +565,21 @@ export default function AdminMedicationsPage() {
     );
   }
 
-  function addScheduleItem() {
-    setFormMedSchedules((prev) => [...prev, createDefaultMedSchedule(prev.length)]);
+  function addActivityScheduleItem() {
+    setActivityMedSchedules((prev) => [...prev, createDefaultMedSchedule(prev.length)]);
   }
 
-  function removeScheduleItem(index: number) {
-    setFormMedSchedules((prev) => prev.filter((_, i) => i !== index));
+  function removeActivityScheduleItem(index: number) {
+    setActivityMedSchedules((prev) => prev.filter((_, i) => i !== index));
   }
 
   function openCreateModal() {
     setEditingMed(null);
     setFormNameFa("");
     setFormBoxNumber("");
-    setFormInstructions("");
-    setFormDoctorName("");
-    setFormDoctorOrderNotes("");
-    setFormStockCount("");
     setFormLowStockThreshold("15");
-    setFormTimeConstraints("");
-
-    setFormCreateSchedule(true);
-    setFormMedSchedules([createDefaultMedSchedule(0)]);
-
-    setFormDiscontinuePrevious(false);
-    setFormSelectedDiscontinueIds([]);
-    setFormDiscontinueReason("");
-
+    setFormDrugInteractions("");
+    setFormSpecificNotes("");
     setIsModalOpen(true);
   }
 
@@ -589,27 +587,31 @@ export default function AdminMedicationsPage() {
     setEditingMed(med);
     setFormNameFa(med.nameFa);
     setFormBoxNumber(med.boxNumber || "");
-    setFormInstructions(med.instructions || "");
-    setFormDoctorName(med.doctorName || "");
-    setFormDoctorOrderNotes(med.doctorOrderNotes || "");
-    setFormStockCount(med.stockCount.toString());
     setFormLowStockThreshold((med.lowStockThreshold || 15).toString());
-    setFormTimeConstraints(med.timeConstraints || "");
+    setFormDrugInteractions(med.timeConstraints || "");
+    setFormSpecificNotes(med.doctorOrderNotes || "");
+    setIsModalOpen(true);
+  }
 
-    // Populate all active schedules of this medication (including tasks linked to this med from /schedules)
+  function openActivityModal(med: Medication) {
+    setActivityMed(med);
+    // Find latest active prescription if available
+    const activeRx = med.prescriptions?.find((p) => p.isActive) || med.prescriptions?.[0];
+    setActivityDoctorName(activeRx?.doctorName || med.doctorName || "");
+    setActivityPrescribedAt(new Date().toISOString().split("T")[0]);
+    setActivityNotes(activeRx?.notes || med.instructions || "");
+    setActivityReplacePrevious(true);
+
     if (med.schedules && med.schedules.length > 0) {
-      setFormCreateSchedule(true);
-      setFormMedSchedules(med.schedules.map((s) => convertScheduleToEditable(s, mealSlots)));
+      setActivityMedSchedules(med.schedules.map((s) => convertScheduleToEditable(s, mealSlots)));
     } else {
-      setFormCreateSchedule(false);
-      setFormMedSchedules([createDefaultMedSchedule(0)]);
+      setActivityMedSchedules([createDefaultMedSchedule(0)]);
     }
 
-    setFormDiscontinuePrevious(false);
-    setFormSelectedDiscontinueIds([]);
-    setFormDiscontinueReason("");
-
-    setIsModalOpen(true);
+    setActivityDiscontinueOther(false);
+    setActivitySelectedDiscontinueIds([]);
+    setActivityDiscontinueReason("");
+    setIsActivityModalOpen(true);
   }
 
   function openStopModal(med: Medication) {
@@ -658,6 +660,7 @@ export default function AdminMedicationsPage() {
     }
   }
 
+  // Save Form 1: ثبت داروی جدید (یا ویرایش مشخصات ثابت)
   async function handleSaveMed() {
     if (!formNameFa.trim()) {
       alert("لطفاً نام دارو را وارد کنید.");
@@ -666,75 +669,105 @@ export default function AdminMedicationsPage() {
 
     setSubmitting(true);
     try {
-      const schedulesPayload = formCreateSchedule
-        ? formMedSchedules.map((s) => convertEditableToApiPayload(s, formNameFa, formBoxNumber, mealSlots))
-        : [];
-
       if (editingMed) {
-        // Edit existing medication and its schedules
         const payload: any = {
           id: editingMed.id,
           nameFa: formNameFa.trim(),
-          boxNumber: formBoxNumber.trim() || null,
-          instructions: formInstructions.trim() || null,
-          doctorName: formDoctorName.trim() || null,
-          doctorOrderNotes: formDoctorOrderNotes.trim() || null,
-          stockCount: parseInt(formStockCount, 10) || 0,
           lowStockThreshold: parseInt(formLowStockThreshold, 10) || 15,
-          timeConstraints: formTimeConstraints.trim() || null,
-          schedules: schedulesPayload,
-          deactivateUnlistedSchedules: true,
+          timeConstraints: formDrugInteractions.trim() || null,
+          doctorOrderNotes: formSpecificNotes.trim() || null,
         };
 
-        if (schedulesPayload.length > 0) {
-          payload.schedule = schedulesPayload[0];
-        }
-
-        await fetch("/api/admin/medications", {
+        const res = await fetch("/api/admin/medications", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        showToast("اطلاعات و زمان‌بندی‌های دارو با موفقیت به‌روزرسانی شد.");
+
+        if (res.ok) {
+          showToast("مشخصات دارو با موفقیت به‌روزرسانی شد.");
+          setIsModalOpen(false);
+          fetchMeds();
+        } else {
+          const d = await res.json();
+          alert(d.error || "خطا در ویرایش دارو");
+        }
       } else {
-        // Create new medication + optional auto-schedules + optional discontinue
         const payload: any = {
           nameFa: formNameFa.trim(),
-          boxNumber: formBoxNumber.trim() || null,
-          instructions: formInstructions.trim() || null,
-          doctorName: formDoctorName.trim() || null,
-          doctorOrderNotes: formDoctorOrderNotes.trim() || null,
-          stockCount: parseInt(formStockCount, 10) || 0,
           lowStockThreshold: parseInt(formLowStockThreshold, 10) || 15,
-          timeConstraints: formTimeConstraints.trim() || null,
-          schedules: schedulesPayload,
+          timeConstraints: formDrugInteractions.trim() || null,
+          doctorOrderNotes: formSpecificNotes.trim() || null,
         };
 
-        if (schedulesPayload.length > 0) {
-          payload.schedule = schedulesPayload[0];
-        }
-
-        if (formDiscontinuePrevious && formSelectedDiscontinueIds.length > 0) {
-          payload.discontinueMedIds = formSelectedDiscontinueIds;
-          payload.discontinueReason = formDiscontinueReason.trim() || "توقف و جایگزینی با داروی جدید طبق نسخه پزشک";
-        }
-
-        await fetch("/api/admin/medications", {
+        const res = await fetch("/api/admin/medications", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
 
-        showToast("داروی جدید و برنامه مصرف با موفقیت ثبت شد.");
+        if (res.ok) {
+          showToast("داروی جدید با موفقیت به سیستم معرفی شد.");
+          setIsModalOpen(false);
+          fetchMeds();
+        } else {
+          const d = await res.json();
+          alert(d.error || "خطا در ثبت دارو");
+        }
       }
-
-      setIsModalOpen(false);
-      fetchMeds();
     } catch (err) {
       console.error("Save medication error:", err);
       showToast("خطا در ذخیره دارو");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // Save Form 2: ثبت فعالیت دارو (نسخه و زمان‌بندی)
+  async function handleSaveActivity() {
+    if (!activityMed) return;
+
+    setActivitySubmitting(true);
+    try {
+      const schedulesPayload = activityMedSchedules.map((s) =>
+        convertEditableToApiPayload(s, activityMed.nameFa, activityMed.boxNumber, mealSlots)
+      );
+
+      const payload: any = {
+        medicationId: activityMed.id,
+        doctorName: activityDoctorName.trim() || null,
+        prescribedAt: activityPrescribedAt,
+        notes: activityNotes.trim() || null,
+        replacePreviousPrescription: activityReplacePrevious,
+        schedules: schedulesPayload,
+      };
+
+      if (activityDiscontinueOther && activitySelectedDiscontinueIds.length > 0) {
+        payload.discontinueMedIds = activitySelectedDiscontinueIds;
+        payload.discontinueReason =
+          activityDiscontinueReason.trim() || `توقف و جایگزینی با داروی ${formatMedName(activityMed)} طبق نسخه پزشک`;
+      }
+
+      const res = await fetch("/api/admin/medications/activity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        showToast(`نسخه و زمان‌بندی «${formatMedName(activityMed)}» با موفقیت ثبت شد.`);
+        setIsActivityModalOpen(false);
+        setActivityMed(null);
+        fetchMeds();
+      } else {
+        const d = await res.json();
+        alert(d.error || "خطا در ثبت فعالیت دارو");
+      }
+    } catch (err) {
+      console.error("Activity save error:", err);
+      alert("خطا در ارتباط با سرور");
+    } finally {
+      setActivitySubmitting(false);
     }
   }
 
@@ -818,7 +851,7 @@ export default function AdminMedicationsPage() {
             <span>لیست داروها و تاریخچه</span>
           </h1>
           <p className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">
-            شماره جعبه در منزل، دستور پزشک، زمان‌بندی هوشمند و گزارش تفصیلی تغییرات
+            کد یکتا، ثبت نسخه و زمان‌بندی (فعالیت دارو)، شارژ موجودی و گزارش تفصیلی تغییرات
           </p>
         </div>
 
@@ -921,7 +954,7 @@ export default function AdminMedicationsPage() {
             placeholder={
               activeTab === "history"
                 ? "جستجو در متن گزارش، نام دارو، پزشک یا علت..."
-                : "جستجوی نام دارو، جعبه (مثلاً ۱ یا ۸)، نام پزشک یا علت توقف..."
+                : "جستجوی نام دارو، کد دارو (مثلاً ۱ یا ۸)، نام پزشک یا علت توقف..."
             }
             className="w-full pl-4 pr-10 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-care-500 shadow-xs"
           />
@@ -1035,6 +1068,7 @@ export default function AdminMedicationsPage() {
               {filteredMeds.map((med) => {
                 const isLowStock = med.isActive && med.stockCount <= med.lowStockThreshold;
                 const isDiscontinued = !med.isActive;
+                const activePrescription = med.prescriptions?.find((p) => p.isActive) || med.prescriptions?.[0];
 
                 return (
                   <div
@@ -1048,12 +1082,12 @@ export default function AdminMedicationsPage() {
                     }`}
                   >
                     <div>
-                      {/* Card Top: Name + Box Number + Action buttons */}
+                      {/* Card Top: Code + Name + Action buttons */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           {med.boxNumber && (
-                            <span className="px-2.5 py-1 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-black text-xs font-mono">
-                              جعبه {toPersianDigits(med.boxNumber)}
+                            <span className="px-2.5 py-1 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-black text-xs font-mono shadow-xs">
+                              کد {toPersianDigits(med.boxNumber)}
                             </span>
                           )}
                           <h2 className="text-sm font-black text-slate-900 dark:text-slate-100">{med.nameFa}</h2>
@@ -1065,7 +1099,7 @@ export default function AdminMedicationsPage() {
                         </div>
 
                         {userRole === "ADMIN" && (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             {med.isActive && (
                               <button
                                 onClick={() => openStopModal(med)}
@@ -1073,13 +1107,13 @@ export default function AdminMedicationsPage() {
                                 title="توقف مصرف این دارو"
                               >
                                 <Ban className="w-3.5 h-3.5" />
-                                <span>توقف مصرف</span>
+                                <span>توقف</span>
                               </button>
                             )}
                             <button
                               onClick={() => openEditModal(med)}
                               className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition"
-                              title="ویرایش اطلاعات و زمان‌بندی دارو"
+                              title="ویرایش مشخصات ثابت دارو"
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
@@ -1087,18 +1121,26 @@ export default function AdminMedicationsPage() {
                         )}
                       </div>
 
-                      {/* Instructions */}
-                      {med.instructions && (
-                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-2.5 leading-relaxed bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-700">
-                          {med.instructions}
-                        </p>
+                      {/* Fixed specific notes (توضیحات اختصاصی دارو) */}
+                      {med.doctorOrderNotes && (
+                        <div className="mt-2.5 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300">
+                          <span className="font-black block text-[11px] mb-0.5 text-slate-900 dark:text-slate-100">توضیحات اختصاصی دارو:</span>
+                          <p className="leading-relaxed">{med.doctorOrderNotes}</p>
+                        </div>
                       )}
 
-                      {/* Doctor Prescription Notes */}
-                      {med.doctorOrderNotes && (
+                      {/* Active Prescription Doctor & Notes */}
+                      {(activePrescription?.notes || activePrescription?.doctorName) && (
                         <div className="mt-2 p-2.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-xs text-emerald-900 dark:text-emerald-300">
-                          <span className="font-black block text-[11px] mb-0.5">توضیحات نسخه پزشک:</span>
-                          <p className="leading-relaxed">{med.doctorOrderNotes}</p>
+                          <div className="flex items-center justify-between font-black text-[11px] mb-0.5">
+                            <span>نسخه پزشک:</span>
+                            {activePrescription.doctorName && (
+                              <span className="text-emerald-800 dark:text-emerald-400">پزشک: {activePrescription.doctorName}</span>
+                            )}
+                          </div>
+                          {activePrescription.notes && (
+                            <p className="leading-relaxed">{activePrescription.notes}</p>
+                          )}
                         </div>
                       )}
 
@@ -1133,7 +1175,7 @@ export default function AdminMedicationsPage() {
                         {med.timeConstraints && (
                           <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-[10px] font-bold">
                             <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                            <span>شرط زمانی: {med.timeConstraints}</span>
+                            <span>تداخل دارویی: {med.timeConstraints}</span>
                           </div>
                         )}
 
@@ -1214,7 +1256,7 @@ export default function AdminMedicationsPage() {
                     افزودن موجودی (فرم خرید دارو)
                   </h3>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {restockMed.nameFa} {restockMed.boxNumber ? `(جعبه ${restockMed.boxNumber})` : ""}
+                    {formatMedName(restockMed)}
                   </p>
                 </div>
               </div>
@@ -1488,10 +1530,10 @@ export default function AdminMedicationsPage() {
         </div>
       )}
 
-      {/* Unified Add / Edit Medication Modal */}
+      {/* Form 1: Modal معرفی / ثبت داروی جدید */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg flex flex-col rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
               <div className="flex items-center gap-2">
@@ -1500,12 +1542,10 @@ export default function AdminMedicationsPage() {
                 </div>
                 <div>
                   <h2 className="text-base font-black text-slate-900 dark:text-slate-100">
-                    {editingMed ? "ویرایش مشخصات و زمان‌بندی دارو" : "ثبت داروی جدید و پروتکل مصرف"}
+                    {editingMed ? "ویرایش مشخصات دارو" : "ثبت داروی جدید"}
                   </h2>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {editingMed
-                      ? "اصلاح نام، جعبه، دستورات، موجودی یا تغییر ساعت و تکرار مصرف"
-                      : "ثبت دارو، نسخه پزشک، زمان‌بندی تسک پرستار و لغو داروهای قبلی"}
+                    معرفی مشخصات دارو در سیستم (پروتکل مصرف در فرم ثبت فعالیت دارو تعیین می‌شود)
                   </p>
                 </div>
               </div>
@@ -1518,703 +1558,61 @@ export default function AdminMedicationsPage() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
-              {/* Section 1: Core Medication Info */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5 pb-1 border-b border-slate-100 dark:border-slate-800">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                  <span>۱. اطلاعات پایه دارو و انبار</span>
-                </h3>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    نام کامل دارو (فارسی و دوز) *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formNameFa}
-                    onChange={(e) => setFormNameFa(e.target.value)}
-                    placeholder="مثلاً آپیکسابان 5 میلی‌گرم (Eliquis)"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-2.5">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      شماره جعبه در منزل
-                    </label>
-                    <input
-                      type="text"
-                      value={formBoxNumber}
-                      onChange={(e) => setFormBoxNumber(e.target.value)}
-                      placeholder="مثلاً 8"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none text-center"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      موجودی فعلی (عدد)
-                    </label>
-                    <input
-                      type="number"
-                      value={formStockCount}
-                      onChange={(e) => setFormStockCount(e.target.value)}
-                      placeholder="۰"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none text-center font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      آستانه هشدار کسری
-                    </label>
-                    <input
-                      type="number"
-                      value={formLowStockThreshold}
-                      onChange={(e) => setFormLowStockThreshold(e.target.value)}
-                      placeholder="15"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none text-center font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    دستور مصرف بالینی (روی جعبه)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={formInstructions}
-                    onChange={(e) => setFormInstructions(e.target.value)}
-                    placeholder="روزی ۲ بار - همراه با یک لیوان آب کامل..."
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    شرط زمانی یا تداخل دارویی (اختیاری)
-                  </label>
-                  <input
-                    type="text"
-                    value={formTimeConstraints}
-                    onChange={(e) => setFormTimeConstraints(e.target.value)}
-                    placeholder="فاصله ۲ ساعته با آنتی‌اسید / مصرف دقیقاً رأس ساعت"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
-                  />
-                </div>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  نام کامل دارو و دوز: <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formNameFa}
+                  onChange={(e) => setFormNameFa(e.target.value)}
+                  placeholder="مثلاً متفورمین ۵۰۰ یا آپیکسابان ۲.۵"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  autoFocus
+                />
               </div>
 
-              {/* Section 2: Doctor & Prescription */}
-              <div className="space-y-3 pt-2">
-                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5 pb-1 border-b border-slate-100 dark:border-slate-800">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                  <span>۲. دستور و نسخه پزشک معالج</span>
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      نام پزشک تجویزکننده
-                    </label>
-                    <input
-                      type="text"
-                      value={formDoctorName}
-                      onChange={(e) => setFormDoctorName(e.target.value)}
-                      placeholder="نام پزشک تجویزکننده..."
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      توضیحات اختصاصی نسخه / طرح درمان
-                    </label>
-                    <input
-                      type="text"
-                      value={formDoctorOrderNotes}
-                      onChange={(e) => setFormDoctorOrderNotes(e.target.value)}
-                      placeholder="توضیحات طرح درمان یا نکات نسخه..."
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
-                    />
-                  </div>
-                </div>
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  آستانه هشدار کسری موجودی:
+                </label>
+                <input
+                  type="number"
+                  value={formLowStockThreshold}
+                  onChange={(e) => setFormLowStockThreshold(e.target.value)}
+                  placeholder="15"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">حداقل موجودی مجاز در منزل جهت نمایش هشدار کمبود موجودی</p>
               </div>
 
-              {/* Section 3: Schedule Settings (Both Create and Edit Mode) */}
-              <div className="space-y-3 pt-2">
-                <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formCreateSchedule}
-                        onChange={(e) => setFormCreateSchedule(e.target.checked)}
-                        className="w-4 h-4 rounded text-care-600 focus:ring-care-500"
-                      />
-                      <span className="text-xs font-black text-indigo-950 dark:text-indigo-200">
-                        {editingMed
-                          ? "تنظیم و مدیریت نوبت‌های مصرف این دارو (کارتابل پرستار)"
-                          : "تنظیم و ایجاد نوبت‌های مصرف این دارو در کارتابل پرستار"}
-                      </span>
-                    </label>
-
-                    {formCreateSchedule && (
-                      <button
-                        type="button"
-                        onClick={addScheduleItem}
-                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition self-start sm:self-auto"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>افزودن نوبت مصرف جدید</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {formCreateSchedule && (
-                    <div className="pt-2 border-t border-indigo-200/60 dark:border-indigo-900/50 space-y-3">
-                      {formMedSchedules.length === 0 ? (
-                        <div className="text-center py-6 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-indigo-200 dark:border-indigo-800 space-y-2">
-                          <p>هیچ نوبت زمانی برای این دارو مشخص نشده است.</p>
-                          <button
-                            type="button"
-                            onClick={addScheduleItem}
-                            className="px-3 py-1 rounded-xl bg-indigo-600 text-white text-xs font-bold"
-                          >
-                            + افزودن نوبت اول
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {formMedSchedules.map((s, sIdx) => (
-                            <div
-                              key={s.id || `sched-${sIdx}`}
-                              className="p-3.5 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-white/95 dark:bg-slate-900 shadow-xs space-y-3"
-                            >
-                              {/* Header of the schedule card */}
-                              <div className="flex items-center justify-between pb-2 border-b border-indigo-100 dark:border-indigo-900/60">
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-900 dark:text-indigo-200 text-xs font-black">
-                                    نوبت {toPersianDigits(sIdx + 1)}
-                                  </span>
-                                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                                    {s.timingMode === "MEAL_RELATIVE"
-                                      ? `نسبت به وعده غذایی (${toPersianDigits(s.targetTime)})`
-                                      : `ساعت ${toPersianDigits(s.targetTime)}`}
-                                  </span>
-                                </div>
-                                {formMedSchedules.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeScheduleItem(sIdx)}
-                                    className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 p-1 rounded-lg transition text-xs flex items-center gap-1 font-bold"
-                                    title="حذف این نوبت"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    <span>حذف نوبت</span>
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Timing Mode Switcher */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300">
-                                    نحوه زمان‌بندی:
-                                  </label>
-                                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                                    <button
-                                      type="button"
-                                      onClick={() => updateScheduleItem(sIdx, { timingMode: "FIXED" })}
-                                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                                        s.timingMode === "FIXED"
-                                          ? "bg-indigo-600 text-white shadow-xs"
-                                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                                      }`}
-                                    >
-                                      ساعت مشخص
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => updateScheduleItem(sIdx, { timingMode: "MEAL_RELATIVE" })}
-                                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                                        s.timingMode === "MEAL_RELATIVE"
-                                          ? "bg-indigo-600 text-white shadow-xs"
-                                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                                      }`}
-                                    >
-                                      بر اساس وعده غذایی
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* MEAL_RELATIVE Mode */}
-                                {s.timingMode === "MEAL_RELATIVE" ? (
-                                  <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800 space-y-2.5">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                      <div>
-                                        <label className="block text-[11px] font-bold text-emerald-950 dark:text-emerald-200 mb-1">
-                                          وعده غذایی مبنا:
-                                        </label>
-                                        <select
-                                          value={s.mealSlot}
-                                          onChange={(e) => updateScheduleItem(sIdx, { mealSlot: e.target.value })}
-                                          className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100"
-                                        >
-                                          {(mealSlots.length > 0 ? mealSlots : DEFAULT_MEAL_SLOTS).map((ms) => (
-                                            <option key={ms.name} value={ms.name}>
-                                              {ms.labelFa} (پایه: {toPersianDigits(ms.defaultTime)})
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-bold text-emerald-950 dark:text-emerald-200 mb-1">
-                                          نسبت با وعده:
-                                        </label>
-                                        <div className="grid grid-cols-3 gap-1">
-                                          {[
-                                            { id: "AFTER", label: "بعد از" },
-                                            { id: "WITH", label: "همزمان با" },
-                                            { id: "BEFORE", label: "قبل از" },
-                                          ].map((r) => (
-                                            <button
-                                              key={r.id}
-                                              type="button"
-                                              onClick={() => updateScheduleItem(sIdx, { mealOffsetRelation: r.id as any })}
-                                              className={`py-1.5 rounded-xl text-[11px] font-bold border transition ${
-                                                s.mealOffsetRelation === r.id
-                                                  ? "bg-care-700 text-white border-care-700 shadow-xs"
-                                                  : "bg-white dark:bg-slate-800 border-emerald-200 dark:border-emerald-800 text-slate-700 dark:text-slate-300"
-                                              }`}
-                                            >
-                                              {r.label}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {s.mealOffsetRelation !== "WITH" && (
-                                      <div className="flex flex-wrap items-center gap-2 pt-1">
-                                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                          فاصله زمانی:
-                                        </span>
-                                        <select
-                                          value={s.mealOffsetHours}
-                                          onChange={(e) => updateScheduleItem(sIdx, { mealOffsetHours: Number(e.target.value) })}
-                                          className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                                        >
-                                          {[0, 1, 2, 3, 4].map((h) => (
-                                            <option key={h} value={h}>
-                                              {toPersianDigits(h)} ساعت
-                                            </option>
-                                          ))}
-                                        </select>
-                                        <select
-                                          value={s.mealOffsetMinutes}
-                                          onChange={(e) => updateScheduleItem(sIdx, { mealOffsetMinutes: Number(e.target.value) })}
-                                          className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                                        >
-                                          {[0, 15, 30, 45].map((m) => (
-                                            <option key={m} value={m}>
-                                              {toPersianDigits(m)} دقیقه
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                    )}
-
-                                    <div className="p-2 rounded-lg bg-emerald-100/70 dark:bg-emerald-900/40 text-emerald-950 dark:text-emerald-200 text-xs font-bold flex items-center justify-between">
-                                      <span>ساعت محاسبه‌شده این نوبت:</span>
-                                      <span className="font-mono font-black text-sm">{toPersianDigits(s.targetTime)}</span>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  /* FIXED Mode */
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
-                                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                        ساعت مصرف: <span className="text-rose-500">*</span>
-                                      </label>
-                                      <input
-                                        type="time"
-                                        value={s.targetTime}
-                                        onChange={(e) => updateScheduleItem(sIdx, { targetTime: e.target.value })}
-                                        className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-xs font-mono text-center"
-                                      />
-                                      <div className="flex flex-wrap gap-1 mt-1.5">
-                                        {["08:00", "12:00", "16:00", "20:00", "23:00"].map((t) => (
-                                          <button
-                                            key={t}
-                                            type="button"
-                                            onClick={() => updateScheduleItem(sIdx, { targetTime: t })}
-                                            className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition ${
-                                              s.targetTime === t
-                                                ? "bg-indigo-600 text-white"
-                                                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
-                                            }`}
-                                          >
-                                            {toPersianDigits(t)}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                        رابطه با غذا (اختیاری):
-                                      </label>
-                                      <select
-                                        value={s.mealRelation}
-                                        onChange={(e) => updateScheduleItem(sIdx, { mealRelation: e.target.value })}
-                                        className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-xs"
-                                      >
-                                        <option value="NONE">بدون قید غذا</option>
-                                        <option value="FASTING">ناشتا (صبح زود)</option>
-                                        <option value="BEFORE_MEAL">قبل از غذا</option>
-                                        <option value="WITH_MEAL">همراه غذا</option>
-                                        <option value="AFTER_MEAL">بعد از غذا</option>
-                                        <option value="BEDTIME">قبل از خواب</option>
-                                      </select>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Repetition / Interval */}
-                              <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-                                <label className="block text-xs font-black text-slate-700 dark:text-slate-300">
-                                  فاصله تکرار:
-                                </label>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                                  {[
-                                    { id: "DAYS_1", label: "روزانه (۲۴س)" },
-                                    { id: "HOURS_8", label: "هر ۸ ساعت" },
-                                    { id: "HOURS_12", label: "هر ۱۲ ساعت" },
-                                    { id: "HOURS_6", label: "هر ۶ ساعت" },
-                                    { id: "DAYS_2", label: "هر ۲ روز" },
-                                    { id: "WEEKS_1", label: "هفتگی" },
-                                    { id: "ONCE", label: "فقط یک‌بار" },
-                                    { id: "CUSTOM", label: "دلخواه..." },
-                                  ].map((p) => (
-                                    <button
-                                      key={p.id}
-                                      type="button"
-                                      onClick={() => updateScheduleItem(sIdx, { intervalPreset: p.id })}
-                                      className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition text-center ${
-                                        s.intervalPreset === p.id
-                                          ? "bg-indigo-900 text-white border-indigo-900 shadow-xs"
-                                          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50"
-                                      }`}
-                                    >
-                                      {p.label}
-                                    </button>
-                                  ))}
-                                </div>
-
-                                {s.intervalPreset === "CUSTOM" && (
-                                  <div className="mt-2 flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">هر</span>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      value={s.customValue}
-                                      onChange={(e) => updateScheduleItem(sIdx, { customValue: Number(e.target.value) })}
-                                      className="w-16 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-center font-mono"
-                                    />
-                                    <select
-                                      value={s.customUnit}
-                                      onChange={(e) => updateScheduleItem(sIdx, { customUnit: e.target.value as any })}
-                                      className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800"
-                                    >
-                                      <option value="HOURS">ساعت</option>
-                                      <option value="DAYS">روز</option>
-                                      <option value="WEEKS">هفته</option>
-                                    </select>
-                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">یک‌بار</span>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Days of Week */}
-                              <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                  <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-                                    روزهای تکرار در هفته:
-                                  </label>
-                                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                    <button
-                                      type="button"
-                                      onClick={() => updateScheduleItem(sIdx, { daysOfWeekMode: "ALL" })}
-                                      className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
-                                        s.daysOfWeekMode === "ALL"
-                                          ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs"
-                                          : "text-slate-500"
-                                      }`}
-                                    >
-                                      همه روزها
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => updateScheduleItem(sIdx, { daysOfWeekMode: "CUSTOM" })}
-                                      className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
-                                        s.daysOfWeekMode === "CUSTOM"
-                                          ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs"
-                                          : "text-slate-500"
-                                      }`}
-                                    >
-                                      روزهای مشخص
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {s.daysOfWeekMode === "CUSTOM" && (
-                                  <div className="flex flex-wrap gap-1 pt-1">
-                                    {[
-                                      { id: "شنبه", label: "شنبه" },
-                                      { id: "یکشنبه", label: "۱‌شنبه" },
-                                      { id: "دوشنبه", label: "۲‌شنبه" },
-                                      { id: "سه‌شنبه", label: "۳‌شنبه" },
-                                      { id: "چهارشنبه", label: "۴‌شنبه" },
-                                      { id: "پنج‌شنبه", label: "۵‌شنبه" },
-                                      { id: "جمعه", label: "جمعه" },
-                                    ].map((day) => {
-                                      const isSelected = s.selectedDays.includes(day.id);
-                                      return (
-                                        <button
-                                          type="button"
-                                          key={day.id}
-                                          onClick={() => {
-                                            const nextDays = isSelected
-                                              ? s.selectedDays.filter((d) => d !== day.id)
-                                              : [...s.selectedDays, day.id];
-                                            updateScheduleItem(sIdx, { selectedDays: nextDays });
-                                          }}
-                                          className={`flex-1 min-w-[38px] py-1 rounded-lg text-[11px] font-bold border transition ${
-                                            isSelected
-                                              ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
-                                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50"
-                                          }`}
-                                        >
-                                          {day.label}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Start Date & End Date */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1.5 border-t border-slate-100 dark:border-slate-800">
-                                {/* Start Date */}
-                                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
-                                  <div className="flex items-center justify-between">
-                                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                      تاریخ شروع:
-                                    </label>
-                                    <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                      <button
-                                        type="button"
-                                        onClick={() => updateScheduleItem(sIdx, { startDateMode: "PRESET" })}
-                                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                          s.startDateMode === "PRESET"
-                                            ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
-                                            : "text-slate-500"
-                                        }`}
-                                      >
-                                        سریع
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => updateScheduleItem(sIdx, { startDateMode: "CUSTOM" })}
-                                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                          s.startDateMode === "CUSTOM"
-                                            ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
-                                            : "text-slate-500"
-                                        }`}
-                                      >
-                                        دلخواه
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {s.startDateMode === "PRESET" ? (
-                                    <div className="flex items-center gap-1">
-                                      {[
-                                        { offset: 0, label: "از امروز" },
-                                        { offset: 1, label: "از فردا" },
-                                        { offset: 2, label: "از پس‌فردا" },
-                                      ].map((d) => (
-                                        <button
-                                          key={d.offset}
-                                          type="button"
-                                          onClick={() => updateScheduleItem(sIdx, { startDateOffset: d.offset })}
-                                          className={`flex-1 py-1 rounded-lg text-xs font-bold border transition ${
-                                            s.startDateOffset === d.offset
-                                              ? "bg-care-700 text-white border-care-700"
-                                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
-                                          }`}
-                                        >
-                                          {d.label}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <input
-                                      type="date"
-                                      value={s.customStartDate}
-                                      onChange={(e) => updateScheduleItem(sIdx, { customStartDate: e.target.value })}
-                                      className="w-full px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold"
-                                    />
-                                  )}
-                                </div>
-
-                                {/* End Date */}
-                                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
-                                  <label className="flex items-center gap-1.5 cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={s.hasEndDate}
-                                      onChange={(e) => updateScheduleItem(sIdx, { hasEndDate: e.target.checked })}
-                                      className="w-3.5 h-3.5 rounded text-care-600 focus:ring-care-500"
-                                    />
-                                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                      پایان دوره مصرف دارد
-                                    </span>
-                                  </label>
-
-                                  {s.hasEndDate && (
-                                    <div className="flex items-center gap-1.5 pt-1">
-                                      <input
-                                        type="date"
-                                        value={s.customEndDate}
-                                        onChange={(e) => updateScheduleItem(sIdx, { customEndDate: e.target.value })}
-                                        className="flex-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold"
-                                      />
-                                      <input
-                                        type="time"
-                                        value={s.customEndTime}
-                                        onChange={(e) => updateScheduleItem(sIdx, { customEndTime: e.target.value })}
-                                        className="w-20 px-1.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-center"
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Requires Note checkbox */}
-                              <label className="flex items-center gap-2 cursor-pointer pt-1 border-t border-slate-100 dark:border-slate-800">
-                                <input
-                                  type="checkbox"
-                                  checked={s.requiresNote}
-                                  onChange={(e) => updateScheduleItem(sIdx, { requiresNote: e.target.checked })}
-                                  className="w-3.5 h-3.5 rounded text-care-600 focus:ring-care-500"
-                                />
-                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                  پرستار هنگام ثبت این تسک باید یادداشت / گزارش وضعیت وارد کند
-                                </span>
-                              </label>
-
-                              {/* Live Recurrence sentence */}
-                              <div className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5 pt-1 bg-indigo-50/50 dark:bg-indigo-950/20 p-2 rounded-xl">
-                                <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                                <span>خلاصه نوبت: {getSchedSentence(s, mealSlots)}</span>
-                              </div>
-                            </div>
-                          ))}
-
-                          <button
-                            type="button"
-                            onClick={addScheduleItem}
-                            className="w-full py-2.5 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/60 dark:bg-indigo-950/40 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/50 text-indigo-900 dark:text-indigo-200 text-xs font-bold flex items-center justify-center gap-2 transition"
-                          >
-                            <Plus className="w-4 h-4" />
-                            <span>افزودن نوبت مصرف دیگر برای این دارو</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  تداخل دارویی (اختیاری):
+                </label>
+                <input
+                  type="text"
+                  value={formDrugInteractions}
+                  onChange={(e) => setFormDrugInteractions(e.target.value)}
+                  placeholder="مثلاً عدم مصرف همزمان با آنتی‌اسید یا کلسیم..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
+                />
               </div>
 
-              {/* Section 4: Discontinue Previous Medications (Only for Create) */}
-              {!editingMed && eligibleActiveMeds.length > 0 && (
-                <div className="space-y-3 pt-2">
-                  <div className="p-3.5 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 space-y-3">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formDiscontinuePrevious}
-                        onChange={(e) => setFormDiscontinuePrevious(e.target.checked)}
-                        className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
-                      />
-                      <span className="text-xs font-black text-rose-950 dark:text-rose-200">
-                        این نسخه داروی دیگری را لغو / متوقف می‌کند (جایگزینی دارو)
-                      </span>
-                    </label>
-
-                    {formDiscontinuePrevious && (
-                      <div className="pt-2 border-t border-rose-200/60 dark:border-rose-900/50 space-y-3">
-                        <label className="block text-[11px] font-bold text-rose-900 dark:text-rose-300">
-                          داروهایی که باید فوراً متوقف شوند را انتخاب کنید:
-                        </label>
-                        <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
-                          {eligibleActiveMeds.map((m) => {
-                            const isSelected = formSelectedDiscontinueIds.includes(m.id);
-                            return (
-                              <label
-                                key={m.id}
-                                className={`flex items-center justify-between p-2 rounded-xl border text-xs font-bold cursor-pointer transition ${
-                                  isSelected
-                                    ? "bg-rose-100 dark:bg-rose-900/40 border-rose-300 dark:border-rose-700 text-rose-950 dark:text-rose-200"
-                                    : "bg-white dark:bg-slate-800 border-rose-200 dark:border-rose-900/40 text-slate-700 dark:text-slate-300 hover:bg-rose-50/50"
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setFormSelectedDiscontinueIds((prev) => [...prev, m.id]);
-                                      } else {
-                                        setFormSelectedDiscontinueIds((prev) => prev.filter((id) => id !== m.id));
-                                      }
-                                    }}
-                                    className="w-3.5 h-3.5 rounded text-rose-600"
-                                  />
-                                  <span>{m.nameFa}</span>
-                                </div>
-                                {m.boxNumber && (
-                                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                                    جعبه {toPersianDigits(m.boxNumber)}
-                                  </span>
-                                )}
-                              </label>
-                            );
-                          })}
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-bold text-rose-900 dark:text-rose-300 mb-1">
-                            علت بالینی قطع دارو:
-                          </label>
-                          <input
-                            type="text"
-                            value={formDiscontinueReason}
-                            onChange={(e) => setFormDiscontinueReason(e.target.value)}
-                            placeholder="علت بالینی قطع یا جایگزینی دارو..."
-                            className="w-full px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  توضیحات اختصاصی دارو:
+                </label>
+                <textarea
+                  rows={2}
+                  value={formSpecificNotes}
+                  onChange={(e) => setFormSpecificNotes(e.target.value)}
+                  placeholder="توضیحات کلی و ثابت درباره این دارو..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
+                />
+              </div>
             </div>
 
             {/* Modal Footer */}
@@ -2232,7 +1630,514 @@ export default function AdminMedicationsPage() {
                 onClick={handleSaveMed}
                 className="px-5 py-2.5 rounded-xl bg-care-600 hover:bg-care-700 text-white font-black text-xs shadow-lg shadow-care-600/30 transition active:scale-95 disabled:opacity-50"
               >
-                {submitting ? "در حال ثبت..." : editingMed ? "ذخیره تغییرات" : "ثبت دارو و تایید دستور"}
+                {submitting ? "در حال ثبت..." : editingMed ? "ذخیره تغییرات" : "ثبت دارو"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Form 2: Modal ثبت فعالیت دارو (نسخه و زمان‌بندی) */}
+      {isActivityModalOpen && activityMed && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-indigo-50/70 dark:bg-indigo-950/40 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300">
+                  <CalendarClock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-900 dark:text-slate-100">
+                    ثبت فعالیت دارو (نسخه و زمان‌بندی)
+                  </h2>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {formatMedName(activityMed)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsActivityModalOpen(false);
+                  setActivityMed(null);
+                }}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Doctor and Date */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
+                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5 pb-1 border-b border-slate-200 dark:border-slate-700">
+                  <span className="w-2 h-2 rounded-full bg-indigo-600" />
+                  <span>۱. اطلاعات نسخه پزشک معالج</span>
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      نام پزشک تجویزکننده:
+                    </label>
+                    <input
+                      type="text"
+                      value={activityDoctorName}
+                      onChange={(e) => setActivityDoctorName(e.target.value)}
+                      placeholder="نام پزشک معالج..."
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      تاریخ تجویز نسخه:
+                    </label>
+                    <input
+                      type="date"
+                      value={activityPrescribedAt}
+                      onChange={(e) => setActivityPrescribedAt(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    توضیحات و نکات نسخه / دستور مصرف بالینی:
+                  </label>
+                  <input
+                    type="text"
+                    value={activityNotes}
+                    onChange={(e) => setActivityNotes(e.target.value)}
+                    placeholder="مثلاً مصرف بعد از غذا، پیگیری آزمایش پس از ۲ هفته..."
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={activityReplacePrevious}
+                    onChange={(e) => setActivityReplacePrevious(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    نسخه‌ها و نوبت‌های قبلی این دارو غیرفعال و این نسخه جایگزین آنها شود
+                  </span>
+                </label>
+              </div>
+
+              {/* Schedules and timing conditions (شرط زمانی و زمان‌بندی مصرف) */}
+              <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 space-y-3">
+                <div className="flex items-center justify-between pb-1 border-b border-indigo-200/60 dark:border-indigo-900/50">
+                  <h3 className="text-xs font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-indigo-600" />
+                    <span>۲. زمان‌بندی و شرط زمانی مصرف در کارتابل پرستار</span>
+                  </h3>
+
+                  <button
+                    type="button"
+                    onClick={addActivityScheduleItem}
+                    className="px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>افزودن نوبت</span>
+                  </button>
+                </div>
+
+                {activityMedSchedules.length === 0 ? (
+                  <div className="text-center py-6 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-indigo-200 dark:border-indigo-800 space-y-2">
+                    <p>هیچ نوبت زمانی برای این دارو مشخص نشده است.</p>
+                    <button
+                      type="button"
+                      onClick={addActivityScheduleItem}
+                      className="px-3 py-1 rounded-xl bg-indigo-600 text-white text-xs font-bold"
+                    >
+                      + افزودن نوبت اول
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activityMedSchedules.map((s, sIdx) => (
+                      <div
+                        key={s.id || `act-sched-${sIdx}`}
+                        className="p-3.5 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-white/95 dark:bg-slate-900 shadow-xs space-y-3"
+                      >
+                        {/* Header of the schedule card */}
+                        <div className="flex items-center justify-between pb-2 border-b border-indigo-100 dark:border-indigo-900/60">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-900 dark:text-indigo-200 text-xs font-black">
+                              نوبت {toPersianDigits(sIdx + 1)}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                              {s.timingMode === "MEAL_RELATIVE"
+                                ? `نسبت به وعده غذایی (${toPersianDigits(s.targetTime)})`
+                                : `ساعت ${toPersianDigits(s.targetTime)}`}
+                            </span>
+                          </div>
+                          {activityMedSchedules.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeActivityScheduleItem(sIdx)}
+                              className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 p-1 rounded-lg transition text-xs flex items-center gap-1 font-bold"
+                              title="حذف این نوبت"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>حذف نوبت</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Timing Mode Switcher */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-xs font-black text-slate-700 dark:text-slate-300">
+                              نحوه زمان‌بندی و شرط زمانی:
+                            </label>
+                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                              <button
+                                type="button"
+                                onClick={() => updateActivityScheduleItem(sIdx, { timingMode: "FIXED" })}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                  s.timingMode === "FIXED"
+                                    ? "bg-indigo-600 text-white shadow-xs"
+                                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                                }`}
+                              >
+                                ساعت مشخص
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateActivityScheduleItem(sIdx, { timingMode: "MEAL_RELATIVE" })}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                  s.timingMode === "MEAL_RELATIVE"
+                                    ? "bg-indigo-600 text-white shadow-xs"
+                                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                                }`}
+                              >
+                                بر اساس وعده غذایی
+                              </button>
+                            </div>
+                          </div>
+
+                          {s.timingMode === "MEAL_RELATIVE" ? (
+                            <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800 space-y-2.5">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-[11px] font-bold text-emerald-950 dark:text-emerald-200 mb-1">
+                                    وعده غذایی مبنا:
+                                  </label>
+                                  <select
+                                    value={s.mealSlot}
+                                    onChange={(e) => updateActivityScheduleItem(sIdx, { mealSlot: e.target.value })}
+                                    className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100"
+                                  >
+                                    {(mealSlots.length > 0 ? mealSlots : DEFAULT_MEAL_SLOTS).map((ms) => (
+                                      <option key={ms.name} value={ms.name}>
+                                        {ms.labelFa} (پایه: {toPersianDigits(ms.defaultTime)})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="block text-[11px] font-bold text-emerald-950 dark:text-emerald-200 mb-1">
+                                    شرط زمانی نسبت با وعده:
+                                  </label>
+                                  <div className="grid grid-cols-3 gap-1">
+                                    {[
+                                      { id: "AFTER", label: "بعد از" },
+                                      { id: "WITH", label: "همراه با" },
+                                      { id: "BEFORE", label: "قبل از" },
+                                    ].map((r) => (
+                                      <button
+                                        key={r.id}
+                                        type="button"
+                                        onClick={() => updateActivityScheduleItem(sIdx, { mealOffsetRelation: r.id as any })}
+                                        className={`py-1.5 rounded-xl text-[11px] font-bold border transition ${
+                                          s.mealOffsetRelation === r.id
+                                            ? "bg-care-700 text-white border-care-700 shadow-xs"
+                                            : "bg-white dark:bg-slate-800 border-emerald-200 dark:border-emerald-800 text-slate-700 dark:text-slate-300"
+                                        }`}
+                                      >
+                                        {r.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {s.mealOffsetRelation !== "WITH" && (
+                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                    فاصله زمانی:
+                                  </span>
+                                  <select
+                                    value={s.mealOffsetHours}
+                                    onChange={(e) => updateActivityScheduleItem(sIdx, { mealOffsetHours: Number(e.target.value) })}
+                                    className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                                  >
+                                    {[0, 1, 2, 3, 4].map((h) => (
+                                      <option key={h} value={h}>
+                                        {toPersianDigits(h)} ساعت
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    value={s.mealOffsetMinutes}
+                                    onChange={(e) => updateActivityScheduleItem(sIdx, { mealOffsetMinutes: Number(e.target.value) })}
+                                    className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                                  >
+                                    {[0, 15, 30, 45].map((m) => (
+                                      <option key={m} value={m}>
+                                        {toPersianDigits(m)} دقیقه
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+
+                              <div className="p-2 rounded-lg bg-emerald-100/70 dark:bg-emerald-900/40 text-emerald-950 dark:text-emerald-200 text-xs font-bold flex items-center justify-between">
+                                <span>ساعت محاسبه‌شده این نوبت:</span>
+                                <span className="font-mono font-black text-sm">{toPersianDigits(s.targetTime)}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  ساعت مصرف: <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                  type="time"
+                                  value={s.targetTime}
+                                  onChange={(e) => updateActivityScheduleItem(sIdx, { targetTime: e.target.value })}
+                                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-xs font-mono text-center"
+                                />
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {["08:00", "12:00", "16:00", "20:00", "23:00"].map((t) => (
+                                    <button
+                                      key={t}
+                                      type="button"
+                                      onClick={() => updateActivityScheduleItem(sIdx, { targetTime: t })}
+                                      className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition ${
+                                        s.targetTime === t
+                                          ? "bg-indigo-600 text-white"
+                                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                                      }`}
+                                    >
+                                      {toPersianDigits(t)}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  شرط زمانی نسبت به غذا (اختیاری):
+                                </label>
+                                <select
+                                  value={s.mealRelation}
+                                  onChange={(e) => updateActivityScheduleItem(sIdx, { mealRelation: e.target.value })}
+                                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-xs"
+                                >
+                                  <option value="NONE">بدون قید غذا</option>
+                                  <option value="FASTING">ناشتا (صبح زود)</option>
+                                  <option value="BEFORE_MEAL">قبل از غذا</option>
+                                  <option value="WITH_MEAL">همراه غذا</option>
+                                  <option value="AFTER_MEAL">بعد از غذا</option>
+                                  <option value="BEDTIME">قبل از خواب</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Repetition / Interval */}
+                        <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                          <label className="block text-xs font-black text-slate-700 dark:text-slate-300">
+                            فاصله تکرار:
+                          </label>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                            {[
+                              { id: "DAYS_1", label: "روزانه (۲۴س)" },
+                              { id: "HOURS_8", label: "هر ۸ ساعت" },
+                              { id: "HOURS_12", label: "هر ۱۲ ساعت" },
+                              { id: "HOURS_6", label: "هر ۶ ساعت" },
+                              { id: "DAYS_2", label: "هر ۲ روز" },
+                              { id: "WEEKS_1", label: "هفتگی" },
+                              { id: "ONCE", label: "فقط یک‌بار" },
+                              { id: "CUSTOM", label: "دلخواه..." },
+                            ].map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => updateActivityScheduleItem(sIdx, { intervalPreset: p.id })}
+                                className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition ${
+                                  s.intervalPreset === p.id
+                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                                    : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {s.intervalPreset === "CUSTOM" && (
+                            <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 mt-1">
+                              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">هر</span>
+                              <input
+                                type="number"
+                                min="1"
+                                value={s.customValue}
+                                onChange={(e) => updateActivityScheduleItem(sIdx, { customValue: Math.max(1, Number(e.target.value)) })}
+                                className="w-16 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs font-bold text-center"
+                              />
+                              <select
+                                value={s.customUnit}
+                                onChange={(e) => updateActivityScheduleItem(sIdx, { customUnit: e.target.value as any })}
+                                className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs font-bold"
+                              >
+                                <option value="HOURS">ساعت یک‌بار</option>
+                                <option value="DAYS">روز یک‌بار</option>
+                                <option value="WEEKS">هفته یک‌بار</option>
+                              </select>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Requires Note checkbox */}
+                        <label className="flex items-center gap-2 cursor-pointer pt-1 border-t border-slate-100 dark:border-slate-800">
+                          <input
+                            type="checkbox"
+                            checked={s.requiresNote}
+                            onChange={(e) => updateActivityScheduleItem(sIdx, { requiresNote: e.target.checked })}
+                            className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                            پرستار هنگام ثبت این تسک باید یادداشت / گزارش وضعیت وارد کند
+                          </span>
+                        </label>
+
+                        {/* Recurrence summary */}
+                        <div className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5 pt-1 bg-indigo-50/50 dark:bg-indigo-950/20 p-2 rounded-xl">
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                          <span>خلاصه نوبت: {getSchedSentence(s, mealSlots)}</span>
+                        </div>
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={addActivityScheduleItem}
+                      className="w-full py-2.5 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/60 dark:bg-indigo-950/40 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/50 text-indigo-900 dark:text-indigo-200 text-xs font-bold flex items-center justify-center gap-2 transition"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>افزودن نوبت مصرف دیگر برای این دارو</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 3: Discontinue Other Medications (Optional) */}
+              {eligibleActiveMeds.filter((m) => m.id !== activityMed.id).length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={activityDiscontinueOther}
+                      onChange={(e) => setActivityDiscontinueOther(e.target.checked)}
+                      className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
+                    />
+                    <span className="text-xs font-black text-rose-950 dark:text-rose-200">
+                      این نسخه داروی دیگری را لغو / متوقف می‌کند (جایگزینی دارو)
+                    </span>
+                  </label>
+
+                  {activityDiscontinueOther && (
+                    <div className="pt-2 border-t border-rose-200/60 dark:border-rose-900/50 space-y-3">
+                      <label className="block text-[11px] font-bold text-rose-900 dark:text-rose-300">
+                        داروهایی که باید متوقف شوند را انتخاب کنید:
+                      </label>
+                      <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                        {eligibleActiveMeds
+                          .filter((m) => m.id !== activityMed.id)
+                          .map((m) => {
+                            const isSelected = activitySelectedDiscontinueIds.includes(m.id);
+                            return (
+                              <label
+                                key={m.id}
+                                className={`flex items-center justify-between p-2 rounded-xl border text-xs font-bold cursor-pointer transition ${
+                                  isSelected
+                                    ? "bg-rose-100 dark:bg-rose-900/40 border-rose-300 dark:border-rose-700 text-rose-950 dark:text-rose-200"
+                                    : "bg-white dark:bg-slate-800 border-rose-200 dark:border-rose-900/40 text-slate-700 dark:text-slate-300 hover:bg-rose-50/50"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setActivitySelectedDiscontinueIds((prev) => [...prev, m.id]);
+                                      } else {
+                                        setActivitySelectedDiscontinueIds((prev) => prev.filter((id) => id !== m.id));
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 rounded text-rose-600"
+                                  />
+                                  <span>{m.nameFa}</span>
+                                </div>
+                                {m.boxNumber && (
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                    کد {toPersianDigits(m.boxNumber)}
+                                  </span>
+                                )}
+                              </label>
+                            );
+                          })}
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-rose-900 dark:text-rose-300 mb-1">
+                          علت بالینی قطع دارو:
+                        </label>
+                        <input
+                          type="text"
+                          value={activityDiscontinueReason}
+                          onChange={(e) => setActivityDiscontinueReason(e.target.value)}
+                          placeholder="علت بالینی قطع یا جایگزینی دارو..."
+                          className="w-full px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsActivityModalOpen(false);
+                  setActivityMed(null);
+                }}
+                className="px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                disabled={activitySubmitting}
+                onClick={handleSaveActivity}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-lg shadow-indigo-600/30 transition active:scale-95 disabled:opacity-50"
+              >
+                {activitySubmitting ? "در حال ثبت..." : "ثبت نسخه و زمان‌بندی"}
               </button>
             </div>
           </div>
@@ -2241,3 +2146,4 @@ export default function AdminMedicationsPage() {
     </div>
   );
 }
+

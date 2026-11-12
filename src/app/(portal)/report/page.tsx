@@ -245,20 +245,22 @@ export default function DoctorReportPage() {
             <table className="w-full text-right text-xs border border-slate-200 dark:border-slate-700">
               <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 font-black text-slate-700 dark:text-slate-300">
                 <tr>
-                  <th className="p-2.5">جعبه</th>
+                  <th className="p-2.5">کد دارو</th>
                   <th className="p-2.5">نام دارو</th>
                   <th className="p-2.5">دستور مصرف</th>
                   <th className="p-2.5">پزشک معالج</th>
-                  <th className="p-2.5">توضیحات نسخه</th>
+                  <th className="p-2.5">توضیحات دارو / نسخه</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                 {data.activeMedications.map((m, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="p-2.5 font-bold font-mono">
-                      {m.boxNumber ? `جعبه ${toPersianDigits(m.boxNumber)}` : "---"}
+                      {m.boxNumber ? `کد ${toPersianDigits(m.boxNumber)}` : "---"}
                     </td>
-                    <td className="p-2.5 font-black text-slate-900 dark:text-slate-100">{m.nameFa}</td>
+                    <td className="p-2.5 font-black text-slate-900 dark:text-slate-100">
+                      {m.boxNumber ? `[کد ${toPersianDigits(m.boxNumber)}] ` : ""}{m.nameFa}
+                    </td>
                     <td className="p-2.5 text-slate-700 dark:text-slate-300">{m.instructions || "طبق دستور"}</td>
                     <td className="p-2.5 text-slate-600 dark:text-slate-400">{m.doctorName || "---"}</td>
                     <td className="p-2.5 text-slate-500 dark:text-slate-400 text-[11px]">{m.doctorOrderNotes || "---"}</td>
@@ -282,7 +284,7 @@ export default function DoctorReportPage() {
                 <thead className="bg-rose-100/70 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/60 font-black text-rose-950 dark:text-rose-200">
                   <tr>
                     <th className="p-2.5">نام داروی متوقف‌شده</th>
-                    <th className="p-2.5">جعبه سابق</th>
+                    <th className="p-2.5">کد سابق</th>
                     <th className="p-2.5">تاریخ قطع</th>
                     <th className="p-2.5">دستوردهنده / پزشک</th>
                     <th className="p-2.5">علت بالینی توقف / جایگزینی</th>
@@ -291,9 +293,11 @@ export default function DoctorReportPage() {
                 <tbody className="divide-y divide-rose-200/60 dark:divide-rose-900/40">
                   {data.discontinuedMedications.map((m, idx) => (
                     <tr key={idx} className="hover:bg-rose-50/50 dark:hover:bg-rose-950/20">
-                      <td className="p-2.5 font-black text-slate-900 dark:text-slate-100">{m.nameFa}</td>
+                      <td className="p-2.5 font-black text-slate-900 dark:text-slate-100">
+                        {m.boxNumber ? `[کد ${toPersianDigits(m.boxNumber)}] ` : ""}{m.nameFa}
+                      </td>
                       <td className="p-2.5 font-bold font-mono text-slate-600 dark:text-slate-400">
-                        {m.boxNumber ? `جعبه ${toPersianDigits(m.boxNumber)}` : "---"}
+                        {m.boxNumber ? `کد ${toPersianDigits(m.boxNumber)}` : "---"}
                       </td>
                       <td className="p-2.5 font-mono text-slate-700 dark:text-slate-300">
                         {m.discontinuedAt ? formatJalaliDate(m.discontinuedAt) : "---"}

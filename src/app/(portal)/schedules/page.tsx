@@ -485,10 +485,8 @@ export default function AdminSchedulesPage() {
     setFormMedicationId(medId);
     const med = medications.find((m) => m.id === medId);
     if (med) {
-      let title = med.nameFa;
-      if (med.boxNumber) {
-        title += ` (جعبه ${toPersianDigits(med.boxNumber)})`;
-      }
+      const codeStr = med.boxNumber ? `کد ${toPersianDigits(med.boxNumber)} - ` : "";
+      let title = `${codeStr}${med.nameFa}`;
       if (med.dosage) {
         title += ` - ${med.dosage}`;
       }
@@ -1118,7 +1116,7 @@ export default function AdminSchedulesPage() {
                       {s.medication?.boxNumber && (
                         <div className="mt-1.5 flex items-center gap-2">
                           <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[11px] font-bold">
-                            جعبه {toPersianDigits(s.medication.boxNumber)}
+                            کد {toPersianDigits(s.medication.boxNumber)}
                           </span>
                           {s.medication.stockCount !== undefined && (
                             <span className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -1584,7 +1582,7 @@ export default function AdminSchedulesPage() {
                       <option value="">-- انتخاب دارو یا ورود آزاد عنوان در زیر --</option>
                       {medications.map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.nameFa} {m.boxNumber ? `(جعبه ${m.boxNumber})` : ""} {m.dosage ? `- ${m.dosage}` : ""}
+                          {m.boxNumber ? `[کد ${m.boxNumber}] ` : ""}{m.nameFa} {m.dosage ? `- ${m.dosage}` : ""}
                         </option>
                       ))}
                     </select>
@@ -1640,7 +1638,7 @@ export default function AdminSchedulesPage() {
                                   </div>
                                   {m.boxNumber && (
                                     <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                                      جعبه {toPersianDigits(m.boxNumber)}
+                                      کد {toPersianDigits(m.boxNumber)}
                                     </span>
                                   )}
                                 </label>

@@ -22,6 +22,11 @@ interface ScheduleItem {
     instructions?: string | null;
     timeConstraints?: string | null;
     stockCount?: number;
+    doctorOrderNotes?: string | null;
+  } | null;
+  prescription?: {
+    doctorName?: string | null;
+    notes?: string | null;
   } | null;
   requiresNote?: boolean;
   vitalType?: string | null;
@@ -1014,8 +1019,8 @@ export default function NurseTimelinePage() {
                       <div className="min-w-0 flex-1">
                         {/* Line 1: [کد دارو] نام دارو یا عنوان فعالیت */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          {item.medication?.boxNumber && (
-                            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/70 px-1.5 py-0.5 rounded-md ml-1.5">
+                          {item.medication?.boxNumber && !item.title.startsWith("کد ") && (
+                            <span className="text-xs font-black text-white bg-slate-900 dark:bg-slate-700 px-2 py-0.5 rounded-lg ml-1 font-mono">
                               کد {toPersianDigits(item.medication.boxNumber)}
                             </span>
                           )}
@@ -1030,18 +1035,22 @@ export default function NurseTimelinePage() {
                           )}
                         </div>
 
-                        {/* Line 2: دستور انجام فعالیت */}
-                        {(item.medication?.instructions || item.medication?.timeConstraints || (item.requiresNote && !item.isCompleted)) && (
-                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 truncate">
-                            {item.medication?.timeConstraints ? (
-                              <span className="text-rose-700 dark:text-rose-400 font-bold">
-                                ⚠️ {item.medication.timeConstraints}
-                              </span>
-                            ) : item.medication?.instructions ? (
-                              <span>{item.medication.instructions}</span>
-                            ) : item.requiresNote ? (
-                              <span className="text-indigo-700 dark:text-indigo-400 font-medium">📝 نیاز به ثبت گزارش</span>
-                            ) : null}
+                        {/* Line 2: نکات نسخه / تداخل دارویی */}
+                        {(item.prescription?.notes || item.medication?.timeConstraints || item.medication?.instructions || item.medication?.doctorOrderNotes || (item.requiresNote && !item.isCompleted)) && (
+                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 space-y-0.5">
+                            {item.medication?.timeConstraints && (
+                              <div className="text-rose-700 dark:text-rose-400 font-bold truncate">
+                                ⚠️ تداخل: {item.medication.timeConstraints}
+                              </div>
+                            )}
+                            {(item.prescription?.notes || item.medication?.instructions || item.medication?.doctorOrderNotes) && (
+                              <div className="text-slate-600 dark:text-slate-400 truncate">
+                                {item.prescription?.notes || item.medication?.instructions || item.medication?.doctorOrderNotes}
+                              </div>
+                            )}
+                            {item.requiresNote && (
+                              <div className="text-indigo-700 dark:text-indigo-400 font-medium">📝 نیاز به ثبت گزارش</div>
+                            )}
                           </div>
                         )}
                       </div>
