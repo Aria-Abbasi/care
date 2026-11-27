@@ -193,10 +193,16 @@ model PatientProfile {
 }
 
 model AdhocSuggestion {
-  id        String   @id @default(cuid())
-  title     String   @unique
-  category  String?  @default("مراقبتی")
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  title        String   @unique
+  category     String?  @default("مراقبتی") // vital, medication, meal, routine (legacy Persian categories are still supported)
+  vitalType    String?  // blood_sugar, blood_pressure, urine_output, water_intake, dvt_care, bowel_movement, laxative, clinical_photo
+  medicationId String?  // medication to deduct from stock when the nurse performs this activity
+  mealRelation String?  // selected recipe reference / meal relation for meal activities
+  requiresNote Boolean  @default(false)
+  defaultNotes String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
 }
 
 model MealTimeSlot {

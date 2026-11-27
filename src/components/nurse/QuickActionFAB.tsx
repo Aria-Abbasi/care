@@ -4,10 +4,17 @@ import { useState, useEffect, useRef } from "react";
 import {
   Plus, X, Droplets, Activity, Heart, Stethoscope,
   Smile, Camera, Timer, Check, AlertTriangle, Play, Square, Sparkles, ClipboardPlus, FileText,
-  Pill, Utensils, Clock
+  Pill, Utensils, Clock, Search, ChevronLeft
 } from "lucide-react";
 import { toPersianDigits } from "@/lib/jalali";
 import { compressImage, formatFileSize } from "@/lib/imageCompression";
+import {
+  ADHOC_CATEGORIES,
+  getAdhocCategory,
+  getAdhocVitalType,
+  normalizeAdhocCategory,
+  type AdhocSuggestionItem,
+} from "@/lib/adhoc-meta";
 
 export type QuickModalType =
   | null
@@ -19,7 +26,9 @@ export type QuickModalType =
   | "BOWEL"
   | "DVT"
   | "NOTE"
-  | "ADHOC";
+  | "ADHOC"
+  | "ADHOC_CONFIRM"
+  | "ADHOC_FREE";
 
 export interface ActiveActionTrigger {
   modal: QuickModalType;
@@ -34,6 +43,18 @@ interface QuickActionFABProps {
   onCloseAction?: () => void;
 }
 
+// Used only when the server list cannot be reached; server data always wins.
+const FALLBACK_ADHOC_SUGGESTIONS: AdhocSuggestionItem[] = [
+  { id: "fallback-1", title: "تعویض پانسمان موضعی", category: "routine", isActive: true },
+  { id: "fallback-2", title: "پانسمان زخم پای راست (DVT)", category: "routine", isActive: true },
+  { id: "fallback-3", title: "ماساژ اضافه و چرب کردن ساق پا", category: "routine", isActive: true },
+  { id: "fallback-4", title: "تعویض ملحفه و نظافت فوری", category: "routine", isActive: true },
+  { id: "fallback-5", title: "کنترل دمای بدن و تب", category: "vital", isActive: true },
+  { id: "fallback-6", title: "تنظیم سرم / آنژیوکت", category: "routine", isActive: true },
+  { id: "fallback-7", title: "کمک به جابجایی / ویلچر", category: "routine", isActive: true },
+  { id: "fallback-8", title: "دادن میان‌وعده اضافه", category: "meal", isActive: true },
+];
+
 export default function QuickActionFAB({
   onDataLogged,
   activeAction,
@@ -47,6 +68,20 @@ export default function QuickActionFAB({
   useEffect(() => {
     if (activeAction?.modal) {
       setActiveModal(activeAction.modal);
+      setAdhocTitle(activeAction.taskTitle || "");
+      setAdhocTemplateId(null);
+      setSelectedAdhocSuggestion(null);
+      if (
+        activeAction.modal === "GLUCOSE" ||
+        activeAction.modal === "BP" ||
+        activeAction.modal === "URINE" ||
+        activeAction.modal === "WATER" ||
+        activeAction.modal === "DVT" ||
+        activeAction.modal === "BOWEL" ||
+        activeAction.modal === "NOTE"
+      ) {
+        setAdhocCategory("vital");
+      }
       if (activeAction.mealRelation === "FASTING") {
         setSelectedTag("fasting");
       } else if (activeAction.mealRelation === "AFTER_MEAL") {
@@ -81,23 +116,20 @@ export default function QuickActionFAB({
   const [compressionStats, setCompressionStats] = useState<{ original: string; compressed: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Ad-hoc task state
+  // Recurring activities / ad-hoc task state
   const [adhocTitle, setAdhocTitle] = useState("");
-  const [adhocCategory, setAdhocCategory] = useState("vital");
+  const [adhocCategory, setAdhocCategory] = useState("routine");
   const [adhocNotes, setAdhocNotes] = useState("");
   const [adhocMedicationId, setAdhocMedicationId] = useState("");
+  const [adhocTemplateId, setAdhocTemplateId] = useState<string | null>(null);
+  const [selectedAdhocSuggestion, setSelectedAdhocSuggestion] = useState<AdhocSuggestionItem | null>(null);
+  const [adhocSuggestions, setAdhocSuggestions] = useState<AdhocSuggestionItem[]>([]);
+  const [adhocLoading, setAdhocLoading] = useState(false);
+  const [adhocUsingFallback, setAdhocUsingFallback] = useState(false);
+  const [adhocSearch, setAdhocSearch] = useState("");
+  const [adhocCategoryFilter, setAdhocCategoryFilter] = useState("all");
   const [medicationsList, setMedicationsList] = useState<Array<{ id: string; nameFa: string; boxNumber?: string | null; dosage?: string | null }>>([]);
   const [recipesList, setRecipesList] = useState<Array<{ id: string; title: string; type: "diet" | "smoothie" }>>([]);
-  const [adhocSuggestions, setAdhocSuggestions] = useState<Array<{ id: string; title: string; category?: string }>>([
-    { id: "1", title: "تعویض پانسمان موضعی", category: "routine" },
-    { id: "2", title: "پانسمان زخم پای راست (DVT)", category: "routine" },
-    { id: "3", title: "ماساژ اضافه و چرب کردن ساق پا", category: "routine" },
-    { id: "4", title: "تعویض ملحفه و نظافت فوری", category: "routine" },
-    { id: "5", title: "کنترل دمای بدن و تب", category: "vital" },
-    { id: "6", title: "تنظیم سرم / آنژیوکت", category: "routine" },
-    { id: "7", title: "کمک به جابجایی / ویلچر", category: "routine" },
-    { id: "8", title: "دادن میان‌وعده اضافه", category: "meal" },
-  ]);
 
   // Load medications list for ad-hoc medication selection
   useEffect(() => {
@@ -139,23 +171,37 @@ export default function QuickActionFAB({
     loadRecipes();
   }, []);
 
-  // Load ad-hoc suggestions dynamically from server
-  useEffect(() => {
-    async function loadSuggestions() {
-      try {
-        const res = await fetch("/api/admin/adhoc-suggestions");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.suggestions && data.suggestions.length > 0) {
-            setAdhocSuggestions(data.suggestions);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load adhoc suggestions:", err);
-      }
+  // Load recurring activities from server (only active ones are offered to the nurse)
+  async function loadAdhocSuggestions() {
+    setAdhocLoading(true);
+    try {
+      const res = await fetch("/api/admin/adhoc-suggestions?active=1");
+      if (!res.ok) throw new Error("Failed to load recurring activities");
+      const data = await res.json();
+      const list: AdhocSuggestionItem[] = Array.isArray(data.suggestions)
+        ? data.suggestions.filter((item: AdhocSuggestionItem) => item.isActive !== false)
+        : [];
+      setAdhocSuggestions(list);
+      setAdhocUsingFallback(false);
+    } catch (err) {
+      console.error("Failed to load recurring activities:", err);
+      setAdhocSuggestions(FALLBACK_ADHOC_SUGGESTIONS);
+      setAdhocUsingFallback(true);
+    } finally {
+      setAdhocLoading(false);
     }
-    loadSuggestions();
+  }
+
+  useEffect(() => {
+    loadAdhocSuggestions();
   }, []);
+
+  // Refresh the list every time the + sheet is opened
+  useEffect(() => {
+    if (activeModal === "ADHOC") {
+      loadAdhocSuggestions();
+    }
+  }, [activeModal]);
 
   // Sync active DVT timer status from server
   useEffect(() => {
@@ -174,7 +220,10 @@ export default function QuickActionFAB({
   // Listen to navbar + button clicks
   useEffect(() => {
     function handleOpenFromNavbar() {
+      setAdhocSearch("");
+      setAdhocCategoryFilter("all");
       setActiveModal("ADHOC");
+      loadAdhocSuggestions();
     }
     window.addEventListener("open-quick-action-menu", handleOpenFromNavbar);
     return () => window.removeEventListener("open-quick-action-menu", handleOpenFromNavbar);
@@ -203,9 +252,18 @@ export default function QuickActionFAB({
     setAdhocTitle("");
     setAdhocNotes("");
     setAdhocMedicationId("");
-    setAdhocCategory("vital");
+    setAdhocCategory("routine");
+    setAdhocTemplateId(null);
+    setSelectedAdhocSuggestion(null);
+    setAdhocSearch("");
+    setAdhocCategoryFilter("all");
     setActiveModal(null);
     onCloseAction?.();
+  }
+
+  // Title used by the vital sub-forms: recurring activity title wins, then external trigger title.
+  function getActionTitle(fallback: string) {
+    return adhocTitle.trim() || activeAction?.taskTitle || fallback;
   }
 
   // Handle DVT Start/Stop via Server API
@@ -218,7 +276,7 @@ export default function QuickActionFAB({
           body: JSON.stringify({
             action: "START",
             scheduleId: activeAction?.scheduleId,
-            taskTitle: activeAction?.taskTitle || "مراقبت DVT پای راست",
+            taskTitle: getActionTitle("مراقبت DVT پای راست"),
           }),
         });
         if (res.ok) {
@@ -279,7 +337,9 @@ export default function QuickActionFAB({
           valueNum: amount,
           valueText: `آب مصرفی ${amount} سی سی`,
           scheduleId: activeAction?.scheduleId,
-          taskTitle: activeAction?.taskTitle,
+          taskTitle: getActionTitle("مصرف آب و مایعات"),
+          category: adhocCategory,
+          templateId: adhocTemplateId || undefined,
         }),
       });
       if (res.ok) {
@@ -311,7 +371,9 @@ export default function QuickActionFAB({
           valueText: `تخلیه ادرار ${amount} سی سی - ${urineColor}`,
           extraData: { color: urineColor },
           scheduleId: activeAction?.scheduleId,
-          taskTitle: activeAction?.taskTitle,
+          taskTitle: getActionTitle("تخلیه ادرار سوند"),
+          category: adhocCategory,
+          templateId: adhocTemplateId || undefined,
         }),
       });
       if (res.ok) {
@@ -346,7 +408,9 @@ export default function QuickActionFAB({
           mealTag: selectedTag,
           valueText: `قند خون ${val} (${selectedTag})`,
           scheduleId: activeAction?.scheduleId,
-          taskTitle: activeAction?.taskTitle,
+          taskTitle: getActionTitle("ثبت قند خون"),
+          category: adhocCategory,
+          templateId: adhocTemplateId || undefined,
         }),
       });
       if (res.ok) {
@@ -378,7 +442,9 @@ export default function QuickActionFAB({
           diastolic: d < 20 ? d * 10 : d,
           valueText: `فشار خون ${s}/${d}`,
           scheduleId: activeAction?.scheduleId,
-          taskTitle: activeAction?.taskTitle,
+          taskTitle: getActionTitle("ثبت فشار خون"),
+          category: adhocCategory,
+          templateId: adhocTemplateId || undefined,
         }),
       });
       if (res.ok) {
@@ -424,7 +490,9 @@ export default function QuickActionFAB({
           valueText: summary,
           extraData: bowelNotes.trim() ? { notes: bowelNotes.trim() } : undefined,
           scheduleId: activeAction?.scheduleId,
-          taskTitle: activeAction?.taskTitle || (isBowel ? "ثبت کارکرد شکم" : "ثبت داروی ملین"),
+          taskTitle: getActionTitle(isBowel ? "ثبت کارکرد شکم" : "ثبت داروی ملین"),
+          category: adhocCategory,
+          templateId: adhocTemplateId || undefined,
         }),
       });
       if (res.ok) {
@@ -452,8 +520,9 @@ export default function QuickActionFAB({
       if (activeAction?.scheduleId) {
         fd.append("scheduleId", activeAction.scheduleId);
       }
-      if (activeAction?.taskTitle) {
-        fd.append("taskTitle", activeAction.taskTitle);
+      fd.append("taskTitle", getActionTitle("ثبت تصویر یا یادداشت بالینی"));
+      if (adhocTemplateId) {
+        fd.append("templateId", adhocTemplateId);
       }
 
       const res = await fetch("/api/nurse/notes", {
@@ -473,39 +542,126 @@ export default function QuickActionFAB({
     }
   }
 
-  // Submit Ad-Hoc Task
+  // Tap a recurring activity: open its specialized form, or a simple confirmation sheet.
+  function openAdhocSuggestion(suggestion: AdhocSuggestionItem) {
+    const vital = getAdhocVitalType(suggestion.vitalType);
+    const category = normalizeAdhocCategory(suggestion.category);
+
+    setSelectedAdhocSuggestion(suggestion);
+    setAdhocTitle(suggestion.title);
+    setAdhocCategory(category);
+    setAdhocNotes(suggestion.defaultNotes || "");
+    setAdhocMedicationId(suggestion.medicationId || "");
+    setAdhocTemplateId(suggestion.id);
+
+    // Clear any leftover values from a previous specialized form.
+    setKeypadValue("");
+    setSelectedTag("");
+    setBpSys("");
+    setBpDia("");
+    setBowelGrade("");
+    setLaxatives([]);
+    setBowelNotes(suggestion.defaultNotes || "");
+    setUrineColor("");
+    setNoteText(suggestion.defaultNotes || "");
+
+    if (vital) {
+      if (vital.id === "dvt_care") {
+        setActiveModal(null);
+        toggleDvtTimer();
+        return;
+      }
+      if (vital.bowelMode) setBowelMode(vital.bowelMode);
+      setActiveModal(vital.modal as QuickModalType);
+      return;
+    }
+
+    setActiveModal("ADHOC_CONFIRM");
+  }
+
+  function openFreeAdhocAction() {
+    setSelectedAdhocSuggestion(null);
+    setAdhocTitle("");
+    setAdhocNotes("");
+    setAdhocCategory("routine");
+    setAdhocMedicationId("");
+    setAdhocTemplateId(null);
+    setActiveModal("ADHOC_FREE");
+  }
+
+  // Submit a recurring activity from the confirmation sheet (or a free action).
   async function submitAdhocTask() {
-    if (!adhocTitle.trim()) return;
+    const title = adhocTitle.trim();
+    if (!title) {
+      showToast("عنوان فعالیت الزامی است");
+      return;
+    }
+
+    const isFreeAction = activeModal === "ADHOC_FREE";
+    if (!isFreeAction && selectedAdhocSuggestion?.requiresNote && !adhocNotes.trim()) {
+      showToast("ثبت توضیح برای این فعالیت الزامی است");
+      return;
+    }
     if (adhocCategory === "medication" && !adhocMedicationId) {
       showToast("لطفاً یک دارو از لیست داروها انتخاب کنید");
       return;
     }
+
     setSubmitting(true);
     try {
       const res = await fetch("/api/nurse/tasks/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          taskTitle: adhocTitle.trim(),
+          taskTitle: title,
           isAdHoc: true,
-          category: adhocCategory,
+          category: normalizeAdhocCategory(adhocCategory),
           notes: adhocNotes.trim() || undefined,
-          medicationId: adhocMedicationId || undefined,
+          medicationId: adhocMedicationId || selectedAdhocSuggestion?.medicationId || undefined,
+          templateId: adhocTemplateId || undefined,
           status: "DONE",
         }),
       });
 
       if (res.ok) {
-        showToast(`اقدام موردی ثبت شد: ${adhocTitle}`);
+        showToast(isFreeAction ? `اقدام آزاد ثبت شد: ${title}` : `فعالیت پرتکرار ثبت شد: ${title}`);
         resetForm();
         onDataLogged?.();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || "خطا در ثبت فعالیت");
       }
     } catch {
-      showToast("خطا در ثبت اقدام موردی");
+      showToast("خطا در ثبت فعالیت");
     } finally {
       setSubmitting(false);
     }
   }
+
+  const adhocCategoryChips: Array<{ id: string; label: string }> = [
+    { id: "all", label: "همه" },
+    ...ADHOC_CATEGORIES.map((category) => ({ id: category.id, label: category.label })),
+  ];
+
+  const filteredAdhocSuggestions = adhocSuggestions.filter((suggestion) => {
+    if (
+      adhocCategoryFilter !== "all" &&
+      normalizeAdhocCategory(suggestion.category) !== adhocCategoryFilter
+    ) {
+      return false;
+    }
+    if (adhocSearch.trim()) {
+      const query = adhocSearch.toLowerCase().trim();
+      const vital = getAdhocVitalType(suggestion.vitalType);
+      const category = getAdhocCategory(suggestion.category);
+      return (
+        suggestion.title.toLowerCase().includes(query) ||
+        category.label.toLowerCase().includes(query) ||
+        Boolean(vital?.title.toLowerCase().includes(query))
+      );
+    }
+    return true;
+  });
 
   return (
     <>
@@ -517,11 +673,10 @@ export default function QuickActionFAB({
         </div>
       )}
 
-      {/* Modal: Ad-Hoc Task (Unified UI matching /schedules) */}
+      {/* Bottom sheet: recurring activities list (opened by +) */}
       {activeModal === "ADHOC" && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col overflow-hidden transition-colors">
-            {/* Modal Header */}
+          <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[88vh] flex flex-col overflow-hidden transition-colors">
             <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
@@ -529,10 +684,10 @@ export default function QuickActionFAB({
                 </div>
                 <div>
                   <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-slate-100">
-                    ثبت اقدام موردی (خارج از برنامه)
+                    فعالیت پرتکرار
                   </h3>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    ثبت فوری تسک و اقدامی که در برنامه روتین نبوده و انجام شد
+                    یک فعالیت را انتخاب کنید؛ فرم ثبت همان فعالیت باز می‌شود
                   </p>
                 </div>
               </div>
@@ -545,311 +700,266 @@ export default function QuickActionFAB({
               </button>
             </div>
 
-            {/* Scrollable Modal Body */}
-            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
-              {/* Category Selector (Exact match to /schedules 4-card grid) */}
-              <div>
-                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                  دسته‌بندی اقدام:
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: "vital", label: "سنجش بالینی", icon: Activity },
-                    { id: "medication", label: "دارویی", icon: Pill },
-                    { id: "meal", label: "غذا و میان‌وعده", icon: Utensils },
-                    { id: "routine", label: "عمومی / سایر", icon: Clock },
-                  ].map((cat) => {
-                    const Icon = cat.icon;
-                    const isSelected = adhocCategory === cat.id;
+            <div className="p-4 sm:p-5 space-y-3 overflow-y-auto flex-1">
+              {/* Search */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={adhocSearch}
+                  onChange={(e) => setAdhocSearch(e.target.value)}
+                  placeholder="جستجو در فعالیت‌های پرتکرار..."
+                  className="w-full pl-3 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Category chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {adhocCategoryChips.map((chip) => {
+                  const count =
+                    chip.id === "all"
+                      ? adhocSuggestions.length
+                      : adhocSuggestions.filter(
+                          (item) => normalizeAdhocCategory(item.category) === chip.id
+                        ).length;
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      onClick={() => setAdhocCategoryFilter(chip.id)}
+                      className={"px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition flex items-center gap-1.5 " + (adhocCategoryFilter === chip.id ? "bg-indigo-600 text-white shadow-xs" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700")}
+                    >
+                      <span>{chip.label}</span>
+                      <span className={"px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold " + (adhocCategoryFilter === chip.id ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300")}>
+                        {toPersianDigits(count)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {adhocUsingFallback && (
+                <div className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2">
+                  ارتباط با سرور برقرار نشد؛ لیست پیش‌فرض نمایش داده می‌شود.
+                </div>
+              )}
+
+              {/* Activity rows */}
+              {adhocLoading ? (
+                <div className="p-8 text-center text-slate-400 dark:text-slate-500">
+                  <Sparkles className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-500" />
+                  <span className="text-xs font-bold">در حال بارگذاری فعالیت‌های پرتکرار...</span>
+                </div>
+              ) : filteredAdhocSuggestions.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 dark:text-slate-500">
+                  <ClipboardPlus className="w-7 h-7 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                  <p className="text-xs font-bold">موردی تعریف نشده است.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredAdhocSuggestions.map((suggestion) => {
+                    const category = getAdhocCategory(suggestion.category);
+                    const CategoryIcon = category.icon;
+                    const vital = getAdhocVitalType(suggestion.vitalType);
+                    const RowIcon = vital?.icon || CategoryIcon;
                     return (
                       <button
                         type="button"
-                        key={cat.id}
-                        onClick={() => {
-                          setAdhocCategory(cat.id);
-                          if (cat.id === "vital") {
-                            setAdhocMedicationId("");
-                          } else if (cat.id !== "medication") {
-                            setAdhocMedicationId("");
-                          }
-                        }}
-                        className={`p-2.5 rounded-2xl border-2 font-bold text-xs flex items-center justify-center gap-1.5 transition ${
-                          isSelected
-                            ? "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-600 dark:border-indigo-500 text-indigo-900 dark:text-indigo-200 shadow-xs"
-                            : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                        }`}
+                        key={suggestion.id}
+                        onClick={() => openAdhocSuggestion(suggestion)}
+                        className="w-full flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 active:scale-[0.99] transition text-right shadow-2xs"
                       >
-                        <Icon className={`w-4 h-4 ${isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"}`} />
-                        <span>{cat.label}</span>
+                        <div className={"w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 " + category.softClass}>
+                          <RowIcon className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
+                            {suggestion.title}
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                            {vital ? vital.title : suggestion.requiresNote ? "نیاز به ثبت گزارش" : "بدون پارامتر تخصصی"}
+                          </div>
+                        </div>
+                        <span className={"text-[10px] px-2 py-0.5 rounded-lg border font-bold flex-shrink-0 " + category.badgeClass}>
+                          {category.label}
+                        </span>
+                        <ChevronLeft className="w-4 h-4 text-slate-400 flex-shrink-0" />
                       </button>
                     );
                   })}
                 </div>
-              </div>
-
-              {/* Clinical Parameter Selector (when Vital category is selected) */}
-              {adhocCategory === "vital" && (
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-700 space-y-2">
-                  <label className="block text-xs font-black text-slate-800 dark:text-slate-200">
-                    انتخاب پارامتر بالینی (ورود مستقیم به فرم ثبت دقیق):
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {[
-                      {
-                        id: "GLUCOSE",
-                        title: "قند خون",
-                        desc: "ناشتا / ۲ ساعته / کیپد",
-                        icon: Heart,
-                        color: "border-rose-300 bg-rose-50 text-rose-950 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800",
-                        iconBg: "bg-rose-500 text-white",
-                      },
-                      {
-                        id: "BP",
-                        title: "فشار خون",
-                        desc: "سیستول / دیاستول",
-                        icon: Stethoscope,
-                        color: "border-purple-300 bg-purple-50 text-purple-950 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-800",
-                        iconBg: "bg-purple-500 text-white",
-                      },
-                      {
-                        id: "URINE",
-                        title: "تخلیه ادرار سوند",
-                        desc: "سی سی + رنگ",
-                        icon: Activity,
-                        color: "border-amber-300 bg-amber-50 text-amber-950 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800",
-                        iconBg: "bg-amber-500 text-white",
-                      },
-                      {
-                        id: "WATER",
-                        title: "آب و مایعات",
-                        desc: "استکان / لیوان / ماگ",
-                        icon: Droplets,
-                        color: "border-sky-300 bg-sky-50 text-sky-950 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-800",
-                        iconBg: "bg-sky-500 text-white",
-                      },
-                      {
-                        id: "DVT_TOGGLE",
-                        title: "DVT پای راست",
-                        desc: dvtActive ? "تایمر فعال است (پایین آوردن پا)" : "تایمر بالا بردن پا",
-                        icon: Timer,
-                        color: "border-teal-300 bg-teal-50 text-teal-950 dark:bg-teal-950/40 dark:text-teal-200 dark:border-teal-800",
-                        iconBg: "bg-teal-600 text-white",
-                      },
-                      {
-                        id: "BOWEL",
-                        title: "کارکرد روده و ملین",
-                        desc: "اجابت مزاج / شیاف / ساشه",
-                        icon: Smile,
-                        color: "border-orange-300 bg-orange-50 text-orange-950 dark:bg-orange-950/40 dark:text-orange-200 dark:border-orange-800",
-                        iconBg: "bg-orange-500 text-white",
-                      },
-                      {
-                        id: "NOTE",
-                        title: "ثبت تصویر یا یادداشت بالینی",
-                        desc: "عکس پا/DVT، قرمزی پوست، رویداد",
-                        icon: Camera,
-                        color: "border-emerald-300 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800",
-                        iconBg: "bg-emerald-600 text-white",
-                      },
-                    ].map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <button
-                          type="button"
-                          key={item.id}
-                          onClick={() => {
-                            if (item.id === "DVT_TOGGLE") {
-                              setActiveModal(null);
-                              toggleDvtTimer();
-                            } else {
-                              setActiveModal(item.id as QuickModalType);
-                            }
-                          }}
-                          className={`p-2.5 rounded-2xl border-2 text-right flex items-center justify-between transition hover:shadow-xs active:scale-95 ${item.color}`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs font-black">{item.title}</div>
-                            <div className="text-[10px] opacity-80 font-medium truncate">{item.desc}</div>
-                          </div>
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mr-2 ${item.iconBg}`}>
-                            <Icon className="w-4 h-4" />
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
               )}
 
-              {/* Medication Selector (when Medication category is selected) */}
-              {adhocCategory === "medication" && (
-                <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-900/50 space-y-2">
-                  <label className="block text-xs font-black text-indigo-950 dark:text-indigo-200">
-                    انتخاب از لیست داروها (اجباری - کسر اتوماتیک موجودی): <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={adhocMedicationId}
-                    required
-                    onChange={(e) => {
-                      const mId = e.target.value;
-                      setAdhocMedicationId(mId);
-                      const selected = medicationsList.find((m) => m.id === mId);
-                      if (selected) {
-                        const codePrefix = selected.boxNumber ? `[کد ${toPersianDigits(selected.boxNumber)}] ` : "";
-                        setAdhocTitle(`مصرف داروی ${codePrefix}${selected.nameFa}${selected.dosage ? ` (${selected.dosage})` : ""}`);
-                      } else {
-                        setAdhocTitle("");
-                      }
-                    }}
-                    className={`w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      !adhocMedicationId ? "border-amber-300 dark:border-amber-600" : "border-slate-200 dark:border-slate-700"
-                    }`}
-                  >
-                    <option value="">-- لطفاً یک دارو از لیست انتخاب کنید --</option>
-                    {medicationsList.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.boxNumber ? `[کد ${toPersianDigits(m.boxNumber)}] ` : ""}{m.nameFa} {m.dosage ? `(${m.dosage})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    با ثبت این اقدام، ۱ عدد از موجودی این دارو در منزل کسر خواهد شد.
+              {/* Free action stays at the bottom of the list */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={openFreeAdhocAction}
+                  className="w-full py-2.5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>اقدام آزاد</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sheet: confirm a simple recurring activity */}
+      {activeModal === "ADHOC_CONFIRM" && selectedAdhocSuggestion && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                  <Check className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-slate-100">
+                    تأیید فعالیت پرتکرار
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    عنوان از پیش تعیین شده و قابل ویرایش نیست
                   </p>
                 </div>
-              )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveModal("ADHOC")}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              {/* Meal & Smoothie Selector (when Meal category is selected) */}
-              {adhocCategory === "meal" && recipesList.length > 0 && (
-                <div className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 space-y-2">
-                  <label className="block text-xs font-black text-amber-950 dark:text-amber-200">
-                    انتخاب از اسموتی‌ها و دستورهای غذایی بیمار:
-                  </label>
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-0.5">
-                    {recipesList.map((recipe) => {
-                      const isSelected = adhocTitle === recipe.title || adhocTitle === `میان‌وعده: ${recipe.title}`;
-                      return (
-                        <button
-                          key={recipe.id}
-                          type="button"
-                          onClick={() => {
-                            setAdhocTitle(`میان‌وعده: ${recipe.title}`);
-                          }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                            isSelected
-                              ? "bg-amber-600 text-white shadow-xs"
-                              : "bg-white dark:bg-slate-800 text-amber-950 dark:text-amber-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-100/70 dark:hover:bg-amber-900/40"
-                          }`}
-                        >
-                          {recipe.type === "smoothie" ? "🥤 " : "🥣 "}
-                          {recipe.title}
-                        </button>
-                      );
-                    })}
-                  </div>
+            <div className="p-4 sm:p-5 space-y-4">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500">عنوان فعالیت</div>
+                <div className="text-sm font-black text-slate-900 dark:text-slate-100 leading-relaxed">
+                  {selectedAdhocSuggestion.title}
+                </div>
+                <span className={"inline-flex items-center px-2 py-0.5 rounded-lg border font-bold text-[10px] " + getAdhocCategory(selectedAdhocSuggestion.category).badgeClass}>
+                  {getAdhocCategory(selectedAdhocSuggestion.category).label}
+                </span>
+              </div>
+
+              {selectedAdhocSuggestion.defaultNotes && (
+                <div className="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-900/50 text-[11px] font-bold text-indigo-950 dark:text-indigo-200 leading-relaxed">
+                  {selectedAdhocSuggestion.defaultNotes}
                 </div>
               )}
 
-              {/* Title Presets, Inputs & Notes: ONLY shown for non-vital categories */}
-              {adhocCategory !== "vital" && (
-                <>
-                  {/* Title Presets based on selected category */}
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                      پیشنهادهای متداول:
-                    </label>
-                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60">
-                      {adhocSuggestions
-                        .filter((s) => !s.category || s.category === adhocCategory || adhocCategory === "routine")
-                        .map((suggestion) => (
-                          <button
-                            key={suggestion.id}
-                            type="button"
-                            onClick={() => {
-                              setAdhocTitle(suggestion.title);
-                              if (suggestion.category) setAdhocCategory(suggestion.category);
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                              adhocTitle === suggestion.title
-                                ? "bg-indigo-600 text-white shadow-xs"
-                                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                            }`}
-                          >
-                            {suggestion.title}
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-
-                  {/* Custom Title Input */}
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                      عنوان کامل اقدام: <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={adhocTitle}
-                      onChange={(e) => setAdhocTitle(e.target.value)}
-                      placeholder={
-                        adhocCategory === "meal"
-                          ? "مثلاً: میان‌وعده اضافه، آب هویج، بیسکویت دیابتیک..."
-                          : adhocCategory === "medication"
-                          ? "مثلاً: مصرف سرم تقویتی، مسکن موردی..."
-                          : "مثلاً: تعویض پانسمان موضعی، ماساژ ساق پا..."
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 text-xs font-bold outline-none transition"
-                    />
-                  </div>
-
-                  {/* Notes / Reason */}
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                      توضیحات و گزارش انجام کار (اختیاری):
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={adhocNotes}
-                      onChange={(e) => setAdhocNotes(e.target.value)}
-                      placeholder="علت نیاز به این اقدام، جزئیات اجرا یا وضعیت و واکنش بیمار..."
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 text-xs font-medium outline-none transition"
-                    />
-                  </div>
-                </>
-              )}
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                  توضیحات و گزارش انجام کار {selectedAdhocSuggestion.requiresNote ? "(الزامی):" : "(اختیاری):"}
+                </label>
+                <textarea
+                  rows={3}
+                  autoFocus
+                  value={adhocNotes}
+                  onChange={(e) => setAdhocNotes(e.target.value)}
+                  placeholder="وضعیت بیمار، نحوه انجام یا توضیحات تکمیلی..."
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 text-xs font-medium outline-none transition"
+                />
+              </div>
             </div>
 
-            {/* Modal Footer (Only shown for non-vital categories; vital actions have their own submodal submits) */}
-            {adhocCategory !== "vital" ? (
-              <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setActiveModal(null)}
-                  className="px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                >
-                  انصراف
-                </button>
-                <button
-                  type="button"
-                  disabled={submitting || !adhocTitle.trim() || (adhocCategory === "medication" && !adhocMedicationId)}
-                  onClick={submitAdhocTask}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-indigo-600/30 active:scale-95 transition flex items-center gap-1.5"
-                >
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>{submitting ? "در حال ثبت..." : "تأیید و ثبت اقدام"}</span>
-                </button>
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveModal("ADHOC")}
+                className="px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                disabled={submitting || (Boolean(selectedAdhocSuggestion.requiresNote) && !adhocNotes.trim())}
+                onClick={submitAdhocTask}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-indigo-600/30 active:scale-95 transition flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{submitting ? "در حال ثبت..." : "تأیید و ثبت"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sheet: free action (kept as the only manual entry path) */}
+      {activeModal === "ADHOC_FREE" && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-slate-100">
+                    ثبت اقدام آزاد
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    اقدامی که در لیست فعالیت‌های پرتکرار نیست
+                  </p>
+                </div>
               </div>
-            ) : (
-              <div className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/60 dark:bg-slate-800/60 flex-shrink-0 text-[11px] text-slate-500 dark:text-slate-400 font-bold px-4">
-                <span>یکی از پارامترهای بالا را برای ثبت مستقیم انتخاب کنید</span>
-                <button
-                  type="button"
-                  onClick={() => setActiveModal(null)}
-                  className="px-3.5 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition"
-                >
-                  بستن
-                </button>
+              <button
+                type="button"
+                onClick={() => setActiveModal("ADHOC")}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                  عنوان اقدام: <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={adhocTitle}
+                  onChange={(e) => setAdhocTitle(e.target.value)}
+                  placeholder="مثلاً: ماساژ گردن و شانه، تعویض ملحفه..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 text-xs font-bold outline-none transition"
+                />
               </div>
-            )}
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                  توضیحات (اختیاری):
+                </label>
+                <textarea
+                  rows={3}
+                  value={adhocNotes}
+                  onChange={(e) => setAdhocNotes(e.target.value)}
+                  placeholder="علت نیاز یا جزئیات انجام این اقدام..."
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 text-xs font-medium outline-none transition"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveModal("ADHOC")}
+                className="px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                disabled={submitting || !adhocTitle.trim()}
+                onClick={submitAdhocTask}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-indigo-600/30 active:scale-95 transition flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{submitting ? "در حال ثبت..." : "تأیید و ثبت"}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

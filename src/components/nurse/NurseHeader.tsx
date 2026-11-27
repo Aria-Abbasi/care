@@ -49,8 +49,8 @@ export default function NurseHeader({ user }: NurseHeaderProps) {
             type="button"
             onClick={handleOpenQuickActions}
             className="w-10 h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-90 text-white flex items-center justify-center shadow-md shadow-emerald-600/30 transition-all flex-shrink-0 cursor-pointer"
-            title="افزودن اقدام جدید پای تخت (ثبت سریع)"
-            aria-label="افزودن اقدام جدید"
+            title="انتخاب فعالیت پرتکرار (ثبت سریع)"
+            aria-label="فعالیت پرتکرار"
           >
             <Plus className="w-6 h-6 stroke-[2.5]" />
           </button>

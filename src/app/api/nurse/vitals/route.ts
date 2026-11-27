@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
       bowelGrade,
       laxativeGiven,
       extraData,
+      category,
+      templateId,
     } = body;
 
     if (!type) {
@@ -89,6 +91,8 @@ export async function POST(request: NextRequest) {
       }
       extraObj.taskLogId = taskLog.id;
       if (cleanScheduleId) extraObj.scheduleId = cleanScheduleId;
+      if (templateId) extraObj.adhocTemplateId = String(templateId);
+      if (category) extraObj.adhocCategory = String(category);
 
       await prisma.vitalLog.update({
         where: { id: vital.id },

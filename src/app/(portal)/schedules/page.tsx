@@ -11,6 +11,16 @@ import {
   toPersianDigits, formatJalaliDate, formatJalaliTime, formatJalaliDateTime,
   getJalaliToday, formatRecurrenceText, tehranMoment, isScheduleActiveOnDay
 } from "@/lib/jalali";
+import {
+  ADHOC_CATEGORIES,
+  ADHOC_VITAL_TYPES,
+  getAdhocCategory,
+  getAdhocCategoryLabel,
+  getAdhocVitalType,
+  normalizeAdhocCategory,
+  type AdhocCategoryId,
+  type AdhocSuggestionItem,
+} from "@/lib/adhoc-meta";
 
 interface MealSlotItem {
   id: string;
@@ -28,6 +38,12 @@ interface MedicationOption {
   dosage?: string | null;
   instructions?: string | null;
   timeConstraints?: string | null;
+}
+
+interface RecipeOption {
+  id: string;
+  title: string;
+  type: "diet" | "smoothie";
 }
 
 interface ScheduleItem {
@@ -73,14 +89,25 @@ export default function AdminSchedulesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Ad-hoc suggestions management state
+  // Recurring activities (Adhoc suggestions) management state
   const [mainTab, setMainTab] = useState<"schedules" | "adhoc">("schedules");
   const [adhocCategoryFilter, setAdhocCategoryFilter] = useState<string>("all");
   const [adhocSearch, setAdhocSearch] = useState<string>("");
-  const [adhocSuggestions, setAdhocSuggestions] = useState<Array<{ id: string; title: string; category?: string }>>([]);
-  const [newSuggestionTitle, setNewSuggestionTitle] = useState("");
-  const [newSuggestionCategory, setNewSuggestionCategory] = useState("مراقبتی");
+  const [adhocSuggestions, setAdhocSuggestions] = useState<AdhocSuggestionItem[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [recipes, setRecipes] = useState<RecipeOption[]>([]);
+
+  // Recurring activity create/edit modal state (no scheduling fields on purpose)
+  const [isAdhocModalOpen, setIsAdhocModalOpen] = useState(false);
+  const [editingSuggestion, setEditingSuggestion] = useState<AdhocSuggestionItem | null>(null);
+  const [adhocFormCategory, setAdhocFormCategory] = useState<AdhocCategoryId>("routine");
+  const [adhocFormVitalType, setAdhocFormVitalType] = useState<string>("");
+  const [adhocFormMedicationId, setAdhocFormMedicationId] = useState<string>("");
+  const [adhocFormMealRelation, setAdhocFormMealRelation] = useState<string>("");
+  const [adhocFormTitle, setAdhocFormTitle] = useState<string>("");
+  const [adhocFormDefaultNotes, setAdhocFormDefaultNotes] = useState<string>("");
+  const [adhocFormRequiresNote, setAdhocFormRequiresNote] = useState<boolean>(false);
+  const [adhocSaving, setAdhocSaving] = useState<boolean>(false);
 
   // Meal reference slots state
   const [mealSlots, setMealSlots] = useState<MealSlotItem[]>([]);
@@ -184,6 +211,30 @@ export default function AdminSchedulesPage() {
     }
   }, []);
 
+  // Fetch recipes (diets & smoothies) for recurring meal activities
+  const fetchRecipes = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/recipes");
+      if (res.ok) {
+        const data = await res.json();
+        const items: RecipeOption[] = [];
+        if (Array.isArray(data.smoothies)) {
+          data.smoothies.forEach((item: any) =>
+            items.push({ id: item.id, title: item.title, type: "smoothie" })
+          );
+        }
+        if (Array.isArray(data.diets)) {
+          data.diets.forEach((item: any) =>
+            items.push({ id: item.id, title: item.title, type: "diet" })
+          );
+        }
+        setRecipes(items);
+      }
+    } catch (err) {
+      console.error("Failed to load recipes:", err);
+    }
+  }, []);
+
   // Fetch Meal Reference Slots
   const fetchMealSlots = useCallback(async () => {
     try {
@@ -209,8 +260,9 @@ export default function AdminSchedulesPage() {
     fetchSchedules();
     fetchMedications();
     fetchAdhocSuggestions();
+    fetchRecipes();
     fetchMealSlots();
-  }, [fetchSchedules, fetchMedications, fetchAdhocSuggestions, fetchMealSlots]);
+  }, [fetchSchedules, fetchMedications, fetchAdhocSuggestions, fetchRecipes, fetchMealSlots]);
 
   // Helper to compute meal-relative target time
   function computeMealRelativeTargetTime(
@@ -301,43 +353,147 @@ export default function AdminSchedulesPage() {
     }
   }
 
-  // Add new Ad-hoc suggestion
-  async function handleAddSuggestion(e: React.FormEvent) {
+  // Open recurring activity create modal
+  function openCreateSuggestionModal() {
+    setEditingSuggestion(null);
+    setAdhocFormCategory("routine");
+    setAdhocFormVitalType("");
+    setAdhocFormMedicationId("");
+    setAdhocFormMealRelation("");
+    setAdhocFormTitle("");
+    setAdhocFormDefaultNotes("");
+    setAdhocFormRequiresNote(false);
+    setIsAdhocModalOpen(true);
+  }
+
+  // Open recurring activity edit modal with the same form as create
+  function openEditSuggestionModal(sug: AdhocSuggestionItem) {
+    setEditingSuggestion(sug);
+    const normalized = normalizeAdhocCategory(sug.category);
+    // Legacy rows (e.g. Persian categories) may not have a specialized detail yet;
+    // open them as routine instead of forcing a vital/medication selection just to edit.
+    const effectiveCategory =
+      normalized === "vital" && !sug.vitalType
+        ? "routine"
+        : normalized === "medication" && !sug.medicationId
+        ? "routine"
+        : normalized;
+    setAdhocFormCategory(effectiveCategory);
+    setAdhocFormVitalType(sug.vitalType || "");
+    setAdhocFormMedicationId(sug.medicationId || "");
+    setAdhocFormMealRelation(sug.mealRelation || "");
+    setAdhocFormTitle(sug.title || "");
+    setAdhocFormDefaultNotes(sug.defaultNotes || "");
+    setAdhocFormRequiresNote(Boolean(sug.requiresNote));
+    setIsAdhocModalOpen(true);
+  }
+
+  function handleSuggestionCategoryChange(category: AdhocCategoryId) {
+    setAdhocFormCategory(category);
+    if (category !== "vital") setAdhocFormVitalType("");
+    if (category !== "medication") setAdhocFormMedicationId("");
+    if (category !== "meal") setAdhocFormMealRelation("");
+  }
+
+  function handleSuggestionVitalSelect(vitalId: string) {
+    setAdhocFormVitalType(vitalId);
+    const vital = getAdhocVitalType(vitalId);
+    if (vital) setAdhocFormTitle(vital.defaultTitle);
+  }
+
+  function handleSuggestionMedicationSelect(medicationId: string) {
+    setAdhocFormMedicationId(medicationId);
+    const med = medications.find((item) => item.id === medicationId);
+    if (med) {
+      const codePrefix = med.boxNumber ? `[کد ${toPersianDigits(med.boxNumber)}] ` : "";
+      setAdhocFormTitle(
+        `مصرف داروی ${codePrefix}${med.nameFa}${med.dosage ? ` (${med.dosage})` : ""}`
+      );
+    }
+  }
+
+  async function handleSaveSuggestion(e: React.FormEvent) {
     e.preventDefault();
-    if (!newSuggestionTitle.trim()) return;
+    const title = adhocFormTitle.trim();
+    if (!title) {
+      showToast("عنوان فعالیت پرتکرار الزامی است");
+      return;
+    }
+    if (adhocFormCategory === "vital" && !adhocFormVitalType) {
+      showToast("لطفاً پارامتر بالینی این فعالیت پرتکرار را انتخاب کنید");
+      return;
+    }
+    if (adhocFormCategory === "medication" && !adhocFormMedicationId) {
+      showToast("لطفاً داروی این فعالیت پرتکرار را انتخاب کنید");
+      return;
+    }
+
+    const payload = {
+      title,
+      category: adhocFormCategory,
+      vitalType: adhocFormCategory === "vital" ? adhocFormVitalType : null,
+      medicationId: adhocFormCategory === "medication" ? adhocFormMedicationId : null,
+      mealRelation: adhocFormCategory === "meal" ? adhocFormMealRelation || null : null,
+      requiresNote: adhocFormRequiresNote,
+      defaultNotes: adhocFormDefaultNotes.trim() || null,
+    };
+
+    setAdhocSaving(true);
     try {
       const res = await fetch("/api/admin/adhoc-suggestions", {
-        method: "POST",
+        method: editingSuggestion ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newSuggestionTitle.trim(),
-          category: newSuggestionCategory,
-        }),
+        body: JSON.stringify(
+          editingSuggestion ? { ...payload, id: editingSuggestion.id } : payload
+        ),
       });
+
       if (res.ok) {
-        setNewSuggestionTitle("");
-        showToast("عنوان اقدام موردی اضافه شد");
+        showToast(editingSuggestion ? "فعالیت پرتکرار ویرایش شد" : "فعالیت پرتکرار اضافه شد");
+        setIsAdhocModalOpen(false);
+        setEditingSuggestion(null);
         fetchAdhocSuggestions();
       } else {
-        const err = await res.json();
-        showToast(err.error || "خطا در افزودن پیشنهاد");
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || "خطا در ذخیره فعالیت پرتکرار");
+      }
+    } catch {
+      showToast("خطا در ارتباط با سرور");
+    } finally {
+      setAdhocSaving(false);
+    }
+  }
+
+  async function handleToggleSuggestionActive(sug: AdhocSuggestionItem) {
+    try {
+      const res = await fetch("/api/admin/adhoc-suggestions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: sug.id, isActive: !sug.isActive }),
+      });
+      if (res.ok) {
+        showToast(sug.isActive ? "فعالیت پرتکرار غیرفعال شد" : "فعالیت پرتکرار فعال شد");
+        fetchAdhocSuggestions();
+      } else {
+        showToast("خطا در تغییر وضعیت فعالیت پرتکرار");
       }
     } catch {
       showToast("خطا در ارتباط با سرور");
     }
   }
 
-  // Delete Ad-hoc suggestion
-  async function handleDeleteSuggestion(id: string) {
+  // Delete recurring activity
+  async function handleDeleteSuggestion(sug: AdhocSuggestionItem) {
+    if (!confirm(`آیا از حذف فعالیت پرتکرار «${sug.title}» اطمینان دارید؟`)) return;
     try {
-      const res = await fetch(`/api/admin/adhoc-suggestions?id=${id}`, {
+      const res = await fetch(`/api/admin/adhoc-suggestions?id=${sug.id}`, {
         method: "DELETE",
       });
       if (res.ok) {
-        showToast("عنوان اقدام موردی حذف شد");
+        showToast("فعالیت پرتکرار حذف شد");
         fetchAdhocSuggestions();
       } else {
-        showToast("خطا در حذف پیشنهاد");
+        showToast("خطا در حذف فعالیت پرتکرار");
       }
     } catch {
       showToast("خطا در ارتباط با سرور");
@@ -750,16 +906,36 @@ export default function AdminSchedulesPage() {
   });
 
   const filteredAdhocSuggestions = adhocSuggestions.filter((s) => {
-    if (adhocCategoryFilter !== "all" && s.category !== adhocCategoryFilter) return false;
+    if (
+      adhocCategoryFilter !== "all" &&
+      normalizeAdhocCategory(s.category) !== adhocCategoryFilter
+    ) {
+      return false;
+    }
     if (adhocSearch.trim()) {
       const q = adhocSearch.toLowerCase().trim();
+      const med = s.medicationId
+        ? medications.find((item) => item.id === s.medicationId)
+        : null;
+      const vital = getAdhocVitalType(s.vitalType);
       return (
         s.title.toLowerCase().includes(q) ||
-        Boolean(s.category && s.category.toLowerCase().includes(q))
+        Boolean(s.category && getAdhocCategoryLabel(s.category).toLowerCase().includes(q)) ||
+        Boolean(vital?.title.toLowerCase().includes(q)) ||
+        Boolean(med?.nameFa.toLowerCase().includes(q))
       );
     }
     return true;
   });
+
+  const adhocCategoryChips: Array<{ id: string; label: string; icon?: any }> = [
+    { id: "all", label: "همه" },
+    ...ADHOC_CATEGORIES.map((category) => ({
+      id: category.id,
+      label: category.label,
+      icon: category.icon,
+    })),
+  ];
 
   const totalCount = schedules.length;
   const activeCount = schedules.filter((s) => s.status === "ACTIVE").length;
@@ -812,7 +988,8 @@ export default function AdminSchedulesPage() {
           }`}
         >
           <ClipboardPlus className="w-4 h-4" />
-          <span>پیشنهادات اقدامات موردی</span>
+          <span className="hidden sm:inline">فعالیت پرتکرار</span>
+          <span className="sm:hidden">پرتکرار</span>
           <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
             mainTab === "adhoc"
               ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300"
@@ -859,7 +1036,7 @@ export default function AdminSchedulesPage() {
                   className="px-5 py-2.5 rounded-2xl bg-care-600 hover:bg-care-700 text-white font-black text-xs shadow-lg shadow-care-600/30 flex items-center gap-2 transition active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
-                  <span>افزودن فعالیت جدید</span>
+                  <span>فعالیت با زمان‌بندی</span>
                 </button>
 
                 <button
@@ -882,11 +1059,11 @@ export default function AdminSchedulesPage() {
                     setMainTab("adhoc");
                   }}
                   className="px-4 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-950 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"
-                  title="مدیریت عناوین پیشنهادی اقدام موردی پرستار"
+                  title="مدیریت فعالیت‌های پرتکرار پرستار"
                 >
                   <ClipboardPlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <span className="hidden sm:inline">پیشنهادات اقدامات موردی</span>
-                  <span className="sm:hidden">اقدامات موردی</span>
+                  <span className="hidden sm:inline">فعالیت پرتکرار</span>
+                  <span className="sm:hidden">پرتکرار</span>
                 </button>
               </div>
             ) : (
@@ -1183,10 +1360,10 @@ export default function AdminSchedulesPage() {
         </>
       )}
 
-      {/* DEDICATED TAB: Ad-hoc Suggestions Management */}
+      {/* DEDICATED TAB: Recurring Activities (formerly ad-hoc suggestions) */}
       {mainTab === "adhoc" && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          {/* Ad-hoc Header Banner */}
+          {/* Recurring activities header banner */}
           <div className="bg-gradient-to-r from-indigo-50 via-white to-slate-50 dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 p-5 sm:p-6 rounded-3xl border border-indigo-100 dark:border-indigo-900/50 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start sm:items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-600/30">
@@ -1194,101 +1371,63 @@ export default function AdminSchedulesPage() {
               </div>
               <div>
                 <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100">
-                  مدیریت عناوین پیشنهادی اقدامات موردی
+                  مدیریت فعالیت‌های پرتکرار
                 </h2>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                  این عناوین در منوی سریع «اقدامات موردی» در کارتابل پرستار جهت انتخاب سریع بدون نیاز به تایپ نمایش داده می‌شوند.
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                  این‌ها با زدن + در موبایل پرستار نمایش داده می‌شوند
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-start sm:self-center">
+            <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
+              {userRole === "ADMIN" && (
+                <button
+                  type="button"
+                  onClick={openCreateSuggestionModal}
+                  className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition active:scale-95"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>افزودن فعالیت پرتکرار</span>
+                </button>
+              )}
               <button
                 onClick={fetchAdhocSuggestions}
                 className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50 active:scale-95 shadow-2xs"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loadingSuggestions ? "animate-spin" : ""}`} />
+                <RefreshCw className={"w-3.5 h-3.5" + (loadingSuggestions ? " animate-spin" : "")} />
                 <span>بروزرسانی</span>
               </button>
             </div>
           </div>
 
-          {/* Add New Suggestion Form (ADMIN only) */}
-          {userRole === "ADMIN" ? (
-            <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-              <div className="flex items-center gap-2 text-xs font-black text-slate-900 dark:text-slate-100">
-                <Plus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>افزودن عنوان اقدام موردی جدید:</span>
-              </div>
-              <form onSubmit={handleAddSuggestion} className="flex flex-col sm:flex-row gap-2.5">
-                <input
-                  type="text"
-                  required
-                  placeholder="عنوان اقدام (مثلاً: ماساژ گردن و شانه، پانسمان آرنج، تعویض ملحفه...)"
-                  value={newSuggestionTitle}
-                  onChange={(e) => setNewSuggestionTitle(e.target.value)}
-                  className="w-full sm:flex-1 px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 shadow-2xs"
-                />
-                <div className="flex items-center gap-2">
-                  <select
-                    value={newSuggestionCategory}
-                    onChange={(e) => setNewSuggestionCategory(e.target.value)}
-                    className="flex-1 sm:w-36 px-3.5 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs"
-                  >
-                    <option value="مراقبتی">مراقبتی</option>
-                    <option value="بهداشتی">بهداشتی</option>
-                    <option value="دارویی">دارویی</option>
-                    <option value="پایش علائم">پایش علائم</option>
-                    <option value="فوریت">فوریت</option>
-                  </select>
-                  <button
-                    type="submit"
-                    className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black transition active:scale-95 whitespace-nowrap shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4 stroke-[3]" />
-                    <span>افزودن عنوان</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          ) : (
+          {userRole !== "ADMIN" && (
             <div className="bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/80 rounded-2xl p-3 px-4 text-xs font-bold text-sky-800 dark:text-sky-300 flex items-center gap-2">
               <Info className="w-4 h-4 flex-shrink-0 text-sky-600 dark:text-sky-400" />
-              <span>دسترسی مشاهده‌کننده / پرستار: فقط مشاهده عناوین مجاز است (تعریف و حذف در انحصار مدیر است).</span>
+              <span>دسترسی مشاهده‌کننده / پرستار: فقط مشاهده فعالیت‌های پرتکرار مجاز است (تعریف و حذف در انحصار مدیر است).</span>
             </div>
           )}
 
-          {/* Category Filter Pills & Search */}
+          {/* Category chips & search */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            {/* Category Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {[
-                { id: "all", label: "تمام دسته‌ها" },
-                { id: "مراقبتی", label: "مراقبتی" },
-                { id: "بهداشتی", label: "بهداشتی" },
-                { id: "دارویی", label: "دارویی" },
-                { id: "پایش علائم", label: "پایش علائم" },
-                { id: "فوریت", label: "فوریت" },
-              ].map((cat) => {
-                const count = cat.id === "all"
-                  ? adhocSuggestions.length
-                  : adhocSuggestions.filter((s) => s.category === cat.id).length;
+              {adhocCategoryChips.map((cat) => {
+                const Icon = cat.icon;
+                const count =
+                  cat.id === "all"
+                    ? adhocSuggestions.length
+                    : adhocSuggestions.filter(
+                        (item) => normalizeAdhocCategory(item.category) === cat.id
+                      ).length;
                 return (
                   <button
                     key={cat.id}
+                    type="button"
                     onClick={() => setAdhocCategoryFilter(cat.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
-                      adhocCategoryFilter === cat.id
-                        ? "bg-indigo-600 text-white shadow-xs"
-                        : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    }`}
+                    className={"px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 " + (adhocCategoryFilter === cat.id ? "bg-indigo-600 text-white shadow-xs" : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800")}
                   >
+                    {Icon && <Icon className="w-3.5 h-3.5" />}
                     <span>{cat.label}</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                      adhocCategoryFilter === cat.id
-                        ? "bg-white/20 text-white"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                    }`}>
+                    <span className={"px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold " + (adhocCategoryFilter === cat.id ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500")}>
                       {toPersianDigits(count)}
                     </span>
                   </button>
@@ -1296,12 +1435,11 @@ export default function AdminSchedulesPage() {
               })}
             </div>
 
-            {/* Search Box */}
             <div className="relative w-full sm:w-72">
               <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="جستجو در عناوین پیشنهادی..."
+                placeholder="جستجو در فعالیت‌های پرتکرار..."
                 value={adhocSearch}
                 onChange={(e) => setAdhocSearch(e.target.value)}
                 className="w-full pl-3 pr-10 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 shadow-2xs"
@@ -1309,56 +1447,116 @@ export default function AdminSchedulesPage() {
             </div>
           </div>
 
-          {/* Suggestions Grid */}
+          {/* Recurring activities list */}
           {loadingSuggestions ? (
             <div className="p-12 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-xs font-bold">در حال بارگذاری عناوین پیشنهادی...</span>
+              <span className="text-xs font-bold">در حال بارگذاری فعالیت‌های پرتکرار...</span>
             </div>
           ) : filteredAdhocSuggestions.length === 0 ? (
             <div className="p-12 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700">
               <ClipboardPlus className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
-              <p className="text-xs font-bold">هیچ عنوان پیشنهادی با این فیلتر یافت نشد.</p>
+              <p className="text-xs font-bold">هیچ فعالیت پرتکراری با این فیلتر یافت نشد.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="space-y-3">
               {filteredAdhocSuggestions.map((sug) => {
-                const badgeColor =
-                  sug.category === "فوریت"
-                    ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-900"
-                    : sug.category === "دارویی"
-                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900"
-                    : sug.category === "بهداشتی"
-                    ? "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-900"
-                    : sug.category === "پایش علائم"
-                    ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-900"
-                    : "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-900";
-
+                const cat = getAdhocCategory(sug.category);
+                const CatIcon = cat.icon;
+                const vital = getAdhocVitalType(sug.vitalType);
+                const VitalIcon = vital?.icon;
+                const med = sug.medicationId
+                  ? medications.find((item) => item.id === sug.medicationId)
+                  : null;
                 return (
                   <div
                     key={sug.id}
-                    className="flex items-center justify-between gap-3 p-3.5 px-4 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-xs font-bold transition shadow-xs group"
+                    className={"bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border-2 transition shadow-xs hover:shadow-md " + (sug.isActive ? "border-slate-200/90 dark:border-slate-800" : "border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 opacity-60")}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" />
-                      <span className="truncate text-slate-900 dark:text-slate-100 font-bold">{sug.title}</span>
-                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className={"w-11 h-11 rounded-2xl border flex items-center justify-center flex-shrink-0 " + cat.softClass}>
+                          {VitalIcon ? <VitalIcon className="w-5 h-5" /> : <CatIcon className="w-5 h-5" />}
+                        </div>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {sug.category && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-lg border font-bold ${badgeColor}`}>
-                          {sug.category}
-                        </span>
-                      )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 leading-snug">
+                              {sug.title}
+                            </h3>
+                            <span className={"inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border font-bold text-[10px] " + cat.badgeClass}>
+                              <CatIcon className="w-3 h-3" />
+                              {cat.label}
+                            </span>
+                            {sug.requiresNote && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-100 dark:bg-sky-950/60 text-sky-900 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-bold text-[10px]">
+                                <FileText className="w-3 h-3 text-sky-700 dark:text-sky-400" />
+                                نیاز به ثبت گزارش
+                              </span>
+                            )}
+                            {sug.isActive ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold text-[10px]">
+                                فعال
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px]">
+                                غیرفعال
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-1.5 flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 flex-wrap">
+                            {vital && <span>{"پارامتر بالینی: " + vital.title}</span>}
+                            {!vital && med && (
+                              <span>
+                                {"داروی متصل: " + (med.boxNumber ? "کد " + toPersianDigits(med.boxNumber) + " - " : "") + med.nameFa}
+                              </span>
+                            )}
+                            {!vital && !med && sug.category === "meal" && (
+                              <span>اتصال به دستور/اسموتی بیمار</span>
+                            )}
+                            {!vital && !med && sug.category !== "meal" && (
+                              <span>بدون پارامتر بالینی</span>
+                            )}
+                            {sug.defaultNotes && (
+                              <span className="text-slate-400 dark:text-slate-500 truncate max-w-full">
+                                {" • " + sug.defaultNotes}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
                       {userRole === "ADMIN" && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSuggestion(sug.id)}
-                          className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded-xl transition"
-                          title="حذف این عنوان پیشنهادی"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSuggestionActive(sug)}
+                            className={"p-2.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition " + (sug.isActive ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700" : "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50")}
+                            title={sug.isActive ? "غیرفعال کردن موقت" : "فعال‌سازی مجدد"}
+                          >
+                            <Power className="w-4 h-4" />
+                            <span className="text-[11px]">{sug.isActive ? "غیرفعال" : "فعال‌سازی"}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openEditSuggestionModal(sug)}
+                            className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+                            title="ویرایش فعالیت پرتکرار"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSuggestion(sug)}
+                            className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition"
+                            title="حذف فعالیت پرتکرار"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1366,6 +1564,221 @@ export default function AdminSchedulesPage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Recurring Activity Modal (create/edit — same shell as nurse + modal, no scheduling fields) */}
+      {isAdhocModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                  <ClipboardPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-slate-100">
+                    {editingSuggestion ? "ویرایش فعالیت پرتکرار" : "تعریف فعالیت پرتکرار جدید"}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    این فعالیت در لیست + پرستار نمایش داده می‌شود؛ بدون زمان‌بندی و تکرار.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAdhocModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSuggestion} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                {/* Category selector */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                    دسته‌بندی فعالیت:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {ADHOC_CATEGORIES.map((cat) => {
+                      const Icon = cat.icon;
+                      const isSelected = adhocFormCategory === cat.id;
+                      return (
+                        <button
+                          type="button"
+                          key={cat.id}
+                          onClick={() => handleSuggestionCategoryChange(cat.id)}
+                          className={"p-2.5 rounded-2xl border-2 font-bold text-xs flex items-center justify-center gap-1.5 transition " + (isSelected ? "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-600 dark:border-indigo-500 text-indigo-900 dark:text-indigo-200 shadow-xs" : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800")}
+                        >
+                          <Icon className={"w-4 h-4 " + (isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400")} />
+                          <span>{cat.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Vital clinical parameter grid */}
+                {adhocFormCategory === "vital" && (
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-700 space-y-2">
+                    <label className="block text-xs font-black text-slate-800 dark:text-slate-200">
+                      پارامتر بالینی (فرم تخصصی پرستار): <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ADHOC_VITAL_TYPES.map((item) => {
+                        const Icon = item.icon;
+                        const isSelected = adhocFormVitalType === item.id;
+                        return (
+                          <button
+                            type="button"
+                            key={item.id}
+                            onClick={() => handleSuggestionVitalSelect(item.id)}
+                            className={"p-2.5 rounded-2xl border-2 text-right flex items-center justify-between transition " + (isSelected ? item.color + " ring-2 ring-slate-800 dark:ring-emerald-400 shadow-xs font-black" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60")}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-black">{item.title}</div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">{item.desc}</div>
+                            </div>
+                            <div className={"w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mr-2 " + item.iconBg}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Medication selector */}
+                {adhocFormCategory === "medication" && (
+                  <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-900/50 space-y-2">
+                    <label className="block text-xs font-black text-indigo-950 dark:text-indigo-200">
+                      انتخاب از لیست داروها (اجباری - کسر اتوماتیک موجودی): <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={adhocFormMedicationId}
+                      onChange={(e) => handleSuggestionMedicationSelect(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">-- لطفاً یک دارو از لیست انتخاب کنید --</option>
+                      {medications.map((med) => (
+                        <option key={med.id} value={med.id}>
+                          {med.boxNumber ? "[کد " + toPersianDigits(med.boxNumber) + "] " : ""}{med.nameFa} {med.dosage ? "(" + med.dosage + ")" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                      با هر بار ثبت این فعالیت توسط پرستار، ۱ عدد از موجودی این دارو کسر خواهد شد.
+                    </p>
+                  </div>
+                )}
+
+                {/* Meal / smoothie selector */}
+                {adhocFormCategory === "meal" && recipes.length > 0 && (
+                  <div className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 space-y-2">
+                    <label className="block text-xs font-black text-amber-950 dark:text-amber-200">
+                      انتخاب از اسموتی‌ها و دستورهای غذایی بیمار:
+                    </label>
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-0.5">
+                      {recipes.map((recipe) => {
+                        const key = recipe.type + ":" + recipe.id;
+                        const isSelected = adhocFormMealRelation === key;
+                        return (
+                          <button
+                            type="button"
+                            key={key}
+                            onClick={() => {
+                              setAdhocFormMealRelation(key);
+                              setAdhocFormTitle("میان‌وعده: " + recipe.title);
+                            }}
+                            className={"px-3 py-1.5 rounded-xl text-xs font-bold transition " + (isSelected ? "bg-amber-600 text-white shadow-xs" : "bg-white dark:bg-slate-800 text-amber-950 dark:text-amber-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-100/70 dark:hover:bg-amber-900/40")}
+                          >
+                            {recipe.type === "smoothie" ? "🥤 " : "🥣 "}
+                            {recipe.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Final title */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                    عنوان نهایی فعالیت: <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={adhocFormTitle}
+                    onChange={(e) => setAdhocFormTitle(e.target.value)}
+                    placeholder="مثلاً: سنجش قند خون ناشتا، تعویض پانسمان موضعی، میان‌وعده اضافه..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 text-xs font-bold outline-none transition"
+                  />
+                </div>
+
+                {/* Default notes */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                    توضیح پیش‌فرض (برای نمایش به پرستار):
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={adhocFormDefaultNotes}
+                    onChange={(e) => setAdhocFormDefaultNotes(e.target.value)}
+                    placeholder="مثلاً: قبل از سنجش، بیمار ناشتا باشد یا پانسمان با محلول سالین شست‌وشو شود..."
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 text-xs font-medium outline-none transition"
+                  />
+                </div>
+
+                {/* Requires note */}
+                <div className="p-3.5 rounded-2xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/50 flex items-center justify-between">
+                  <label className="flex items-center gap-2.5 cursor-pointer flex-1">
+                    <input
+                      type="checkbox"
+                      checked={adhocFormRequiresNote}
+                      onChange={(e) => setAdhocFormRequiresNote(e.target.checked)}
+                      className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div>
+                      <span className="text-xs font-black text-sky-950 dark:text-sky-200">
+                        نیاز به ثبت گزارش / توضیحات پرستار هنگام انجام دارد
+                      </span>
+                      <p className="text-[10px] text-sky-800 dark:text-sky-400 mt-0.5 leading-relaxed">
+                        با تایید پرستار، ثبت توضیح برای این فعالیت الزامی می‌شود.
+                      </p>
+                    </div>
+                  </label>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-200/80 dark:bg-sky-900/60 text-sky-950 dark:text-sky-200 flex-shrink-0">
+                    {adhocFormRequiresNote ? "الزامی" : "اختیاری"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Modal footer */}
+              <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsAdhocModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                >
+                  انصراف
+                </button>
+                <button
+                  type="submit"
+                  disabled={adhocSaving}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-indigo-600/30 active:scale-95 transition flex items-center gap-1.5"
+                >
+                  {adhocSaving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>{adhocSaving ? "در حال ذخیره..." : editingSuggestion ? "ذخیره تغییرات" : "افزودن فعالیت پرتکرار"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
