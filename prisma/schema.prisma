@@ -122,6 +122,8 @@ model TaskLog {
   completedAt DateTime  @default(now())
   status      String    @default("DONE") // DONE, SKIPPED, REFUSED
   notes       String?
+  medicationId String?  // medication whose stock was deducted by this completion
+  templateId   String?  // recurring activity (AdhocSuggestion) used for this completion
   createdAt   DateTime  @default(now())
 
   @@index([completedAt])

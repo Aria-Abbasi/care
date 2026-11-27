@@ -35,10 +35,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "لاگ مورد نظر یافت نشد" }, { status: 404 });
     }
 
-    // 1. If it was linked to a medication, restore 1 unit back to stock
-    if (taskLog.schedule?.medicationId) {
-      await prisma.medication.update({
-        where: { id: taskLog.schedule.medicationId },
+    // 1. Restore one unit only when this completion actually deducted stock.
+    //    New logs carry medicationId; legacy logs fall back to the schedule link.
+    const restoreMedicationId = taskLog.medicationId || taskLog.schedule?.medicationId || null;
+    if (taskLog.status === "DONE" && restoreMedicationId) {
+      // updateMany is a no-op when the medication was deleted, so undo never 500s.
+      await prisma.medication.updateMany({
+        where: { id: restoreMedicationId },
         data: { stockCount: { increment: 1 } },
       });
     }

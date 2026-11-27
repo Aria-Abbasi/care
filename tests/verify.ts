@@ -21,6 +21,8 @@ import { POST as postActivity } from "../src/app/api/admin/medications/activity/
 import { POST as postStopMed } from "../src/app/api/admin/medications/stop/route";
 import { POST as postVitals } from "../src/app/api/nurse/vitals/route";
 import { PUT as putEditLog } from "../src/app/api/nurse/tasks/edit-log/route";
+import { POST as postCompleteTask } from "../src/app/api/nurse/tasks/complete/route";
+import { POST as postUndoTask } from "../src/app/api/nurse/tasks/undo/route";
 import { POST as postUsers, PUT as putUsers } from "../src/app/api/admin/users/route";
 import { GET as getAdhoc, POST as postAdhoc, DELETE as deleteAdhoc } from "../src/app/api/admin/adhoc-suggestions/route";
 import { GET as getClinicalPhotos } from "../src/app/api/admin/clinical-photos/route";
@@ -1037,6 +1039,162 @@ async function runTests() {
       await prisma.medicationHistory.delete({ where: { id: restockHistory.id } });
     }
   }
+
+  console.log("\n================ 12.5 MEDICATION STOCK CONSISTENCY TESTS ================");
+  const stockFixMed = await prisma.medication.create({
+    data: { nameFa: "داروی تست موجودی و لغو", stockCount: 5, isActive: true },
+  });
+  const stockFixMedReq = (body: Record<string, unknown>) =>
+    new NextRequest("http://localhost:3000/api/nurse/tasks/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie: `care_token=${nurseAuthToken}` },
+      body: JSON.stringify(body),
+    });
+
+  const doneRes = await postCompleteTask(
+    stockFixMedReq({
+      taskTitle: "مصرف داروی تست موجودی",
+      isAdHoc: true,
+      status: "DONE",
+      medicationId: stockFixMed.id,
+      templateId: "test_template_stock",
+    })
+  );
+  assert(doneRes.status === 200, "Ad-hoc completion with a valid medication returns 200");
+  const doneLog = (await doneRes.json()).log;
+  assert(
+    (await prisma.medication.findUnique({ where: { id: stockFixMed.id } }))?.stockCount === 4,
+    "Successful DONE completion deducts exactly one unit (5 -> 4)"
+  );
+  assert(doneLog?.medicationId === stockFixMed.id, "TaskLog stores medicationId sent by the mobile client");
+  assert(doneLog?.templateId === "test_template_stock", "TaskLog stores templateId sent by the mobile client");
+
+  const undoDoneRes = await postUndoTask(
+    new NextRequest("http://localhost:3000/api/nurse/tasks/undo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie: `care_token=${nurseAuthToken}` },
+      body: JSON.stringify({ taskLogId: doneLog.id }),
+    })
+  );
+  assert(undoDoneRes.status === 200, "Undo works for an ad-hoc log with scheduleId = null");
+  assert(
+    (await prisma.medication.findUnique({ where: { id: stockFixMed.id } }))?.stockCount === 5,
+    "Ad-hoc undo restores stock through taskLog.medicationId (4 -> 5)"
+  );
+  assert((await prisma.taskLog.findUnique({ where: { id: doneLog.id } })) === null, "Ad-hoc undo deletes the task log");
+
+  await prisma.medication.update({ where: { id: stockFixMed.id }, data: { stockCount: 0 } });
+  const logsBeforeOOS = await prisma.taskLog.count();
+  const oosRes = await postCompleteTask(
+    stockFixMedReq({
+      taskTitle: "مصرف داروی بدون موجودی",
+      isAdHoc: true,
+      status: "DONE",
+      medicationId: stockFixMed.id,
+    })
+  );
+  assert(oosRes.status === 409, "DONE completion with zero stock returns 409");
+  assert(
+    (await oosRes.json()).error === "موجودی این دارو صفر است — اول خرید ثبت کن",
+    "Zero-stock 409 body contains the Persian purchase message"
+  );
+  assert((await prisma.taskLog.count()) === logsBeforeOOS, "Rejected zero-stock completion creates no TaskLog");
+
+  await prisma.medication.update({ where: { id: stockFixMed.id }, data: { isActive: false, stockCount: 5 } });
+  const inactiveRes = await postCompleteTask(
+    stockFixMedReq({
+      taskTitle: "مصرف داروی غیرفعال",
+      isAdHoc: true,
+      status: "DONE",
+      medicationId: stockFixMed.id,
+    })
+  );
+  assert(inactiveRes.status === 400, "Explicitly chosen inactive medication returns 400");
+
+  await prisma.medication.update({ where: { id: stockFixMed.id }, data: { isActive: true } });
+  const skippedRes = await postCompleteTask(
+    stockFixMedReq({
+      taskTitle: "عدم مصرف داروی تست",
+      isAdHoc: true,
+      status: "SKIPPED",
+      medicationId: stockFixMed.id,
+    })
+  );
+  assert(skippedRes.status === 200, "SKIPPED completion is logged successfully");
+  const skippedLog = (await skippedRes.json()).log;
+  assert(
+    (await prisma.medication.findUnique({ where: { id: stockFixMed.id } }))?.stockCount === 5,
+    "SKIPPED completion does not deduct stock"
+  );
+  const undoSkippedRes = await postUndoTask(
+    new NextRequest("http://localhost:3000/api/nurse/tasks/undo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie: `care_token=${nurseAuthToken}` },
+      body: JSON.stringify({ taskLogId: skippedLog.id }),
+    })
+  );
+  assert(undoSkippedRes.status === 200, "Undo of a SKIPPED log returns 200");
+  assert(
+    (await prisma.medication.findUnique({ where: { id: stockFixMed.id } }))?.stockCount === 5,
+    "Undo of a SKIPPED log does not increment stock"
+  );
+
+  // Legacy fallback: taskLog has no medicationId, the schedule still has one
+  const legacyFixMed = await prisma.medication.create({
+    data: { nameFa: "داروی تست undo قدیمی", stockCount: 9, isActive: true },
+  });
+  const legacyFixSched = await prisma.schedule.create({
+    data: {
+      title: "داروی تست undo قدیمی",
+      targetTime: "09:00",
+      category: "medication",
+      itemType: "medication",
+      medicationId: legacyFixMed.id,
+    },
+  });
+  const legacyFixLog = await prisma.taskLog.create({
+    data: {
+      scheduleId: legacyFixSched.id,
+      taskTitle: legacyFixSched.title,
+      nurseId: nurseUserRec!.id,
+      status: "DONE",
+    },
+  });
+  const legacyFixRes = await postUndoTask(
+    new NextRequest("http://localhost:3000/api/nurse/tasks/undo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie: `care_token=${nurseAuthToken}` },
+      body: JSON.stringify({ taskLogId: legacyFixLog.id }),
+    })
+  );
+  assert(legacyFixRes.status === 200, "Undo falls back to schedule.medicationId for legacy logs");
+  assert(
+    (await prisma.medication.findUnique({ where: { id: legacyFixMed.id } }))?.stockCount === 10,
+    "Legacy undo restored one unit (9 -> 10)"
+  );
+  assert((await prisma.taskLog.findUnique({ where: { id: legacyFixLog.id } })) === null, "Legacy undo deleted the task log");
+
+  // stockDelta must be a non-zero integer
+  const stockBeforeBadDeltas = (await prisma.medication.findUnique({ where: { id: stockFixMed.id } }))!.stockCount;
+  for (const badDelta of [0, 1.5, "abc"]) {
+    const badDeltaRes = await putMeds(
+      new NextRequest("http://localhost:3000/api/admin/medications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", cookie: `care_token=${adminAuthToken}` },
+        body: JSON.stringify({ id: stockFixMed.id, stockDelta: badDelta }),
+      })
+    );
+    assert(badDeltaRes.status === 400, `Invalid stockDelta ${JSON.stringify(badDelta)} is rejected with 400`);
+  }
+  assert(
+    (await prisma.medication.findUnique({ where: { id: stockFixMed.id } }))?.stockCount === stockBeforeBadDeltas,
+    "Invalid stockDelta values do not change stock"
+  );
+
+  await prisma.taskLog.deleteMany({ where: { medicationId: { in: [stockFixMed.id, legacyFixMed.id] } } });
+  await prisma.schedule.delete({ where: { id: legacyFixSched.id } });
+  await prisma.medication.deleteMany({ where: { id: { in: [stockFixMed.id, legacyFixMed.id] } } });
+  assert(true, "Medication stock consistency test records cleaned up");
 
   // Cleanup test user
   await prisma.user.delete({ where: { id: createdViewerId } });

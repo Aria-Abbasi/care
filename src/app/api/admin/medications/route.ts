@@ -152,6 +152,12 @@ export async function PUT(request: NextRequest) {
     // Purchase / restock (فرم خرید دارو)
     if (stockDelta !== undefined) {
       const deltaNum = Number(stockDelta);
+      if (!Number.isInteger(deltaNum) || deltaNum === 0) {
+        return NextResponse.json(
+          { error: "مقدار تغییر موجودی باید عدد صحیح و غیر صفر باشد" },
+          { status: 400 }
+        );
+      }
       const updated = await prisma.medication.update({
         where: { id },
         data: { stockCount: { increment: deltaNum } },

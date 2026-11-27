@@ -771,22 +771,6 @@ export default function AdminMedicationsPage() {
     }
   }
 
-  async function updateStockDelta(id: string, delta: number) {
-    try {
-      await fetch("/api/admin/medications", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, stockDelta: delta }),
-      });
-      setMedications((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, stockCount: m.stockCount + delta } : m))
-      );
-      showToast(`موجودی ${delta > 0 ? `+${delta}` : delta} عدد تغییر کرد`);
-    } catch (err) {
-      console.error("Stock update error:", err);
-    }
-  }
-
   // Filter based on active tabs & search
   const filteredMeds = medications.filter((m) => {
     if (activeTab === "active" && !m.isActive) return false;
